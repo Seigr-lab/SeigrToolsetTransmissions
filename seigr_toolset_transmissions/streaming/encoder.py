@@ -35,18 +35,22 @@ class StreamEncoder:
         Encode (encrypt) a data chunk.
         
         Args:
-            data: Chunk data to encrypt
+            data: Chunk data to encrypt (can be empty)
             
         Returns:
-            Encrypted chunk with metadata
+            Encrypted chunk with metadata in TLV format
         """
-        # Encrypt chunk using stream context
-        encrypted, metadata = self.stream_context.encrypt_chunk(data)
+        if not isinstance(data, bytes):
+            raise STTStreamingError("Data must be bytes")
         
-        # Combine encrypted data and metadata
-        # Format: [metadata_length (4 bytes)] [metadata] [encrypted_data]
-        metadata_length = len(metadata).to_bytes(4, 'big')
-        encoded = metadata_length + metadata + encrypted
+        # Handle empty data - still encrypt for integrity
+        # Encrypt chunk using stream context - returns (encrypted_bytes, metadata_bytes)
+        encrypted, metadata_bytes = self.stream_context.encrypt_chunk(data)
+        
+        # Metadata is already in TLV format from STC
+        # Format: [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
+        metadata_length = len(metadata_bytes).to_bytes(4, 'big')
+        encoded = metadata_length + metadata_bytes + encrypted
         
         # Increment sequence
         self._sequence += 1

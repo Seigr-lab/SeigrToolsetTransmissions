@@ -203,9 +203,12 @@ class TestSTTHandshake:
         # Create hello
         hello = initiator.create_hello()
         
-        # Processing should fail with wrong seed
+        # Responder creates challenge (doesn't fail yet)
+        challenge = responder.process_hello(hello)
+        
+        # Initiator tries to decrypt challenge - THIS should fail
         with pytest.raises(STTHandshakeError):
-            responder.process_hello(hello)
+            initiator.process_response(challenge)
     
     def test_handshake_serialization(self, initiator_node_id, stc_wrapper):
         """Test handshake message serialization."""

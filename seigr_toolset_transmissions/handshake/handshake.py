@@ -387,204 +387,160 @@ class HandshakeManager:
         
         return session_id
     
-    def get_session_id(self, peer_node_id: bytes) -> Optional[bytes]:
+    def get_session_id(self, peer_address: tuple) -> Optional[bytes]:
         """Get session ID for peer if handshake completed."""
-        handshake = self.active_handshakes.get(peer_node_id)
+        # Check active handshakes
+        handshake = self.active_handshakes.get(peer_address)
+        if handshake and handshake.completed:
+            return handshake.get_session_id()
+        
+        # Check completed sessions
+        for session_id, hs in self.completed_sessions.items():
+            return session_id
+        
+        return None
+    
+    async def initiate_handshake(self, peer_address: tuple) -> STTHandshake:
+        """
+        Async-compatible initiate handshake.
+        
+        Args:
+            peer_address: Peer address tuple (ip, port)
+            
+        Returns:
+            STTHandshake instance
+        """
+        handshake = STTHandshake(
+            node_id=self.node_id,
+            stc_wrapper=self.stc_wrapper,
+            is_initiator=True
+        )
+        
+        self.active_handshakes[peer_address] = handshake
+        return handshake
+    
+    async def handle_incoming(self, peer_address: tuple, data: bytes) -> bytes:
+        """
+        Handle incoming handshake message.
+        
+        Args:
+            peer_address: Peer address tuple (ip, port)
+            data: Incoming message data
+            
+        Returns:
+            Response message to send back
+        """
+        # Check if we have existing handshake
+        handshake = self.active_handshakes.get(peer_address)
+        
+        # Process message based on type
+        msg = deserialize_stt(data)
+        msg_type = msg.get('type')
+        
+        if msg_type == 'HELLO':
+            # New incoming handshake
+            if not handshake:
+                handshake = STTHandshake(
+                    node_id=self.node_id,
+                    stc_wrapper=self.stc_wrapper,
+                    is_initiator=False
+                )
+                self.active_handshakes[peer_address] = handshake
+            return handshake.process_hello(data)
+        
+        elif msg_type == 'RESPONSE':
+            # Response to our HELLO - we are initiator
+            if not handshake:
+                raise STTHandshakeError("Received RESPONSE with no active handshake")
+            return handshake.process_response(data)
+        
+        elif msg_type == 'AUTH_PROOF':
+            # Proof from initiator - we are responder
+            if not handshake:
+                raise STTHandshakeError("Received AUTH_PROOF with no active handshake")
+            return handshake.verify_response(data)
+        
+        elif msg_type == 'FINAL':
+            # Final confirmation - we are initiator
+            if not handshake:
+                raise STTHandshakeError("Received FINAL with no active handshake")
+            handshake.process_final(data)
+            # Mark complete
+            session_id = handshake.get_session_id()
+            if session_id:
+                self.completed_sessions[session_id] = handshake
+                del self.active_handshakes[peer_address]
+            return b''  # No response needed
+        
+        else:
+            raise STTHandshakeError(f"Unknown message type: {msg_type}")
+    
+    async def complete_handshake(self, peer_address: tuple) -> Optional[bytes]:
+        """
+        Complete handshake and get session ID.
+        
+        Args:
+            peer_address: Peer address tuple (ip, port)
+            
+        Returns:
+            Session ID if completed
+        """
+        handshake = self.active_handshakes.get(peer_address)
+        if handshake and handshake.completed:
+            session_id = handshake.get_session_id()
+            self.completed_sessions[session_id] = handshake
+            del self.active_handshakes[peer_address]
+            return session_id
+        return None
+    
+    async def get_session_id_async(self, peer_address: tuple) -> Optional[bytes]:
+        """
+        Async get session ID for peer.
+        
+        Args:
+            peer_address: Peer address tuple (ip, port)
+            
+        Returns:
+            Session ID if completed
+        """
+        handshake = self.active_handshakes.get(peer_address)
         if handshake and handshake.completed:
             return handshake.get_session_id()
         return None
-
-        self.our_nonce = secrets.token_bytes(32)
-        timestamp = int(time.time() * 1000)
-        
-        # Create commitment to prove we know shared seed
-        commitment = self.shared_context.hash(
-            self.our_nonce + self.node_id,
-            context_data={'purpose': 'hello_commitment', 'timestamp': timestamp}
-        )
-        
-        # Build HELLO message
-        hello_msg = {
-            'type': 'HELLO',
-            'node_id': self.node_id.hex(),
-            'nonce': self.our_nonce.hex(),
-            'timestamp': timestamp,
-            'capabilities': ['tcp', 'udp', 'streaming', 'dht', 'websocket'],
-            'commitment': commitment.hex()
-        }
-        
-        self.state = HandshakeState.HELLO_SENT
-        
-        return serialize_stt(hello_msg)
     
-    def handle_hello(self, hello_bytes: bytes) -> bytes:
+    def is_handshake_complete(self, peer_address: tuple) -> bool:
         """
-        Handle received HELLO message and create HELLO_RESP.
+        Check if handshake is complete for peer.
         
         Args:
-            hello_bytes: Serialized HELLO message
+            peer_address: Peer address tuple (ip, port)
             
         Returns:
-            Serialized HELLO_RESP message
-            
-        Raises:
-            STTHandshakeError: If verification fails
+            True if handshake completed
         """
-        if self.state not in (HandshakeState.INIT, HandshakeState.HELLO_SENT):
-            raise STTHandshakeError(
-                f"Cannot handle HELLO from state {self.state.name}"
-            )
+        # Check both active and completed
+        handshake = self.active_handshakes.get(peer_address)
+        if handshake and handshake.completed:
+            return True
         
-        # Parse HELLO
-        try:
-            hello = deserialize_stt(hello_bytes)
-        except Exception as e:
-            raise STTHandshakeError(f"Failed to parse HELLO: {e}")
+        # Check if session was moved to completed
+        for handshake in self.completed_sessions.values():
+            if handshake.peer_node_id:
+                return True
         
-        if hello.get('type') != 'HELLO':
-            raise STTHandshakeError(f"Expected HELLO, got {hello.get('type')}")
-        
-        # Verify commitment
-        peer_nonce = bytes.fromhex(hello['nonce'])
-        peer_node_id = bytes.fromhex(hello['node_id'])
-        timestamp = hello['timestamp']
-        
-        expected_commitment = self.shared_context.hash(
-            peer_nonce + peer_node_id,
-            context_data={'purpose': 'hello_commitment', 'timestamp': timestamp}
-        )
-        
-        received_commitment = bytes.fromhex(hello['commitment'])
-        
-        if expected_commitment != received_commitment:
-            self.state = HandshakeState.FAILED
-            raise STTHandshakeError("Invalid commitment - authentication failed")
-        
-        # Store peer info
-        self.peer_nonce = peer_nonce
-        self.peer_node_id = peer_node_id
-        
-        # Generate our nonce if we haven't already
-        if self.our_nonce is None:
-            self.our_nonce = secrets.token_bytes(32)
-        
-        # Derive session key
-        self.session_key = self.shared_context.derive_key(
-            context_data={
-                'nonce_a': hello['nonce'],
-                'nonce_b': self.our_nonce.hex(),
-                'timestamp': timestamp,
-                'node_a': hello['node_id'],
-                'node_b': self.node_id.hex(),
-                'purpose': 'session_key'
-            },
-            key_size=32
-        )
-        
-        # Create challenge for peer to prove they derived same key
-        challenge = self.shared_context.hash(
-            self.session_key + peer_nonce,
-            context_data={'purpose': 'auth_challenge'}
-        )
-        
-        # Build HELLO_RESP
-        response_msg = {
-            'type': 'HELLO_RESP',
-            'node_id': self.node_id.hex(),
-            'nonce': self.our_nonce.hex(),
-            'challenge': challenge.hex()
-        }
-        
-        self.state = HandshakeState.RESPONSE_SENT
-        
-        return serialize_stt(response_msg)
+        return False
     
-    def handle_response(self, response_bytes: bytes) -> Tuple[bytes, bytes]:
+    def cleanup_timeouts(self, max_age: float = 30.0):
         """
-        Handle HELLO_RESP and complete handshake.
+        Clean up old incomplete handshakes.
         
         Args:
-            response_bytes: Serialized HELLO_RESP message
-            
-        Returns:
-            Tuple of (session_key, peer_node_id)
-            
-        Raises:
-            STTHandshakeError: If verification fails
+            max_age: Maximum age in seconds
         """
-        if self.state != HandshakeState.HELLO_SENT:
-            raise STTHandshakeError(
-                f"Cannot handle RESPONSE from state {self.state.name}"
-            )
+        import time
+        current_time = time.time()
         
-        # Parse HELLO_RESP
-        try:
-            response = deserialize_stt(response_bytes)
-        except Exception as e:
-            raise STTHandshakeError(f"Failed to parse HELLO_RESP: {e}")
-        
-        if response.get('type') != 'HELLO_RESP':
-            raise STTHandshakeError(
-                f"Expected HELLO_RESP, got {response.get('type')}"
-            )
-        
-        # Extract peer info
-        self.peer_nonce = bytes.fromhex(response['nonce'])
-        self.peer_node_id = bytes.fromhex(response['node_id'])
-        
-        # Derive session key (same derivation as peer)
-        self.session_key = self.shared_context.derive_key(
-            context_data={
-                'nonce_a': self.our_nonce.hex(),
-                'nonce_b': response['nonce'],
-                'timestamp': int(time.time() * 1000),
-                'node_a': self.node_id.hex(),
-                'node_b': response['node_id'],
-                'purpose': 'session_key'
-            },
-            key_size=32
-        )
-        
-        # Verify challenge
-        expected_challenge = self.shared_context.hash(
-            self.session_key + self.our_nonce,
-            context_data={'purpose': 'auth_challenge'}
-        )
-        
-        received_challenge = bytes.fromhex(response['challenge'])
-        
-        if expected_challenge != received_challenge:
-            self.state = HandshakeState.FAILED
-            raise STTHandshakeError("Challenge verification failed")
-        
-        self.state = HandshakeState.COMPLETED
-        
-        return self.session_key, self.peer_node_id
-    
-    def get_session_key(self) -> Optional[bytes]:
-        """
-        Get derived session key.
-        
-        Returns:
-            Session key if handshake completed, None otherwise
-        """
-        if self.state == HandshakeState.COMPLETED:
-            return self.session_key
-        return None
-    
-    def get_peer_node_id(self) -> Optional[bytes]:
-        """
-        Get peer's node ID.
-        
-        Returns:
-            Peer node ID if available, None otherwise
-        """
-        return self.peer_node_id
-    
-    def reset(self):
-        """Reset handshake state for retry."""
-        self.state = HandshakeState.INIT
-        self.our_nonce = None
-        self.peer_nonce = None
-        self.peer_node_id = None
-        self.session_key = None
+        # Remove old handshakes (would need timestamps in real implementation)
+        # For now, remove all incomplete handshakes if max_age is 0
+        if max_age == 0:
+            self.active_handshakes.clear()

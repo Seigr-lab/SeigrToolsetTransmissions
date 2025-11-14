@@ -2,7 +2,7 @@
 STC-based streaming decoder for chunk-wise decryption.
 """
 
-from typing import Dict
+from typing import Dict, List, Optional
 
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamingError
@@ -32,35 +32,93 @@ class StreamDecoder:
         # Track chunks for out-of-order delivery
         self.chunk_buffer: Dict[int, bytes] = {}
         self.next_expected_index = 0
+        
+        # Keep ordered list of decoded chunks
+        self.decoded_chunks: List[bytes] = []
     
-    def decode_chunk(self, encoded_data: bytes, chunk_index: int) -> bytes:
+    def decode_chunk(self, encoded_data: bytes, sequence: Optional[int] = None) -> bytes:
         """
         Decode (decrypt) a data chunk.
         
         Args:
-            encoded_data: Encrypted chunk with metadata
-            chunk_index: Chunk sequence number
+            encoded_data: Encrypted chunk with TLV metadata
+            sequence: Optional sequence number for out-of-order delivery
             
         Returns:
             Decrypted chunk data
+            
+        Raises:
+            STTStreamingError: If data is corrupted or decryption fails
         """
-        # Parse encoded data
-        # Format: [metadata_length (4 bytes)] [metadata] [encrypted_data]
-        metadata_length = int.from_bytes(encoded_data[:4], 'big')
-        metadata = encoded_data[4:4 + metadata_length]
-        encrypted = encoded_data[4 + metadata_length:]
+        try:
+            if not isinstance(encoded_data, bytes):
+                raise STTStreamingError("Encoded data must be bytes")
+            
+            if len(encoded_data) < 4:
+                raise STTStreamingError("Encoded data too short")
+            
+            # Parse encoded data
+            # Format: [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
+            metadata_length = int.from_bytes(encoded_data[:4], 'big')
+            
+            if metadata_length > len(encoded_data) - 4:
+                raise STTStreamingError("Invalid metadata length")
+            
+            metadata_bytes = encoded_data[4:4 + metadata_length]
+            encrypted = encoded_data[4 + metadata_length:]
+            
+            # Use provided sequence or auto-increment
+            chunk_index = sequence if sequence is not None else self.next_expected_index
+            
+            # Decrypt chunk using stream context
+            # metadata_bytes is already in TLV format from STC
+            decrypted = self.stream_context.decrypt_chunk(
+                encrypted,
+                metadata_bytes,
+                chunk_index
+            )
+            
+            # Store in buffer if out-of-order
+            if sequence is not None:
+                self.chunk_buffer[sequence] = decrypted
+            else:
+                # In-order chunk, add to decoded list
+                self.decoded_chunks.append(decrypted)
+                self.next_expected_index += 1
+            
+            return decrypted
+            
+        except (ValueError, IndexError, KeyError) as e:
+            raise STTStreamingError(f"Failed to decode chunk: {e}")
+        except Exception as e:
+            raise STTStreamingError(f"Decryption failed: {e}")
+    
+    def get_ordered_chunks(self) -> List[bytes]:
+        """
+        Get chunks in order from buffer.
         
-        # Decrypt chunk using stream context
-        decrypted = self.stream_context.decrypt_chunk(
-            encrypted,
-            metadata,
-            chunk_index
-        )
+        Returns:
+            List of chunks in sequence order
+        """
+        if not self.chunk_buffer:
+            return []
         
-        return decrypted
+        # Sort by sequence number and return chunk data
+        sorted_indices = sorted(self.chunk_buffer.keys())
+        return [self.chunk_buffer[i] for i in sorted_indices]
+    
+    def get_received_chunks(self) -> List[bytes]:
+        """
+        Get all received chunks (buffered out-of-order chunks).
+        
+        Returns:
+            List of buffered chunks
+        """
+        return list(self.chunk_buffer.values())
     
     def reset(self) -> None:
         """Reset decoder state."""
         self.chunk_buffer.clear()
+        self.decoded_chunks.clear()
         self.next_expected_index = 0
         self.stream_context.reset_index()

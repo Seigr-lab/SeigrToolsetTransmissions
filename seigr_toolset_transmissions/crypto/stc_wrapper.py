@@ -365,28 +365,27 @@ class StreamContext:
             'purpose': 'stream_chunk'
         }
         
-        # Encrypt chunk
-        encrypted, metadata = self.context.encrypt(
+        # Encrypt chunk - STC returns (encrypted_bytes, metadata_bytes)
+        # where metadata_bytes is already TLV-encoded
+        encrypted, metadata_bytes = self.context.encrypt(
             data=chunk,
             context_data=associated_data
         )
         
-        # Serialize metadata to compact format
-        compact_meta = stc_api.serialize_metadata_tlv(metadata)
-        
         # Increment chunk index for next encryption
         self.chunk_index += 1
         
-        return encrypted, compact_meta
+        # Return encrypted data and TLV-encoded metadata (already serialized by STC)
+        return encrypted, metadata_bytes
     
-    def decrypt_chunk(self, encrypted: bytes, compact_meta: bytes,
+    def decrypt_chunk(self, encrypted: bytes, metadata_bytes: bytes,
                      chunk_index: int) -> bytes:
         """
         Decrypt stream chunk.
         
         Args:
             encrypted: Encrypted chunk data
-            compact_meta: Compact TLV-encoded metadata
+            metadata_bytes: TLV-encoded metadata bytes (from encrypt_chunk)
             chunk_index: Chunk index (for verification)
             
         Returns:
@@ -395,9 +394,6 @@ class StreamContext:
         Raises:
             Exception: If decryption or verification fails
         """
-        # Deserialize metadata
-        metadata = stc_api.deserialize_metadata_tlv(compact_meta)
-        
         # Associated data must match encryption
         associated_data = {
             'stream_id': self.stream_id,
@@ -405,10 +401,10 @@ class StreamContext:
             'purpose': 'stream_chunk'
         }
         
-        # Decrypt and verify
+        # Decrypt - STC's decrypt() expects metadata as TLV bytes, not dict
         return self.context.decrypt(
             encrypted_data=encrypted,
-            metadata=metadata,
+            metadata=metadata_bytes,
             context_data=associated_data
         )
     
