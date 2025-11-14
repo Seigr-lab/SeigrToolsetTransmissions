@@ -76,7 +76,7 @@ class TestSTTFrame:
         encoded = original.to_bytes()
         
         # Decode frame
-        decoded = STTFrame.from_bytes(encoded)
+        decoded, _ = STTFrame.from_bytes(encoded)
         
         assert decoded.frame_type == original.frame_type
         assert decoded.session_id == original.session_id
@@ -100,7 +100,7 @@ class TestSTTFrame:
         
         # Encode and decode
         encoded = original.to_bytes()
-        decoded = STTFrame.from_bytes(encoded)
+        decoded, _ = STTFrame.from_bytes(encoded)
         
         # Verify all fields match
         assert decoded.frame_type == original.frame_type
@@ -163,7 +163,7 @@ class TestSTTFrame:
         encoded = frame.to_bytes()
         
         # Deserialize and decrypt
-        decoded = STTFrame.from_bytes(encoded, decrypt=True, stc_wrapper=stc_wrapper)
+        decoded, _ = STTFrame.from_bytes(encoded, decrypt=True, stc_wrapper=stc_wrapper)
         
         assert decoded.payload == original_payload
     
@@ -192,7 +192,7 @@ class TestSTTFrame:
         )
         
         encoded = frame.to_bytes()
-        decoded = STTFrame.from_bytes(encoded)
+        decoded, _ = STTFrame.from_bytes(encoded)
         
         assert decoded.payload == b''
     
@@ -210,6 +210,6 @@ class TestSTTFrame:
         )
         
         encoded = frame.to_bytes()
-        decoded = STTFrame.from_bytes(encoded)
+        decoded, _ = STTFrame.from_bytes(encoded)
         
         assert decoded.payload == large_payload

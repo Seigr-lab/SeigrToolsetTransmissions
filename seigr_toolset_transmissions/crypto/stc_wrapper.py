@@ -142,27 +142,26 @@ class STCWrapper:
                            (type, flags, session_id, sequence, timestamp)
             
         Returns:
-            Tuple of (encrypted_payload, compact_metadata)
+            Tuple of (encrypted_payload, metadata_bytes)
         """
         # Encrypt with associated data for AEAD-like authentication
+        # STC returns (encrypted_bytes, metadata_bytes)
         encrypted, metadata = self.context.encrypt(
             data=payload,
             context_data=associated_data
         )
         
-        # Serialize metadata to compact TLV format
-        compact_meta = stc_api.serialize_metadata_tlv(metadata)
-        
-        return encrypted, compact_meta
+        # Metadata is already serialized by STC
+        return encrypted, metadata
     
-    def decrypt_frame(self, encrypted: bytes, compact_meta: bytes,
+    def decrypt_frame(self, encrypted: bytes, metadata: bytes,
                      associated_data: Dict) -> bytes:
         """
         Decrypt frame payload and verify associated data.
         
         Args:
             encrypted: Encrypted payload
-            compact_meta: Compact TLV-encoded metadata
+            metadata: Metadata bytes from encryption
             associated_data: Same associated data used in encryption
             
         Returns:
@@ -171,9 +170,7 @@ class STCWrapper:
         Raises:
             Exception: If decryption or authentication fails
         """
-        # Deserialize metadata from TLV
-        metadata = stc_api.deserialize_metadata_tlv(compact_meta)
-        
+        # Metadata is already in the correct format from STC
         # Decrypt and verify associated data
         return self.context.decrypt(
             encrypted_data=encrypted,

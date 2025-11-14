@@ -31,17 +31,18 @@ class STTFrame:
     
     Frame Structure:
     | Magic (2) | Length (varint) | Type (1) | Flags (1) |
-    | Session ID (8) | Seq (8) | Timestamp (8) | Reserved (2) |
+    | Session ID (8) | Seq (8) | Timestamp (8) | Stream ID (4) |
     | Meta Length (varint) | Crypto Metadata (variable) |
     | Payload (variable, encrypted) |
     """
     
     frame_type: int
-    flags: int
     session_id: bytes
     sequence: int
-    timestamp: int
+    stream_id: int
     payload: bytes
+    flags: int = 0
+    timestamp: int = field(default_factory=lambda: int(time.time() * 1000))
     crypto_metadata: Optional[bytes] = field(default=None)
     _is_encrypted: bool = field(default=False, repr=False)
     
@@ -57,6 +58,9 @@ class STTFrame:
         
         if self.timestamp < 0:
             raise STTFrameError("Timestamp must be non-negative")
+        
+        if self.stream_id < 0:
+            raise STTFrameError("Stream ID must be non-negative")
     
     def encrypt_payload(self, stc_wrapper: 'STCWrapper') -> bytes:
         """
@@ -78,20 +82,23 @@ class STTFrame:
         associated_data = {
             'frame_type': self.frame_type,
             'flags': self.flags,
-            'session_id': self.session_id.hex(),
+            'session_id': self.session_id,
             'sequence': self.sequence,
-            'timestamp': self.timestamp
+            'timestamp': self.timestamp,
+            'stream_id': self.stream_id
         }
         
         try:
             # Encrypt using STC wrapper
-            encrypted_payload, compact_meta = stc_wrapper.encrypt_frame(
+            encrypted_payload, metadata = stc_wrapper.encrypt_frame(
                 self.payload,
                 associated_data
             )
             
             # Store metadata and encrypted payload
-            self.crypto_metadata = compact_meta
+            # NOTE: Metadata can be large (~100KB with minimal STC params)
+            # In production, consider session-level metadata exchange
+            self.crypto_metadata = metadata
             original_payload = self.payload
             self.payload = encrypted_payload
             self._is_encrypted = True
@@ -124,9 +131,10 @@ class STTFrame:
         associated_data = {
             'frame_type': self.frame_type,
             'flags': self.flags,
-            'session_id': self.session_id.hex(),
+            'session_id': self.session_id,
             'sequence': self.sequence,
-            'timestamp': self.timestamp
+            'timestamp': self.timestamp,
+            'stream_id': self.stream_id
         }
         
         try:
@@ -158,13 +166,13 @@ class STTFrame:
         """
         # Build header (without magic and length)
         header = struct.pack(
-            '!BB8sQQH',
+            '!BB8sQQI',
             self.frame_type,
             self.flags,
             self.session_id,
             self.sequence,
             self.timestamp,
-            0  # Reserved
+            self.stream_id
         )
         
         # Add crypto metadata if present
@@ -238,7 +246,7 @@ class STTFrame:
         
         # Parse header
         header_size = 1 + 1 + STT_SESSION_ID_LENGTH + STT_SEQUENCE_LENGTH + \
-                      STT_TIMESTAMP_LENGTH + STT_RESERVED_LENGTH
+                      STT_TIMESTAMP_LENGTH + 4  # stream_id is 4 bytes
         
         if total_length < header_size:
             raise STTFrameError(f"Frame too small: {total_length} < {header_size}")
@@ -246,8 +254,8 @@ class STTFrame:
         header_data = data[header_offset:header_offset + header_size]
         
         try:
-            frame_type, flags, session_id, sequence, timestamp, _ = struct.unpack(
-                '!BB8sQQH',
+            frame_type, flags, session_id, sequence, timestamp, stream_id = struct.unpack(
+                '!BB8sQQI',
                 header_data
             )
         except struct.error as e:
@@ -279,6 +287,7 @@ class STTFrame:
             session_id=session_id,
             sequence=sequence,
             timestamp=timestamp,
+            stream_id=stream_id,
             payload=payload,
             crypto_metadata=crypto_metadata,
             _is_encrypted=(crypto_metadata is not None)
@@ -297,15 +306,16 @@ class STTFrame:
         Get associated data for AEAD encryption.
         
         Returns:
-            AD = type | flags | session_id | seq | timestamp
+            AD = type | flags | session_id | seq | timestamp | stream_id
         """
         return struct.pack(
-            '!BB8sQQ',
+            '!BB8sQQI',
             self.frame_type,
             self.flags,
             self.session_id,
             self.sequence,
             self.timestamp,
+            self.stream_id,
         )
     
     @staticmethod
@@ -313,6 +323,7 @@ class STTFrame:
         frame_type: int,
         session_id: bytes,
         sequence: int,
+        stream_id: int,
         payload: bytes,
         flags: int = 0,
         timestamp: Optional[int] = None,
@@ -324,6 +335,7 @@ class STTFrame:
             frame_type: Frame type constant
             session_id: Session identifier (8 bytes)
             sequence: Sequence number
+            stream_id: Stream identifier
             payload: Frame payload
             flags: Optional flags
             timestamp: Optional timestamp (uses current time if None)
@@ -340,5 +352,6 @@ class STTFrame:
             session_id=session_id,
             sequence=sequence,
             timestamp=timestamp,
+            stream_id=stream_id,
             payload=payload,
         )
