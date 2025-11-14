@@ -3,16 +3,17 @@ Chamber manager for encrypted key material and session state storage.
 """
 
 import os
-import json
-import hashlib
+import secrets
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass, asdict
 
+if TYPE_CHECKING:
+    from ..crypto.stc_wrapper import STCWrapper
+
+from ..utils.serialization import serialize_stt, deserialize_stt
 from ..utils.exceptions import STTChamberError
 from ..utils.logging import get_logger
-
-
 logger = get_logger(__name__)
 
 
@@ -37,22 +38,22 @@ class Chamber:
         self,
         chamber_path: Path,
         node_id: bytes,
-        master_key: Optional[bytes] = None,
+        stc_wrapper: 'STCWrapper',
     ):
         """
-        Initialize chamber.
+        Initialize chamber with STC encryption.
         
         Args:
             chamber_path: Path to chamber directory
             node_id: Node identifier (32 bytes)
-            master_key: Optional master encryption key (for STC)
+            stc_wrapper: STC wrapper for encryption
         """
         if len(node_id) != 32:
             raise STTChamberError("Node ID must be 32 bytes")
         
         self.chamber_path = chamber_path
         self.node_id = node_id
-        self.master_key = master_key or self._derive_master_key(node_id)
+        self.stc = stc_wrapper
         
         # Chamber subdirectories
         self.keys_path = chamber_path / "keys"
@@ -60,20 +61,6 @@ class Chamber:
         self.metadata_path = chamber_path / "metadata"
         
         self._ensure_chamber_structure()
-    
-    def _derive_master_key(self, node_id: bytes) -> bytes:
-        """
-        Derive master key from node ID.
-        In production, use STC KDF with proper entropy.
-        
-        Args:
-            node_id: Node identifier
-            
-        Returns:
-            Derived master key
-        """
-        # Placeholder: In production, use STC KDF
-        return hashlib.sha256(b"stt_chamber_" + node_id).digest()
     
     def _ensure_chamber_structure(self) -> None:
         """Create chamber directory structure."""
@@ -88,36 +75,78 @@ class Chamber:
         except OSError as e:
             raise STTChamberError(f"Failed to create chamber structure: {e}")
     
-    def _encrypt_data(self, data: bytes) -> bytes:
+    def _encrypt_data(self, data: bytes, file_id: str) -> bytes:
         """
-        Encrypt data using chamber master key.
-        In production, use STC AEAD.
+        Encrypt data using STC.
         
         Args:
             data: Plaintext data
+            file_id: File identifier for associated data
             
         Returns:
-            Encrypted data
+            Encrypted data with nonce prepended
         """
-        # Placeholder: In production, use STC.AEAD
-        # For now, just return as-is (WARNING: NOT SECURE)
-        logger.warning("Using placeholder encryption - NOT SECURE")
-        return data
+        try:
+            # Generate unique nonce for this encryption
+            nonce = secrets.token_bytes(12)
+            
+            # Create associated data
+            associated_data = {
+                'purpose': 'chamber_storage',
+                'node_id': self.node_id.hex(),
+                'file_id': file_id
+            }
+            
+            # Encrypt with STC
+            encrypted = self.stc.stc_context.encrypt(
+                data,
+                nonce=nonce,
+                associated_data=associated_data
+            )
+            
+            # Prepend nonce for storage (nonce || ciphertext)
+            return nonce + encrypted
+            
+        except Exception as e:
+            raise STTChamberError(f"Encryption failed: {e}")
     
-    def _decrypt_data(self, encrypted_data: bytes) -> bytes:
+    def _decrypt_data(self, encrypted_data: bytes, file_id: str) -> bytes:
         """
-        Decrypt data using chamber master key.
-        In production, use STC AEAD.
+        Decrypt data using STC.
         
         Args:
-            encrypted_data: Encrypted data
+            encrypted_data: Encrypted data with prepended nonce
+            file_id: File identifier for associated data
             
         Returns:
             Decrypted data
         """
-        # Placeholder: In production, use STC.AEAD
-        logger.warning("Using placeholder decryption - NOT SECURE")
-        return encrypted_data
+        try:
+            # Extract nonce (first 12 bytes)
+            if len(encrypted_data) < 12:
+                raise STTChamberError("Invalid encrypted data: too short")
+            
+            nonce = encrypted_data[:12]
+            ciphertext = encrypted_data[12:]
+            
+            # Create associated data (must match encryption)
+            associated_data = {
+                'purpose': 'chamber_storage',
+                'node_id': self.node_id.hex(),
+                'file_id': file_id
+            }
+            
+            # Decrypt with STC
+            plaintext = self.stc.stc_context.decrypt(
+                ciphertext,
+                nonce=nonce,
+                associated_data=associated_data
+            )
+            
+            return plaintext
+            
+        except Exception as e:
+            raise STTChamberError(f"Decryption failed: {e}")
     
     def store_key(self, key_id: str, key_data: bytes) -> None:
         """
@@ -128,7 +157,7 @@ class Chamber:
             key_data: Key material to store
         """
         try:
-            encrypted = self._encrypt_data(key_data)
+            encrypted = self._encrypt_data(key_data, f"key:{key_id}")
             key_file = self.keys_path / f"{key_id}.key"
             
             with open(key_file, 'wb') as f:
@@ -158,7 +187,7 @@ class Chamber:
             with open(key_file, 'rb') as f:
                 encrypted = f.read()
             
-            key_data = self._decrypt_data(encrypted)
+            key_data = self._decrypt_data(encrypted, f"key:{key_id}")
             
             logger.debug(f"Retrieved key {key_id}")
             
@@ -199,11 +228,11 @@ class Chamber:
             session_data: Session metadata dictionary
         """
         try:
-            # Serialize to JSON
-            json_data = json.dumps(session_data).encode('utf-8')
+            # Serialize to STT binary format
+            stt_data = serialize_stt(session_data)
             
             # Encrypt
-            encrypted = self._encrypt_data(json_data)
+            encrypted = self._encrypt_data(stt_data, f"session:{session_id}")
             
             session_file = self.sessions_path / f"{session_id}.session"
             
@@ -235,10 +264,10 @@ class Chamber:
                 encrypted = f.read()
             
             # Decrypt
-            json_data = self._decrypt_data(encrypted)
+            stt_data = self._decrypt_data(encrypted, f"session:{session_id}")
             
             # Deserialize
-            session_data = json.loads(json_data.decode('utf-8'))
+            session_data = deserialize_stt(stt_data)
             
             logger.debug(f"Retrieved session {session_id}")
             

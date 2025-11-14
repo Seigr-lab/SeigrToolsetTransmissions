@@ -5,12 +5,13 @@ STT Node - Core runtime for Seigr Toolset Transmissions.
 import asyncio
 import secrets
 from pathlib import Path
-from typing import Optional, AsyncIterator
+from typing import Optional, AsyncIterator, Tuple
 from dataclasses import dataclass
 
-from .transport import TCPTransport, TransportAddress
+from ..crypto.stc_wrapper import STCWrapper
+from ..transport import UDPTransport, WebSocketTransport
 from ..session import SessionManager, STTSession
-from ..handshake import HandshakeManager, HandshakeHello
+from ..handshake import HandshakeManager, STTHandshake
 from ..frame import STTFrame
 from ..chamber import Chamber
 from ..utils.constants import (
@@ -22,8 +23,6 @@ from ..utils.constants import (
 )
 from ..utils.exceptions import STTException, STTSessionError
 from ..utils.logging import get_logger
-
-
 logger = get_logger(__name__)
 
 
@@ -43,37 +42,43 @@ class STTNode:
     
     def __init__(
         self,
-        host: str = "127.0.0.1",
-        port: int = STT_DEFAULT_TCP_PORT,
+        node_seed: bytes,
+        shared_seed: bytes,
+        host: str = "0.0.0.0",
+        port: int = 0,
         chamber_path: Optional[Path] = None,
-        node_id: Optional[bytes] = None,
     ):
         """
         Initialize STT node.
         
         Args:
-            host: Host address to bind
-            port: Port to listen on
+            node_seed: Seed for STC initialization and node ID generation
+            shared_seed: Pre-shared seed for peer authentication
+            host: Host address to bind (default: all interfaces)
+            port: UDP port to bind (0 = random)
             chamber_path: Path to chamber storage
-            node_id: Node identifier (generated if not provided)
         """
         self.host = host
         self.port = port
         
-        # Generate or use provided node ID
-        self.node_id = node_id or secrets.token_bytes(32)
+        # Initialize STC wrapper
+        self.stc = STCWrapper(node_seed)
         
-        # Initialize chamber
+        # Generate node ID from identity
+        self.node_id = self.stc.generate_node_id(b"stt_node_identity")
+        
+        # Initialize chamber with STC
         if chamber_path is None:
             chamber_path = Path.home() / ".seigr" / "chambers" / self.node_id.hex()
-        self.chamber = Chamber(chamber_path, self.node_id)
+        self.chamber = Chamber(chamber_path, self.node_id, self.stc)
         
         # Initialize managers
         self.session_manager = SessionManager(self.node_id)
-        self.handshake_manager = HandshakeManager(self.node_id)
+        self.handshake_manager = HandshakeManager(self.stc, shared_seed, self.node_id)
         
-        # Transport
-        self.transport: Optional[TCPTransport] = None
+        # Transports
+        self.udp_transport: Optional[UDPTransport] = None
+        self.ws_connections: dict[str, WebSocketTransport] = {}
         
         # Receive queue
         self._recv_queue: asyncio.Queue[ReceivedPacket] = asyncio.Queue()
@@ -82,22 +87,31 @@ class STTNode:
         self._running = False
         self._tasks: list[asyncio.Task] = []
     
-    async def start(self) -> None:
-        """Start the STT node."""
+    async def start(self) -> Tuple[str, int]:
+        """
+        Start the STT node.
+        
+        Returns:
+            Tuple of (local_ip, local_port)
+        """
         if self._running:
             logger.warning("Node already running")
-            return
+            return (self.host, self.port)
         
         self._running = True
         
-        # Start TCP transport
-        self.transport = TCPTransport(self.host, self.port)
-        await self.transport.start(self._handle_connection)
+        # Start UDP transport
+        self.udp_transport = UDPTransport(
+            on_frame_received=self._handle_frame_received
+        )
+        local_addr = await self.udp_transport.start()
         
         logger.info(
             f"STT Node started: {self.node_id.hex()[:16]}... "
-            f"on {self.host}:{self.port}"
+            f"on {local_addr[0]}:{local_addr[1]}"
         )
+        
+        return local_addr
     
     async def stop(self) -> None:
         """Stop the STT node."""
@@ -118,181 +132,179 @@ class STTNode:
         # Close all sessions
         await self.session_manager.close_all_sessions()
         
-        # Stop transport
-        if self.transport:
-            await self.transport.stop()
+        # Close WebSocket connections
+        for ws in self.ws_connections.values():
+            await ws.close()
+        self.ws_connections.clear()
+        
+        # Stop UDP transport
+        if self.udp_transport:
+            await self.udp_transport.stop()
         
         logger.info("STT Node stopped")
     
-    async def connect(
+    async def connect_udp(
         self,
         peer_host: str,
         peer_port: int,
     ) -> STTSession:
         """
-        Connect to a remote peer and establish session.
+        Connect to peer via UDP and establish session.
         
         Args:
             peer_host: Peer's host address
-            peer_port: Peer's port
+            peer_port: Peer's UDP port
             
         Returns:
             Established STTSession
         """
-        if not self.transport:
+        if not self.udp_transport:
             raise STTException("Node not started")
         
         try:
-            # Connect to peer
-            reader, writer = await self.transport.connect(peer_host, peer_port)
+            # Create handshake
+            peer_addr = f"{peer_host}:{peer_port}"
+            handshake = self.handshake_manager.create_handshake(peer_addr)
             
-            # Perform handshake
-            session = await self._perform_handshake_client(reader, writer)
+            # Initiate handshake
+            hello_bytes = handshake.initiate_handshake()
             
-            # Start handling connection
-            task = asyncio.create_task(
-                self._handle_session_communication(reader, writer, session)
+            # Send HELLO via UDP
+            await self.udp_transport.send_raw(hello_bytes, (peer_host, peer_port))
+            
+            # Wait for response (simplified - should use proper async waiting)
+            await asyncio.sleep(0.1)
+            
+            # Get session key and peer ID from handshake
+            session_key = handshake.get_session_key()
+            peer_node_id = handshake.get_peer_node_id()
+            
+            if not session_key or not peer_node_id:
+                raise STTException("Handshake incomplete")
+            
+            # Create session
+            session_id = secrets.token_bytes(8)
+            session = await self.session_manager.create_session(
+                session_id=session_id,
+                peer_node_id=peer_node_id,
+                capabilities=0,
             )
-            self._tasks.append(task)
+            session.session_key = session_key
+            session.state = STT_SESSION_STATE_ACTIVE
+            
+            logger.info(f"UDP session established with {peer_addr}")
             
             return session
             
         except Exception as e:
             raise STTException(f"Failed to connect to {peer_host}:{peer_port}: {e}")
     
-    async def _handle_connection(
+    def _handle_frame_received(
         self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
+        frame: STTFrame,
+        peer_addr: Tuple[str, int]
     ) -> None:
         """
-        Handle incoming connection.
+        Handle received frame from UDP transport.
         
         Args:
-            reader: Stream reader
-            writer: Stream writer
+            frame: Received STT frame
+            peer_addr: Peer address (ip, port)
         """
         try:
-            # Perform handshake as server
-            session = await self._perform_handshake_server(reader, writer)
-            
-            # Handle session communication
-            await self._handle_session_communication(reader, writer, session)
-            
+            # Check if this is a handshake frame
+            if frame.frame_type == STT_FRAME_TYPE_HANDSHAKE:
+                # Handle handshake
+                asyncio.create_task(
+                    self._handle_handshake_frame(frame, peer_addr)
+                )
+            elif frame.frame_type == STT_FRAME_TYPE_DATA:
+                # Handle data frame
+                asyncio.create_task(
+                    self._handle_data_frame(frame, peer_addr)
+                )
+            else:
+                logger.warning(f"Unknown frame type: {frame.frame_type}")
+        
         except Exception as e:
-            logger.error(f"Connection handling failed: {e}")
-        finally:
-            try:
-                writer.close()
-                await writer.wait_closed()
-            except Exception:
-                pass
+            logger.error(f"Frame handling error: {e}")
     
-    async def _perform_handshake_client(
+    async def _handle_handshake_frame(
         self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ) -> STTSession:
-        """
-        Perform handshake as client.
-        
-        Returns:
-            Established session
-        """
-        # Generate ephemeral key (placeholder - use STC in production)
-        ephemeral_key = secrets.token_bytes(32)
-        
-        # Create and send HELLO
-        hello = self.handshake_manager.create_hello(ephemeral_key)
-        hello_data = hello.to_bytes()
-        
-        # Send HELLO in a frame
-        hello_frame = STTFrame.create_frame(
-            frame_type=STT_FRAME_TYPE_HANDSHAKE,
-            session_id=b'\x00' * 8,
-            sequence=0,
-            payload=bytes([STT_HANDSHAKE_HELLO]) + hello_data,
-        )
-        
-        writer.write(hello_frame.to_bytes())
-        await writer.drain()
-        
-        logger.debug("Sent HELLO to peer")
-        
-        # Receive HELLO_RESP
-        # Simplified: In production, handle proper frame reception
-        response_data = await reader.read(4096)
-        
-        # Derive session ID and create session
-        # Placeholder implementation
-        session_id = secrets.token_bytes(8)
-        
-        session = await self.session_manager.create_session(
-            session_id=session_id,
-            peer_node_id=secrets.token_bytes(32),  # Should be from HELLO_RESP
-            capabilities=self.handshake_manager.capabilities,
-        )
-        
-        session.state = STT_SESSION_STATE_ACTIVE
-        
-        logger.info(f"Handshake completed: session {session_id.hex()}")
-        
-        return session
-    
-    async def _perform_handshake_server(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-    ) -> STTSession:
-        """
-        Perform handshake as server.
-        
-        Returns:
-            Established session
-        """
-        # Receive HELLO
-        # Simplified implementation
-        hello_data = await reader.read(4096)
-        
-        # Generate session
-        session_id = secrets.token_bytes(8)
-        
-        session = await self.session_manager.create_session(
-            session_id=session_id,
-            peer_node_id=secrets.token_bytes(32),
-            capabilities=self.handshake_manager.capabilities,
-        )
-        
-        session.state = STT_SESSION_STATE_ACTIVE
-        
-        logger.info(f"Handshake completed: session {session_id.hex()}")
-        
-        return session
-    
-    async def _handle_session_communication(
-        self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
-        session: STTSession,
+        frame: STTFrame,
+        peer_addr: Tuple[str, int]
     ) -> None:
-        """Handle ongoing session communication."""
+        """
+        Handle handshake frame.
+        
+        Args:
+            frame: Handshake frame
+            peer_addr: Peer address
+        """
         try:
-            while self._running and session.is_active():
-                # Read frames and process
-                data = await reader.read(4096)
+            peer_key = f"{peer_addr[0]}:{peer_addr[1]}"
+            handshake = self.handshake_manager.get_handshake(peer_key)
+            
+            if not handshake:
+                # New handshake as server
+                handshake = self.handshake_manager.create_handshake(peer_key)
+                response = handshake.handle_hello(frame.payload)
                 
-                if not data:
-                    break
+                # Send response
+                await self.udp_transport.send_raw(response, peer_addr)
+            else:
+                # Complete handshake
+                session_key, peer_node_id = handshake.handle_response(frame.payload)
                 
-                # Process frames (simplified)
-                # In production: proper frame parsing and handling
+                # Create session
+                session_id = secrets.token_bytes(8)
+                session = await self.session_manager.create_session(
+                    session_id=session_id,
+                    peer_node_id=peer_node_id,
+                    capabilities=0,
+                )
+                session.session_key = session_key
+                session.state = STT_SESSION_STATE_ACTIVE
                 
-                await asyncio.sleep(0.1)  # Prevent tight loop
-                
+                logger.info(f"Session established with {peer_key}")
+        
         except Exception as e:
-            logger.error(f"Session communication error: {e}")
-        finally:
-            await session.close()
+            logger.error(f"Handshake error: {e}")
+    
+    async def _handle_data_frame(
+        self,
+        frame: STTFrame,
+        peer_addr: Tuple[str, int]
+    ) -> None:
+        """
+        Handle data frame.
+        
+        Args:
+            frame: Data frame
+            peer_addr: Peer address
+        """
+        try:
+            # Get session
+            session = self.session_manager.get_session(frame.session_id)
+            
+            if not session:
+                logger.warning(f"No session for frame: {frame.session_id.hex()}")
+                return
+            
+            # Decrypt if encrypted
+            if frame._is_encrypted:
+                frame.decrypt_payload(self.stc)
+            
+            # Add to receive queue
+            packet = ReceivedPacket(
+                session_id=frame.session_id,
+                stream_id=frame.stream_id,
+                data=frame.payload
+            )
+            await self._recv_queue.put(packet)
+        
+        except Exception as e:
+            logger.error(f"Data frame error: {e}")
     
     async def receive(self) -> AsyncIterator[ReceivedPacket]:
         """
@@ -313,10 +325,12 @@ class STTNode:
     
     def get_stats(self) -> dict:
         """Get node statistics."""
+        udp_stats = self.udp_transport.get_stats() if self.udp_transport else {}
+        
         return {
             'node_id': self.node_id.hex(),
-            'host': self.host,
-            'port': self.port,
             'running': self._running,
+            'udp_transport': udp_stats,
+            'websocket_connections': len(self.ws_connections),
             'sessions': self.session_manager.get_stats(),
         }

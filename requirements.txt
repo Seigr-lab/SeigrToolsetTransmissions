@@ -1,8 +1,5 @@
-# Core dependency
+# Core dependency - STC is the ONLY runtime dependency
 seigr-toolset-crypto>=0.1.0
-
-# Optional WebSocket support
-websockets>=11.0.0
 
 # Development dependencies
 pytest>=7.0.0

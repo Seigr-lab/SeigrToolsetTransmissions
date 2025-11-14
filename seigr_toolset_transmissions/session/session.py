@@ -4,8 +4,12 @@ Session management for STT secure connections.
 
 import asyncio
 import time
+import secrets
 from dataclasses import dataclass, field
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..crypto.stc_wrapper import STCWrapper
 
 from ..stream import StreamManager
 from ..utils.constants import (
@@ -137,12 +141,12 @@ class STTSession:
         
         return False
     
-    async def rotate_keys(self, new_session_key: bytes) -> None:
+    async def rotate_keys(self, stc_wrapper: 'STCWrapper') -> None:
         """
-        Perform key rotation.
+        Perform STC-based key rotation.
         
         Args:
-            new_session_key: New session key material
+            stc_wrapper: STC wrapper for key derivation
         """
         if self.state != STT_SESSION_STATE_ACTIVE:
             raise STTInvalidStateError(
@@ -153,8 +157,14 @@ class STTSession:
         self.state = STT_SESSION_STATE_KEY_ROTATING
         
         try:
-            # In production, use STC KDF to derive new keys
-            self.session_key = new_session_key
+            # Generate rotation nonce
+            rotation_nonce = secrets.token_bytes(32)
+            
+            # Use STC to derive new session key
+            self.session_key = stc_wrapper.rotate_session_key(
+                current_key=self.session_key,
+                nonce=rotation_nonce
+            )
             
             # Reset counters
             self.bytes_transmitted = 0
