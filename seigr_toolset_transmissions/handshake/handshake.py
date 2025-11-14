@@ -178,14 +178,14 @@ class STTHandshake:
         if challenge_payload != expected_payload:
             raise STTHandshakeError("Challenge verification failed")
         
-        # Create deterministic session ID from sorted components (order-independent)
-        nonces = sorted([self.our_nonce, self.peer_nonce])
-        node_ids = sorted([self.node_id, self.peer_node_id])
-        session_material = nonces[0] + nonces[1] + node_ids[0] + node_ids[1]
+        # Create deterministic session ID from XOR of nonces
+        # Pure mathematical operation - same inputs always produce same output
+        # No crypto primitives needed - just unique session identification
+        nonce_xor = bytes(a ^ b for a, b in zip(self.our_nonce, self.peer_nonce))
+        node_xor = bytes(a ^ b for a, b in zip(self.node_id, self.peer_node_id))
         
-        # Use simple hash for session ID (just need uniqueness, not security)
-        import hashlib
-        self.session_id = hashlib.sha256(session_material).digest()[:8]
+        # Combine with simple concatenation and truncate to 8 bytes
+        self.session_id = (nonce_xor + node_xor)[:8]
         
         # Create proof by encrypting session ID with STC
         proof_encrypted, proof_metadata = self.stc_wrapper.encrypt_frame(
@@ -264,13 +264,10 @@ class STTHandshake:
         # Deserialize proof
         proof_msg = deserialize_stt(proof_data)
         
-        # Generate expected session ID deterministically (order-independent)
-        nonces = sorted([self.our_nonce, self.peer_nonce])
-        node_ids = sorted([self.node_id, self.peer_node_id])
-        session_material = nonces[0] + nonces[1] + node_ids[0] + node_ids[1]
-        
-        import hashlib
-        self.session_id = hashlib.sha256(session_material).digest()[:8]
+        # Generate expected session ID deterministically using XOR
+        nonce_xor = bytes(a ^ b for a, b in zip(self.our_nonce, self.peer_nonce))
+        node_xor = bytes(a ^ b for a, b in zip(self.node_id, self.peer_node_id))
+        self.session_id = (nonce_xor + node_xor)[:8]
         
         # Verify session ID in message matches
         if self.session_id != proof_msg['session_id']:
