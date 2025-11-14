@@ -1,0 +1,12 @@
+name: seigr-stt
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - pytest>=7.0.0
+  - pytest-asyncio>=0.21.0
+  - pytest-cov>=4.0.0
+  - pip:
+      - seigr-toolset-crypto>=0.3.1

@@ -1,2 +1,33 @@
 .instructions.md
 *.md
+*.pyc
+__pycache__/
+.env
+venv/
+.env/
+env/
+
+# Testing
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+*.cover
+.hypothesis/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

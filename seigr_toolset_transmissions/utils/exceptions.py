@@ -71,3 +71,13 @@ class STTVersionError(STTProtocolError):
 class STTInvalidStateError(STTException):
     """Raised when operations are attempted in invalid state."""
     pass
+
+
+class STTSerializationError(STTException):
+    """Raised when serialization/deserialization fails."""
+    pass
+
+
+class STTStreamingError(STTException):
+    """Raised when streaming operations fail."""
+    pass

@@ -11,9 +11,9 @@ from .core import STTNode, ReceivedPacket
 from .session import STTSession, SessionManager
 from .stream import STTStream, StreamManager
 from .frame import STTFrame
-from .handshake import HandshakeManager
+from .handshake import HandshakeManager, STTHandshake
 from .chamber import Chamber
-from .bridge import WebSocketBridge
+from .crypto import STCWrapper
 
 __all__ = [
     # Core
@@ -29,8 +29,9 @@ __all__ = [
     'STTFrame',
     # Handshake
     'HandshakeManager',
+    'STTHandshake',
     # Chamber
     'Chamber',
-    # Bridge
-    'WebSocketBridge',
+    # Crypto
+    'STCWrapper',
 ]

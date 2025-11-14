@@ -1,19 +1,13 @@
 """
-Handshake module for STT protocol.
+STT handshake protocol with pre-shared seed authentication.
 """
 
 from .handshake import (
-    HandshakeHello,
-    HandshakeHelloResponse,
-    SessionInit,
-    AuthProof,
+    STTHandshake,
     HandshakeManager,
 )
 
 __all__ = [
-    'HandshakeHello',
-    'HandshakeHelloResponse',
-    'SessionInit',
-    'AuthProof',
+    'STTHandshake',
     'HandshakeManager',
 ]
