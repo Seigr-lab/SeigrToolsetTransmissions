@@ -14,7 +14,7 @@ class STTSession:
     STT session with cryptographic state and key rotation.
     """
     
-    def __init__(self, session_id: bytes, peer_node_id: bytes, stc_wrapper: STCWrapper):
+    def __init__(self, session_id: bytes, peer_node_id: bytes, stc_wrapper: STCWrapper, metadata: Optional[Dict] = None):
         """
         Initialize session.
         
@@ -22,6 +22,7 @@ class STTSession:
             session_id: Unique session identifier (8 bytes)
             peer_node_id: Peer's node identifier
             stc_wrapper: STC wrapper for crypto operations
+            metadata: Optional metadata dictionary
         """
         if len(session_id) != 8:
             raise STTSessionError(f"Session ID must be 8 bytes, got {len(session_id)}")
@@ -43,7 +44,7 @@ class STTSession:
         self.frames_received = 0
         
         # Metadata
-        self.metadata: Dict = {}
+        self.metadata: Dict = metadata if metadata is not None else {}
     
     def rotate_keys(self, stc_wrapper: STCWrapper) -> None:
         """
@@ -77,6 +78,16 @@ class STTSession:
         self.bytes_received += size
         self.update_activity()
     
+    def record_sent_bytes(self, size: int) -> None:
+        """Record sent bytes (alias for compatibility)."""
+        self.bytes_sent += size
+        self.update_activity()
+    
+    def record_received_bytes(self, size: int) -> None:
+        """Record received bytes (alias for compatibility)."""
+        self.bytes_received += size
+        self.update_activity()
+    
     def close(self) -> None:
         """Close session."""
         self.is_active = False
@@ -94,6 +105,14 @@ class STTSession:
             'frames_sent': self.frames_sent,
             'frames_received': self.frames_received,
         }
+    
+    def get_statistics(self) -> Dict:
+        """Get session statistics (alias for compatibility)."""
+        return self.get_stats()
+    
+    def is_active_method(self) -> bool:
+        """Check if session is active (method version)."""
+        return self.is_active
 
 
 class SessionManager:

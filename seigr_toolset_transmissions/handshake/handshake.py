@@ -43,6 +43,8 @@ class STTHandshake:
         self.peer_nonce: Optional[bytes] = None
         self.peer_node_id: Optional[bytes] = None
         self.session_key: Optional[bytes] = None
+        self.challenge: Optional[bytes] = None
+        self.challenge_metadata: Optional[bytes] = None  # STC metadata for challenge
         self.completed = False
     
     def create_hello(self) -> bytes:
@@ -74,7 +76,10 @@ class STTHandshake:
     
     def process_hello(self, hello_data: bytes) -> bytes:
         """
-        Process HELLO message and create RESPONSE.
+        Process HELLO message and create RESPONSE with encrypted challenge.
+        
+        Uses STC's probabilistic encryption to create a unique challenge
+        that only someone with the same seed can decrypt.
         
         Args:
             hello_data: Serialized HELLO message
@@ -92,10 +97,18 @@ class STTHandshake:
         # Generate our nonce
         self.our_nonce = secrets.token_bytes(32)
         
-        # Create challenge
-        challenge = self.stc_wrapper.hash_data(
-            self.peer_nonce + self.our_nonce,
-            {'purpose': 'challenge'}
+        # Create challenge payload: combine both nonces
+        challenge_payload = self.peer_nonce + self.our_nonce
+        
+        # Encrypt challenge using STC with shared seed
+        # Only peer with same seed can decrypt this
+        self.challenge, self.challenge_metadata = self.stc_wrapper.encrypt_frame(
+            challenge_payload,
+            {
+                'purpose': 'handshake_challenge',
+                'initiator_node_id': self.peer_node_id.hex(),
+                'responder_node_id': self.node_id.hex()
+            }
         )
         
         # Create RESPONSE message
@@ -103,15 +116,33 @@ class STTHandshake:
             'type': 'RESPONSE',
             'node_id': self.node_id,
             'nonce': self.our_nonce,
-            'challenge': challenge,
+            'challenge': self.challenge,
+            'challenge_metadata': self.challenge_metadata,
             'timestamp': int(time.time() * 1000)
         }
         
         return serialize_stt(response_msg)
     
+    def process_challenge(self, challenge_data: bytes) -> bytes:
+        """
+        Process challenge (RESPONSE) from responder and create proof.
+        
+        This is an alias for process_response to match test expectations.
+        
+        Args:
+            challenge_data: Serialized RESPONSE/challenge message
+            
+        Returns:
+            Serialized AUTH_PROOF message
+        """
+        return self.process_response(challenge_data)
+    
     def process_response(self, response_data: bytes) -> bytes:
         """
-        Process RESPONSE message and create AUTH_PROOF.
+        Process RESPONSE by decrypting challenge and creating proof.
+        
+        The ability to decrypt the challenge proves we have the same seed.
+        We then create a deterministic session ID and encrypt our own proof.
         
         Args:
             response_data: Serialized RESPONSE message
@@ -125,43 +156,104 @@ class STTHandshake:
         # Extract peer info
         self.peer_node_id = response_msg['node_id']
         self.peer_nonce = response_msg['nonce']
-        challenge = response_msg['challenge']
+        challenge_encrypted = response_msg['challenge']
+        challenge_metadata = response_msg['challenge_metadata']
         
-        # Derive session key
-        self.session_key = self.stc_wrapper.derive_session_key({
-            'initiator_nonce': self.our_nonce.hex(),
-            'responder_nonce': self.peer_nonce.hex(),
-            'initiator_node_id': self.node_id.hex(),
-            'responder_node_id': self.peer_node_id.hex(),
-            'purpose': 'session_key'
-        })
+        # Decrypt challenge - this proves we have the same seed!
+        try:
+            challenge_payload = self.stc_wrapper.decrypt_frame(
+                challenge_encrypted,
+                challenge_metadata,
+                {
+                    'purpose': 'handshake_challenge',
+                    'initiator_node_id': self.node_id.hex(),
+                    'responder_node_id': self.peer_node_id.hex()
+                }
+            )
+        except Exception as e:
+            raise STTHandshakeError(f"Failed to decrypt challenge - wrong seed? {e}")
         
-        # Generate session ID from session key
-        self.session_id = self.stc_wrapper.hash_data(
-            self.session_key,
-            {'purpose': 'session_id'}
-        )[:8]  # Use first 8 bytes
+        # Verify challenge contains our nonce + peer nonce
+        expected_payload = self.our_nonce + self.peer_nonce
+        if challenge_payload != expected_payload:
+            raise STTHandshakeError("Challenge verification failed")
         
-        # Create auth proof
-        auth_proof = self.stc_wrapper.hash_data(
-            self.session_key + challenge,
-            {'purpose': 'auth_proof'}
+        # Create deterministic session ID from sorted components (order-independent)
+        nonces = sorted([self.our_nonce, self.peer_nonce])
+        node_ids = sorted([self.node_id, self.peer_node_id])
+        session_material = nonces[0] + nonces[1] + node_ids[0] + node_ids[1]
+        
+        # Use simple hash for session ID (just need uniqueness, not security)
+        import hashlib
+        self.session_id = hashlib.sha256(session_material).digest()[:8]
+        
+        # Create proof by encrypting session ID with STC
+        proof_encrypted, proof_metadata = self.stc_wrapper.encrypt_frame(
+            self.session_id,
+            {
+                'purpose': 'auth_proof',
+                'initiator_node_id': self.node_id.hex(),
+                'responder_node_id': self.peer_node_id.hex()
+            }
         )
         
         # Create AUTH_PROOF message
         proof_msg = {
             'type': 'AUTH_PROOF',
             'session_id': self.session_id,
-            'proof': auth_proof,
+            'proof': proof_encrypted,
+            'proof_metadata': proof_metadata,
             'timestamp': int(time.time() * 1000)
         }
         
         self.completed = True
         return serialize_stt(proof_msg)
     
+    def verify_response(self, response_data: bytes) -> bytes:
+        """
+        Verify AUTH_PROOF from initiator and create final confirmation.
+        
+        Args:
+            response_data: Serialized AUTH_PROOF message
+            
+        Returns:
+            Serialized FINAL message
+        """
+        # Verify the proof
+        if not self.verify_proof(response_data):
+            raise STTHandshakeError("Invalid proof from initiator")
+        
+        # Create final confirmation message
+        final_msg = {
+            'type': 'FINAL',
+            'session_id': self.session_id,
+            'timestamp': int(time.time() * 1000)
+        }
+        
+        return serialize_stt(final_msg)
+    
+    def process_final(self, final_data: bytes) -> None:
+        """
+        Process final confirmation message and complete handshake.
+        
+        Args:
+            final_data: Serialized FINAL message
+        """
+        # Deserialize final message
+        final_msg = deserialize_stt(final_data)
+        
+        # Verify session ID matches
+        if final_msg.get('session_id') != self.session_id:
+            raise STTHandshakeError("Session ID mismatch in final confirmation")
+        
+        # Mark as complete
+        self.completed = True
+    
     def verify_proof(self, proof_data: bytes) -> bool:
         """
-        Verify AUTH_PROOF message and complete handshake.
+        Verify AUTH_PROOF by decrypting it and checking session ID.
+        
+        The ability to decrypt the proof proves the initiator has the same seed.
         
         Args:
             proof_data: Serialized AUTH_PROOF message
@@ -172,38 +264,34 @@ class STTHandshake:
         # Deserialize proof
         proof_msg = deserialize_stt(proof_data)
         
-        # Derive session key (responder perspective)
-        self.session_key = self.stc_wrapper.derive_session_key({
-            'initiator_nonce': self.peer_nonce.hex(),
-            'responder_nonce': self.our_nonce.hex(),
-            'initiator_node_id': self.peer_node_id.hex(),
-            'responder_node_id': self.node_id.hex(),
-            'purpose': 'session_key'
-        })
+        # Generate expected session ID deterministically (order-independent)
+        nonces = sorted([self.our_nonce, self.peer_nonce])
+        node_ids = sorted([self.node_id, self.peer_node_id])
+        session_material = nonces[0] + nonces[1] + node_ids[0] + node_ids[1]
         
-        # Generate expected session ID
-        self.session_id = self.stc_wrapper.hash_data(
-            self.session_key,
-            {'purpose': 'session_id'}
-        )[:8]
+        import hashlib
+        self.session_id = hashlib.sha256(session_material).digest()[:8]
         
-        # Verify session ID matches
+        # Verify session ID in message matches
         if self.session_id != proof_msg['session_id']:
             return False
         
-        # Create expected challenge
-        challenge = self.stc_wrapper.hash_data(
-            self.peer_nonce + self.our_nonce,
-            {'purpose': 'challenge'}
-        )
+        # Decrypt proof to verify peer can encrypt correctly
+        try:
+            decrypted_session_id = self.stc_wrapper.decrypt_frame(
+                proof_msg['proof'],
+                proof_msg['proof_metadata'],
+                {
+                    'purpose': 'auth_proof',
+                    'initiator_node_id': self.peer_node_id.hex(),
+                    'responder_node_id': self.node_id.hex()
+                }
+            )
+        except Exception:
+            return False
         
-        # Verify proof
-        expected_proof = self.stc_wrapper.hash_data(
-            self.session_key + challenge,
-            {'purpose': 'auth_proof'}
-        )
-        
-        if expected_proof == proof_msg['proof']:
+        # Verify decrypted content matches session ID
+        if decrypted_session_id == self.session_id:
             self.completed = True
             return True
         

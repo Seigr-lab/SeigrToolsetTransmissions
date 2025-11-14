@@ -49,6 +49,10 @@ class STTStream:
         self.receive_buffer = deque()
         self.send_buffer = deque()
         
+        # Sequence tracking for ordered delivery
+        self.expected_sequence = 0
+        self.out_of_order_buffer: Dict[int, bytes] = {}
+        
         # Async support
         self._receive_event = asyncio.Event()
     
@@ -119,6 +123,56 @@ class STTStream:
         self.receive_buffer.append(data)
         self._receive_event.set()
     
+    async def _handle_incoming(self, data: bytes, sequence: int) -> None:
+        """
+        Handle incoming data with sequence ordering.
+        
+        Args:
+            data: Received data
+            sequence: Sequence number for ordering
+        """
+        if not self.is_active:
+            raise STTStreamError("Stream is closed")
+        
+        self.last_activity = time.time()
+        
+        # Check if this is the expected sequence
+        if sequence == self.expected_sequence:
+            # Deliver in order
+            self._deliver_data(data)
+            self.expected_sequence += 1
+            
+            # Check if we have buffered out-of-order messages that can now be delivered
+            while self.expected_sequence in self.out_of_order_buffer:
+                buffered_data = self.out_of_order_buffer.pop(self.expected_sequence)
+                self._deliver_data(buffered_data)
+                self.expected_sequence += 1
+        elif sequence > self.expected_sequence:
+            # Future sequence - buffer it
+            self.out_of_order_buffer[sequence] = data
+        # else: duplicate or old sequence - ignore
+    
+    def is_expired(self, max_idle: float) -> bool:
+        """
+        Check if stream has expired due to inactivity.
+        
+        Args:
+            max_idle: Maximum idle time in seconds
+            
+        Returns:
+            True if stream has been idle longer than max_idle
+        """
+        return (time.time() - self.last_activity) > max_idle
+    
+    @property
+    def receive_window_size(self) -> int:
+        """Get current receive window size."""
+        return self.receive_window
+    
+    def receive_buffer_empty(self) -> bool:
+        """Check if receive buffer is empty."""
+        return len(self.receive_buffer) == 0
+    
     def close(self) -> None:
         """Close stream."""
         self.is_active = False
@@ -138,6 +192,10 @@ class STTStream:
             'send_window': self.send_window,
             'receive_window': self.receive_window,
         }
+    
+    def get_statistics(self) -> Dict:
+        """Get stream statistics (alias for compatibility)."""
+        return self.get_stats()
 
 
 class StreamManager:
