@@ -1,5 +1,4 @@
 .instructions.md
-*.md
 *.pyc
 __pycache__/
 .env
