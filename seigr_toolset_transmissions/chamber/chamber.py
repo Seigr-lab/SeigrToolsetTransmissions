@@ -1,315 +1,199 @@
 """
-Chamber manager for encrypted key material and session state storage.
+Chamber - STC-encrypted persistent storage for STT.
 """
 
-import os
-import secrets
+import json
 from pathlib import Path
-from typing import Optional, Dict, Any, TYPE_CHECKING
-from dataclasses import dataclass, asdict
+from typing import Any, List, Optional, Dict
+from dataclasses import dataclass
 
-if TYPE_CHECKING:
-    from ..crypto.stc_wrapper import STCWrapper
-
+from ..crypto.stc_wrapper import STCWrapper
 from ..utils.serialization import serialize_stt, deserialize_stt
 from ..utils.exceptions import STTChamberError
-from ..utils.logging import get_logger
-logger = get_logger(__name__)
 
 
 @dataclass
 class ChamberMetadata:
-    """Metadata for a chamber."""
-    
-    node_id: str
+    """Metadata for chamber storage."""
+    key: str
+    size: int
     created_at: float
-    version: int = 1
+    updated_at: float
 
 
 class Chamber:
     """
-    Encrypted storage for STT node state.
+    STC-encrypted persistent storage.
     
-    All data stored in the chamber is encrypted via STC.
-    Provides isolated environment for key material and session metadata.
+    Provides encrypted key-value storage using STC for data protection.
+    Data is stored as encrypted files in the chamber directory.
     """
     
-    def __init__(
-        self,
-        chamber_path: Path,
-        node_id: bytes,
-        stc_wrapper: 'STCWrapper',
-    ):
+    def __init__(self, chamber_path: Path, node_id: bytes, stc_wrapper: STCWrapper):
         """
-        Initialize chamber with STC encryption.
+        Initialize chamber.
         
         Args:
-            chamber_path: Path to chamber directory
-            node_id: Node identifier (32 bytes)
+            chamber_path: Directory path for chamber storage
+            node_id: Node identifier for this chamber
             stc_wrapper: STC wrapper for encryption
         """
-        if len(node_id) != 32:
-            raise STTChamberError("Node ID must be 32 bytes")
-        
-        self.chamber_path = chamber_path
+        self.chamber_path = Path(chamber_path)
         self.node_id = node_id
-        self.stc = stc_wrapper
+        self.stc_wrapper = stc_wrapper
         
-        # Chamber subdirectories
-        self.keys_path = chamber_path / "keys"
-        self.sessions_path = chamber_path / "sessions"
-        self.metadata_path = chamber_path / "metadata"
+        # Create chamber directory if it doesn't exist
+        self.chamber_path.mkdir(parents=True, exist_ok=True)
         
-        self._ensure_chamber_structure()
+        # Metadata
+        self.metadata: Dict = {}
     
-    def _ensure_chamber_structure(self) -> None:
-        """Create chamber directory structure."""
-        try:
-            self.chamber_path.mkdir(parents=True, exist_ok=True)
-            self.keys_path.mkdir(exist_ok=True)
-            self.sessions_path.mkdir(exist_ok=True)
-            self.metadata_path.mkdir(exist_ok=True)
-            
-            logger.info(f"Chamber initialized at {self.chamber_path}")
-            
-        except OSError as e:
-            raise STTChamberError(f"Failed to create chamber structure: {e}")
-    
-    def _encrypt_data(self, data: bytes, file_id: str) -> bytes:
+    def store(self, key: str, data: Any) -> None:
         """
-        Encrypt data using STC.
+        Store data in chamber with encryption.
         
         Args:
-            data: Plaintext data
-            file_id: File identifier for associated data
+            key: Storage key
+            data: Data to store (will be serialized)
+        """
+        # Serialize data
+        serialized = serialize_stt(data)
+        
+        # Encrypt data
+        associated_data = {
+            'key': key,
+            'node_id': self.node_id.hex(),
+            'purpose': 'chamber_storage'
+        }
+        
+        encrypted, metadata = self.stc_wrapper.encrypt_frame(
+            payload=serialized,
+            associated_data=associated_data
+        )
+        
+        # Prepare storage structure
+        storage_data = {
+            'encrypted': encrypted,
+            'metadata': metadata,
+            'key': key,
+            'associated_data': associated_data
+        }
+        
+        # Write to file
+        file_path = self.chamber_path / f"{key}.stt"
+        with open(file_path, 'wb') as f:
+            f.write(serialize_stt(storage_data))
+    
+    def retrieve(self, key: str) -> Any:
+        """
+        Retrieve and decrypt data from chamber.
+        
+        Args:
+            key: Storage key
             
         Returns:
-            Encrypted data with nonce prepended
+            Decrypted and deserialized data
+            
+        Raises:
+            STTChamberError: If key doesn't exist or decryption fails
         """
+        file_path = self.chamber_path / f"{key}.stt"
+        
+        if not file_path.exists():
+            raise STTChamberError(f"Key '{key}' not found in chamber")
+        
         try:
-            # Generate unique nonce for this encryption
-            nonce = secrets.token_bytes(12)
+            # Read storage file
+            with open(file_path, 'rb') as f:
+                storage_data = deserialize_stt(f.read())
             
-            # Create associated data
-            associated_data = {
-                'purpose': 'chamber_storage',
-                'node_id': self.node_id.hex(),
-                'file_id': file_id
-            }
-            
-            # Encrypt with STC
-            encrypted = self.stc.stc_context.encrypt(
-                data,
-                nonce=nonce,
-                associated_data=associated_data
+            # Decrypt data
+            decrypted = self.stc_wrapper.decrypt_frame(
+                encrypted=storage_data['encrypted'],
+                metadata=storage_data['metadata'],
+                associated_data=storage_data['associated_data']
             )
             
-            # Prepend nonce for storage (nonce || ciphertext)
-            return nonce + encrypted
+            # Deserialize data
+            return deserialize_stt(decrypted)
             
         except Exception as e:
-            raise STTChamberError(f"Encryption failed: {e}")
+            raise STTChamberError(f"Failed to retrieve '{key}': {e}") from e
     
-    def _decrypt_data(self, encrypted_data: bytes, file_id: str) -> bytes:
+    def delete(self, key: str) -> None:
         """
-        Decrypt data using STC.
+        Delete data from chamber.
         
         Args:
-            encrypted_data: Encrypted data with prepended nonce
-            file_id: File identifier for associated data
+            key: Storage key
+        """
+        file_path = self.chamber_path / f"{key}.stt"
+        
+        if file_path.exists():
+            file_path.unlink()
+        else:
+            raise STTChamberError(f"Key '{key}' not found in chamber")
+    
+    def exists(self, key: str) -> bool:
+        """
+        Check if key exists in chamber.
+        
+        Args:
+            key: Storage key
             
         Returns:
-            Decrypted data
+            True if key exists
         """
-        try:
-            # Extract nonce (first 12 bytes)
-            if len(encrypted_data) < 12:
-                raise STTChamberError("Invalid encrypted data: too short")
-            
-            nonce = encrypted_data[:12]
-            ciphertext = encrypted_data[12:]
-            
-            # Create associated data (must match encryption)
-            associated_data = {
-                'purpose': 'chamber_storage',
-                'node_id': self.node_id.hex(),
-                'file_id': file_id
-            }
-            
-            # Decrypt with STC
-            plaintext = self.stc.stc_context.decrypt(
-                ciphertext,
-                nonce=nonce,
-                associated_data=associated_data
-            )
-            
-            return plaintext
-            
-        except Exception as e:
-            raise STTChamberError(f"Decryption failed: {e}")
+        file_path = self.chamber_path / f"{key}.stt"
+        return file_path.exists()
     
-    def store_key(self, key_id: str, key_data: bytes) -> None:
+    def list_keys(self) -> List[str]:
         """
-        Store encrypted key material.
+        List all keys in chamber.
+        
+        Returns:
+            List of storage keys
+        """
+        keys = []
+        for file_path in self.chamber_path.glob("*.stt"):
+            keys.append(file_path.stem)
+        return sorted(keys)
+    
+    def clear(self) -> None:
+        """Clear all data from chamber."""
+        for file_path in self.chamber_path.glob("*.stt"):
+            file_path.unlink()
+    
+    def update(self, key: str, data: Any) -> None:
+        """
+        Update existing data (same as store).
         
         Args:
-            key_id: Key identifier
-            key_data: Key material to store
+            key: Storage key
+            data: New data to store
         """
-        try:
-            encrypted = self._encrypt_data(key_data, f"key:{key_id}")
-            key_file = self.keys_path / f"{key_id}.key"
-            
-            with open(key_file, 'wb') as f:
-                f.write(encrypted)
-            
-            logger.debug(f"Stored key {key_id}")
-            
-        except Exception as e:
-            raise STTChamberError(f"Failed to store key: {e}")
+        self.store(key, data)
     
-    def retrieve_key(self, key_id: str) -> Optional[bytes]:
+    def get_metadata(self, key: str) -> Dict:
         """
-        Retrieve and decrypt key material.
+        Get metadata for stored key.
         
         Args:
-            key_id: Key identifier
+            key: Storage key
             
         Returns:
-            Decrypted key data or None if not found
+            Metadata dictionary
         """
-        try:
-            key_file = self.keys_path / f"{key_id}.key"
-            
-            if not key_file.exists():
-                return None
-            
-            with open(key_file, 'rb') as f:
-                encrypted = f.read()
-            
-            key_data = self._decrypt_data(encrypted, f"key:{key_id}")
-            
-            logger.debug(f"Retrieved key {key_id}")
-            
-            return key_data
-            
-        except Exception as e:
-            raise STTChamberError(f"Failed to retrieve key: {e}")
-    
-    def delete_key(self, key_id: str) -> bool:
-        """
-        Delete key material.
+        file_path = self.chamber_path / f"{key}.stt"
         
-        Args:
-            key_id: Key identifier
-            
-        Returns:
-            True if deleted, False if not found
-        """
-        try:
-            key_file = self.keys_path / f"{key_id}.key"
-            
-            if key_file.exists():
-                key_file.unlink()
-                logger.debug(f"Deleted key {key_id}")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            raise STTChamberError(f"Failed to delete key: {e}")
-    
-    def store_session(self, session_id: str, session_data: Dict[str, Any]) -> None:
-        """
-        Store encrypted session metadata.
+        if not file_path.exists():
+            raise STTChamberError(f"Key '{key}' not found in chamber")
         
-        Args:
-            session_id: Session identifier
-            session_data: Session metadata dictionary
-        """
-        try:
-            # Serialize to STT binary format
-            stt_data = serialize_stt(session_data)
-            
-            # Encrypt
-            encrypted = self._encrypt_data(stt_data, f"session:{session_id}")
-            
-            session_file = self.sessions_path / f"{session_id}.session"
-            
-            with open(session_file, 'wb') as f:
-                f.write(encrypted)
-            
-            logger.debug(f"Stored session {session_id}")
-            
-        except Exception as e:
-            raise STTChamberError(f"Failed to store session: {e}")
-    
-    def retrieve_session(self, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve and decrypt session metadata.
+        with open(file_path, 'rb') as f:
+            storage_data = deserialize_stt(f.read())
         
-        Args:
-            session_id: Session identifier
-            
-        Returns:
-            Session metadata dictionary or None if not found
-        """
-        try:
-            session_file = self.sessions_path / f"{session_id}.session"
-            
-            if not session_file.exists():
-                return None
-            
-            with open(session_file, 'rb') as f:
-                encrypted = f.read()
-            
-            # Decrypt
-            stt_data = self._decrypt_data(encrypted, f"session:{session_id}")
-            
-            # Deserialize
-            session_data = deserialize_stt(stt_data)
-            
-            logger.debug(f"Retrieved session {session_id}")
-            
-            return session_data
-            
-        except Exception as e:
-            raise STTChamberError(f"Failed to retrieve session: {e}")
-    
-    def delete_session(self, session_id: str) -> bool:
-        """
-        Delete session metadata.
-        
-        Args:
-            session_id: Session identifier
-            
-        Returns:
-            True if deleted, False if not found
-        """
-        try:
-            session_file = self.sessions_path / f"{session_id}.session"
-            
-            if session_file.exists():
-                session_file.unlink()
-                logger.debug(f"Deleted session {session_id}")
-                return True
-            
-            return False
-            
-        except Exception as e:
-            raise STTChamberError(f"Failed to delete session: {e}")
-    
-    def wipe(self) -> None:
-        """
-        Securely wipe all chamber data.
-        WARNING: This is irreversible!
-        """
-        try:
-            import shutil
-            
-            if self.chamber_path.exists():
-                shutil.rmtree(self.chamber_path)
-                logger.warning(f"Chamber at {self.chamber_path} has been wiped")
-            
-        except Exception as e:
-            raise STTChamberError(f"Failed to wipe chamber: {e}")
+        return {
+            'key': storage_data.get('key'),
+            'size': len(storage_data.get('encrypted', b'')),
+            'associated_data': storage_data.get('associated_data'),
+        }

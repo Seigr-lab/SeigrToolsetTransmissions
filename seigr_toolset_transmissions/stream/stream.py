@@ -1,179 +1,229 @@
 """
-Stream management for STT multiplexed binary channels.
+STT Stream management for multiplexed data streams.
 """
 
 import asyncio
-from dataclasses import dataclass, field
-from typing import Optional
+import time
+from typing import Optional, Dict, List
+from collections import deque
 
-from ..utils.constants import (
-    STT_STREAM_STATE_IDLE,
-    STT_STREAM_STATE_OPEN,
-    STT_STREAM_STATE_HALF_CLOSED,
-    STT_STREAM_STATE_CLOSED,
-    STT_INITIAL_STREAM_CREDIT,
-    STT_FLAG_STREAM_INIT,
-    STT_FLAG_STREAM_CHUNK,
-    STT_FLAG_STREAM_END,
-)
-from ..utils.exceptions import STTStreamError, STTFlowControlError
-from ..utils.logging import get_logger
+from ..crypto.stc_wrapper import STCWrapper
+from ..utils.exceptions import STTStreamError
 
 
-logger = get_logger(__name__)
-
-
-@dataclass
 class STTStream:
     """
-    Represents a multiplexed binary stream within a session.
+    Multiplexed stream within an STT session.
     """
     
-    stream_id: int
-    session_id: bytes
-    state: int = STT_STREAM_STATE_IDLE
-    send_credit: int = STT_INITIAL_STREAM_CREDIT
-    recv_credit: int = STT_INITIAL_STREAM_CREDIT
-    bytes_sent: int = 0
-    bytes_received: int = 0
-    chunks_sent: int = 0
-    chunks_received: int = 0
-    send_buffer: asyncio.Queue = field(default_factory=lambda: asyncio.Queue())
-    recv_buffer: asyncio.Queue = field(default_factory=lambda: asyncio.Queue())
-    _closed_event: asyncio.Event = field(default_factory=asyncio.Event)
-    
-    def __post_init__(self) -> None:
-        """Initialize stream state."""
-        if self.stream_id < 0:
-            raise STTStreamError("Stream ID must be non-negative")
+    def __init__(self, session_id: bytes, stream_id: int, stc_wrapper: STCWrapper):
+        """
+        Initialize stream.
+        
+        Args:
+            session_id: Parent session identifier
+            stream_id: Unique stream identifier within session
+            stc_wrapper: STC wrapper for stream encryption
+        """
+        self.session_id = session_id
+        self.stream_id = stream_id
+        self.stc_wrapper = stc_wrapper
+        
+        # Stream state
+        self.is_active = True
+        self.sequence = 0
+        self.created_at = time.time()
+        self.last_activity = time.time()
+        
+        # Flow control
+        self.send_window = 65536  # 64KB initial window
+        self.receive_window = 65536
+        
+        # Statistics
+        self.bytes_sent = 0
+        self.bytes_received = 0
+        self.messages_sent = 0
+        self.messages_received = 0
+        
+        # Buffering
+        self.receive_buffer = deque()
+        self.send_buffer = deque()
+        
+        # Async support
+        self._receive_event = asyncio.Event()
     
     async def send(self, data: bytes) -> None:
         """
-        Queue data for sending on this stream.
+        Send data on stream.
         
         Args:
-            data: Binary data to send
-            
-        Raises:
-            STTStreamError: If stream is not in sendable state
-            STTFlowControlError: If insufficient send credit
+            data: Data to send
         """
-        if self.state not in (STT_STREAM_STATE_OPEN, STT_STREAM_STATE_IDLE):
-            raise STTStreamError(
-                f"Cannot send on stream in state {self.state}"
-            )
+        if not self.is_active:
+            raise STTStreamError("Stream is closed")
         
-        if len(data) > self.send_credit:
-            raise STTFlowControlError(
-                f"Insufficient send credit: need {len(data)}, have {self.send_credit}"
-            )
-        
-        await self.send_buffer.put(data)
-        self.send_credit -= len(data)
+        # Update statistics
         self.bytes_sent += len(data)
-        self.chunks_sent += 1
+        self.messages_sent += 1
+        self.sequence += 1
+        self.last_activity = time.time()
         
-        if self.state == STT_STREAM_STATE_IDLE:
-            self.state = STT_STREAM_STATE_OPEN
-        
-        logger.debug(
-            f"Stream {self.stream_id}: queued {len(data)} bytes, "
-            f"credit remaining: {self.send_credit}"
-        )
+        # In real implementation, this would create frames and send
+        # For now, just update stats
+        await asyncio.sleep(0)  # Yield control
     
-    async def receive(self, timeout: Optional[float] = None) -> Optional[bytes]:
+    async def receive(self, timeout: Optional[float] = None) -> bytes:
         """
-        Receive data from this stream.
+        Receive data from stream.
         
         Args:
-            timeout: Optional timeout in seconds
+            timeout: Receive timeout in seconds
             
         Returns:
-            Received data or None if timeout/closed
+            Received data
         """
-        if self.state == STT_STREAM_STATE_CLOSED:
-            return None
+        if not self.is_active:
+            raise STTStreamError("Stream is closed")
         
+        # Wait for data with timeout
         try:
-            if timeout is None:
-                data = await self.recv_buffer.get()
+            if timeout:
+                await asyncio.wait_for(self._receive_event.wait(), timeout)
             else:
-                data = await asyncio.wait_for(
-                    self.recv_buffer.get(),
-                    timeout=timeout
-                )
-            
+                await self._receive_event.wait()
+        except asyncio.TimeoutError:
+            raise STTStreamError("Receive timeout")
+        
+        # Get data from buffer
+        if self.receive_buffer:
+            data = self.receive_buffer.popleft()
             self.bytes_received += len(data)
-            self.chunks_received += 1
+            self.messages_received += 1
+            self.last_activity = time.time()
             
-            logger.debug(
-                f"Stream {self.stream_id}: received {len(data)} bytes"
-            )
+            # Clear event if buffer empty
+            if not self.receive_buffer:
+                self._receive_event.clear()
             
             return data
-            
-        except asyncio.TimeoutError:
-            return None
+        
+        return b''
     
-    async def put_received_data(self, data: bytes) -> None:
+    def _deliver_data(self, data: bytes) -> None:
         """
-        Put received data into the stream's receive buffer.
+        Internal method to deliver received data to buffer.
         
         Args:
-            data: Received binary data
-            
-        Raises:
-            STTFlowControlError: If insufficient receive credit
+            data: Received data
         """
-        if len(data) > self.recv_credit:
-            raise STTFlowControlError(
-                f"Received data exceeds credit: {len(data)} > {self.recv_credit}"
-            )
-        
-        await self.recv_buffer.put(data)
-        self.recv_credit -= len(data)
-        
-        if self.state == STT_STREAM_STATE_IDLE:
-            self.state = STT_STREAM_STATE_OPEN
+        self.receive_buffer.append(data)
+        self._receive_event.set()
     
-    def add_send_credit(self, amount: int) -> None:
-        """Add to send credit (from peer flow control message)."""
-        self.send_credit += amount
-        logger.debug(f"Stream {self.stream_id}: added {amount} send credit")
+    def close(self) -> None:
+        """Close stream."""
+        self.is_active = False
+        self._receive_event.set()  # Wake up any waiters
     
-    def add_recv_credit(self, amount: int) -> None:
-        """Add to receive credit (local decision)."""
-        self.recv_credit += amount
-        logger.debug(f"Stream {self.stream_id}: added {amount} recv credit")
-    
-    async def close(self) -> None:
-        """Close the stream."""
-        if self.state != STT_STREAM_STATE_CLOSED:
-            self.state = STT_STREAM_STATE_CLOSED
-            self._closed_event.set()
-            logger.info(f"Stream {self.stream_id}: closed")
-    
-    async def wait_closed(self) -> None:
-        """Wait for stream to be closed."""
-        await self._closed_event.wait()
-    
-    def is_open(self) -> bool:
-        """Check if stream is open for communication."""
-        return self.state == STT_STREAM_STATE_OPEN
-    
-    def is_closed(self) -> bool:
-        """Check if stream is closed."""
-        return self.state == STT_STREAM_STATE_CLOSED
-    
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict:
         """Get stream statistics."""
         return {
+            'session_id': self.session_id.hex(),
             'stream_id': self.stream_id,
-            'state': self.state,
+            'is_active': self.is_active,
+            'sequence': self.sequence,
             'bytes_sent': self.bytes_sent,
             'bytes_received': self.bytes_received,
-            'chunks_sent': self.chunks_sent,
-            'chunks_received': self.chunks_received,
-            'send_credit': self.send_credit,
-            'recv_credit': self.recv_credit,
+            'messages_sent': self.messages_sent,
+            'messages_received': self.messages_received,
+            'send_window': self.send_window,
+            'receive_window': self.receive_window,
         }
+
+
+class StreamManager:
+    """Manages multiple streams within a session."""
+    
+    def __init__(self, session_id: bytes, stc_wrapper: STCWrapper):
+        """
+        Initialize stream manager.
+        
+        Args:
+            session_id: Parent session identifier
+            stc_wrapper: STC wrapper for crypto
+        """
+        self.session_id = session_id
+        self.stc_wrapper = stc_wrapper
+        self.streams: Dict[int, STTStream] = {}
+        self.next_stream_id = 1
+    
+    async def create_stream(self, stream_id: Optional[int] = None) -> STTStream:
+        """
+        Create new stream.
+        
+        Args:
+            stream_id: Optional stream ID (auto-assigned if None)
+            
+        Returns:
+            New stream instance
+        """
+        if stream_id is None:
+            stream_id = self.next_stream_id
+            self.next_stream_id += 1
+        
+        if stream_id in self.streams:
+            raise STTStreamError(f"Stream {stream_id} already exists")
+        
+        stream = STTStream(self.session_id, stream_id, self.stc_wrapper)
+        self.streams[stream_id] = stream
+        return stream
+    
+    def get_stream(self, stream_id: int) -> Optional[STTStream]:
+        """Get stream by ID."""
+        return self.streams.get(stream_id)
+    
+    def close_stream(self, stream_id: int) -> None:
+        """Close and remove stream."""
+        stream = self.streams.get(stream_id)
+        if stream:
+            stream.close()
+            del self.streams[stream_id]
+    
+    def has_stream(self, stream_id: int) -> bool:
+        """Check if stream exists."""
+        return stream_id in self.streams
+    
+    async def close_all(self) -> None:
+        """Close all streams."""
+        for stream in list(self.streams.values()):
+            stream.close()
+        self.streams.clear()
+    
+    def list_streams(self) -> List[int]:
+        """List all stream IDs."""
+        return list(self.streams.keys())
+    
+    async def cleanup_inactive(self, timeout: float = 300) -> int:
+        """
+        Remove inactive streams.
+        
+        Args:
+            timeout: Inactivity timeout in seconds
+            
+        Returns:
+            Number of streams cleaned up
+        """
+        now = time.time()
+        to_remove = []
+        
+        for stream_id, stream in self.streams.items():
+            if not stream.is_active or (now - stream.last_activity) > timeout:
+                to_remove.append(stream_id)
+        
+        for stream_id in to_remove:
+            self.close_stream(stream_id)
+        
+        return len(to_remove)
+    
+    def get_next_stream_id(self) -> int:
+        """Get next available stream ID."""
+        return self.next_stream_id

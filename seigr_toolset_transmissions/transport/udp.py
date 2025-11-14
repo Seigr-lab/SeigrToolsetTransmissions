@@ -41,17 +41,22 @@ class UDPTransport:
     
     def __init__(
         self,
-        config: Optional[UDPConfig] = None,
+        host: str = "0.0.0.0",
+        port: int = 0,
+        stc_wrapper: Optional['STCWrapper'] = None,
         on_frame_received: Optional[Callable[[STTFrame, Tuple[str, int]], None]] = None
     ):
         """
         Initialize UDP transport.
         
         Args:
-            config: Transport configuration
+            host: Bind address
+            port: Bind port (0 = random)
+            stc_wrapper: STC wrapper for encryption
             on_frame_received: Callback for received frames (frame, peer_addr)
         """
-        self.config = config or UDPConfig()
+        self.config = UDPConfig(bind_address=host, bind_port=port)
+        self.stc_wrapper = stc_wrapper
         self.on_frame_received = on_frame_received
         
         self.transport = None

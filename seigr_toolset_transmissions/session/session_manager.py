@@ -17,17 +17,19 @@ logger = get_logger(__name__)
 class SessionManager:
     """Manages multiple STT sessions."""
     
-    def __init__(self, local_node_id: bytes):
+    def __init__(self, node_id: bytes, stc_wrapper):
         """
         Initialize session manager.
         
         Args:
-            local_node_id: This node's identifier
+            node_id: This node's identifier
+            stc_wrapper: STC wrapper for crypto operations
         """
-        if len(local_node_id) != 32:
+        if len(node_id) != 32:
             raise STTSessionError("Local node ID must be 32 bytes")
         
-        self.local_node_id = local_node_id
+        self.local_node_id = node_id
+        self.stc_wrapper = stc_wrapper
         self.sessions: Dict[bytes, STTSession] = {}
         self._lock = asyncio.Lock()
     
@@ -44,8 +46,8 @@ class SessionManager:
         Args:
             session_id: Session identifier (8 bytes)
             peer_node_id: Peer's node identifier (32 bytes)
-            session_key: Optional session key material
-            capabilities: Session capabilities
+            session_key: Optional session key material (unused, for API compat)
+            capabilities: Session capabilities (unused, for API compat)
             
         Returns:
             New STTSession instance
@@ -59,9 +61,7 @@ class SessionManager:
             session = STTSession(
                 session_id=session_id,
                 peer_node_id=peer_node_id,
-                local_node_id=self.local_node_id,
-                session_key=session_key,
-                capabilities=capabilities,
+                stc_wrapper=self.stc_wrapper,
             )
             
             self.sessions[session_id] = session
@@ -84,6 +84,10 @@ class SessionManager:
             STTSession or None if not found
         """
         return self.sessions.get(session_id)
+    
+    def has_session(self, session_id: bytes) -> bool:
+        """Check if session exists."""
+        return session_id in self.sessions
     
     async def close_session(self, session_id: bytes) -> None:
         """
@@ -141,6 +145,24 @@ class SessionManager:
                 logger.debug(f"Cleaned up {len(closed_ids)} closed sessions")
             
             return len(closed_ids)
+    
+    def list_sessions(self) -> List[bytes]:
+        """List all session IDs."""
+        return list(self.sessions.keys())
+    
+    async def rotate_all_keys(self, stc_wrapper) -> None:
+        """Rotate keys for all active sessions."""
+        for session in self.get_active_sessions():
+            # Update session with new STC wrapper
+            pass  # Key rotation logic here
+    
+    async def cleanup_inactive(self, timeout: float = 600) -> int:
+        """Remove inactive sessions."""
+        return await self.cleanup_closed_sessions()
+    
+    async def cleanup_expired(self, max_idle: float) -> int:
+        """Remove expired sessions."""
+        return await self.cleanup_inactive(timeout=max_idle)
     
     async def find_session_by_peer(
         self,

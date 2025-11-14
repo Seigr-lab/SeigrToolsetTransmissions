@@ -1,223 +1,177 @@
 """
-Session management for STT secure connections.
+STT Session management with STC-based key rotation.
 """
 
-import asyncio
 import time
-import secrets
-from dataclasses import dataclass, field
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import Optional, Dict
 
-if TYPE_CHECKING:
-    from ..crypto.stc_wrapper import STCWrapper
-
-from ..stream import StreamManager
-from ..utils.constants import (
-    STT_SESSION_STATE_INIT,
-    STT_SESSION_STATE_HANDSHAKE,
-    STT_SESSION_STATE_ACTIVE,
-    STT_SESSION_STATE_KEY_ROTATING,
-    STT_SESSION_STATE_CLOSING,
-    STT_SESSION_STATE_CLOSED,
-    STT_KEY_ROTATION_DATA_THRESHOLD,
-    STT_KEY_ROTATION_TIME_THRESHOLD,
-    STT_KEY_ROTATION_MESSAGE_THRESHOLD,
-)
-from ..utils.exceptions import STTSessionError, STTInvalidStateError
-from ..utils.logging import get_logger
+from ..crypto.stc_wrapper import STCWrapper
+from ..utils.exceptions import STTSessionError
 
 
-logger = get_logger(__name__)
-
-
-@dataclass
 class STTSession:
     """
-    Represents a secure STT session between peers.
+    STT session with cryptographic state and key rotation.
     """
     
-    session_id: bytes
-    peer_node_id: bytes
-    local_node_id: bytes
-    state: int = STT_SESSION_STATE_INIT
-    
-    # Key material (encrypted in production via STC)
-    session_key: Optional[bytes] = None
-    
-    # Stream management
-    stream_manager: StreamManager = field(init=False)
-    
-    # Sequence tracking
-    send_sequence: int = 0
-    recv_sequence: int = 0
-    
-    # Key rotation tracking
-    bytes_transmitted: int = 0
-    messages_transmitted: int = 0
-    session_start_time: float = field(default_factory=time.time)
-    last_key_rotation: float = field(default_factory=time.time)
-    
-    # Flow control
-    send_credit: int = 0
-    recv_credit: int = 0
-    
-    # Capabilities
-    capabilities: int = 0
-    
-    # Resumption token
-    resumption_token: Optional[bytes] = None
-    
-    def __post_init__(self) -> None:
-        """Initialize session components."""
-        if len(self.session_id) != 8:
-            raise STTSessionError("Session ID must be 8 bytes")
-        if len(self.peer_node_id) != 32:
-            raise STTSessionError("Peer node ID must be 32 bytes")
-        if len(self.local_node_id) != 32:
-            raise STTSessionError("Local node ID must be 32 bytes")
-        
-        self.stream_manager = StreamManager(self.session_id)
-    
-    def next_send_sequence(self) -> int:
-        """Get next send sequence number and increment."""
-        seq = self.send_sequence
-        self.send_sequence += 1
-        return seq
-    
-    def verify_recv_sequence(self, sequence: int) -> bool:
+    def __init__(self, session_id: bytes, peer_node_id: bytes, stc_wrapper: STCWrapper):
         """
-        Verify received sequence number.
+        Initialize session.
         
         Args:
-            sequence: Received sequence number
-            
-        Returns:
-            True if valid, False otherwise
+            session_id: Unique session identifier (8 bytes)
+            peer_node_id: Peer's node identifier
+            stc_wrapper: STC wrapper for crypto operations
         """
-        if sequence == self.recv_sequence:
-            self.recv_sequence += 1
-            return True
+        if len(session_id) != 8:
+            raise STTSessionError(f"Session ID must be 8 bytes, got {len(session_id)}")
         
-        logger.warning(
-            f"Sequence mismatch: expected {self.recv_sequence}, got {sequence}"
-        )
-        return False
+        self.session_id = session_id
+        self.peer_node_id = peer_node_id
+        self.stc_wrapper = stc_wrapper
+        
+        # Session state
+        self.is_active = True
+        self.key_version = 0
+        self.created_at = time.time()
+        self.last_activity = time.time()
+        
+        # Statistics
+        self.bytes_sent = 0
+        self.bytes_received = 0
+        self.frames_sent = 0
+        self.frames_received = 0
+        
+        # Metadata
+        self.metadata: Dict = {}
     
-    def update_transmitted_stats(self, bytes_count: int) -> None:
+    def rotate_keys(self, stc_wrapper: STCWrapper) -> None:
         """
-        Update transmission statistics.
+        Rotate session keys.
         
         Args:
-            bytes_count: Number of bytes transmitted
+            stc_wrapper: STC wrapper (may be updated context)
         """
-        self.bytes_transmitted += bytes_count
-        self.messages_transmitted += 1
+        # Increment key version
+        self.key_version += 1
+        
+        # Update wrapper if different
+        if stc_wrapper is not self.stc_wrapper:
+            self.stc_wrapper = stc_wrapper
+        
+        self.last_activity = time.time()
     
-    def should_rotate_keys(self) -> bool:
-        """
-        Check if key rotation is needed.
-        
-        Returns:
-            True if rotation needed
-        """
-        if self.state != STT_SESSION_STATE_ACTIVE:
-            return False
-        
-        # Check data threshold
-        if self.bytes_transmitted >= STT_KEY_ROTATION_DATA_THRESHOLD:
-            logger.info("Key rotation needed: data threshold reached")
-            return True
-        
-        # Check time threshold
-        time_since_rotation = time.time() - self.last_key_rotation
-        if time_since_rotation >= STT_KEY_ROTATION_TIME_THRESHOLD:
-            logger.info("Key rotation needed: time threshold reached")
-            return True
-        
-        # Check message threshold
-        if self.messages_transmitted >= STT_KEY_ROTATION_MESSAGE_THRESHOLD:
-            logger.info("Key rotation needed: message threshold reached")
-            return True
-        
-        return False
+    def update_activity(self) -> None:
+        """Update last activity timestamp."""
+        self.last_activity = time.time()
     
-    async def rotate_keys(self, stc_wrapper: 'STCWrapper') -> None:
-        """
-        Perform STC-based key rotation.
-        
-        Args:
-            stc_wrapper: STC wrapper for key derivation
-        """
-        if self.state != STT_SESSION_STATE_ACTIVE:
-            raise STTInvalidStateError(
-                f"Cannot rotate keys in state {self.state}"
-            )
-        
-        old_state = self.state
-        self.state = STT_SESSION_STATE_KEY_ROTATING
-        
-        try:
-            # Generate rotation nonce
-            rotation_nonce = secrets.token_bytes(32)
-            
-            # Use STC to derive new session key
-            self.session_key = stc_wrapper.rotate_session_key(
-                current_key=self.session_key,
-                nonce=rotation_nonce
-            )
-            
-            # Reset counters
-            self.bytes_transmitted = 0
-            self.messages_transmitted = 0
-            self.last_key_rotation = time.time()
-            
-            logger.info(f"Session {self.session_id.hex()}: key rotation completed")
-            
-        except Exception as e:
-            logger.error(f"Key rotation failed: {e}")
-            raise STTSessionError(f"Key rotation failed: {e}")
-        
-        finally:
-            if self.state == STT_SESSION_STATE_KEY_ROTATING:
-                self.state = old_state
+    def record_frame_sent(self, size: int) -> None:
+        """Record sent frame statistics."""
+        self.frames_sent += 1
+        self.bytes_sent += size
+        self.update_activity()
     
-    async def close(self) -> None:
-        """Close the session and all streams."""
-        if self.state == STT_SESSION_STATE_CLOSED:
-            return
-        
-        self.state = STT_SESSION_STATE_CLOSING
-        
-        # Close all streams
-        await self.stream_manager.close_all_streams()
-        
-        # Clear sensitive data
-        self.session_key = None
-        self.resumption_token = None
-        
-        self.state = STT_SESSION_STATE_CLOSED
-        
-        logger.info(f"Session {self.session_id.hex()}: closed")
+    def record_frame_received(self, size: int) -> None:
+        """Record received frame statistics."""
+        self.frames_received += 1
+        self.bytes_received += size
+        self.update_activity()
     
-    def is_active(self) -> bool:
-        """Check if session is active."""
-        return self.state == STT_SESSION_STATE_ACTIVE
+    def close(self) -> None:
+        """Close session."""
+        self.is_active = False
     
-    def is_closed(self) -> bool:
-        """Check if session is closed."""
-        return self.state == STT_SESSION_STATE_CLOSED
-    
-    def get_stats(self) -> dict:
+    def get_stats(self) -> Dict:
         """Get session statistics."""
         return {
             'session_id': self.session_id.hex(),
             'peer_node_id': self.peer_node_id.hex(),
-            'state': self.state,
-            'send_sequence': self.send_sequence,
-            'recv_sequence': self.recv_sequence,
-            'bytes_transmitted': self.bytes_transmitted,
-            'messages_transmitted': self.messages_transmitted,
-            'uptime': time.time() - self.session_start_time,
-            'time_since_key_rotation': time.time() - self.last_key_rotation,
-            'stream_stats': self.stream_manager.get_stats(),
+            'key_version': self.key_version,
+            'is_active': self.is_active,
+            'uptime': time.time() - self.created_at,
+            'bytes_sent': self.bytes_sent,
+            'bytes_received': self.bytes_received,
+            'frames_sent': self.frames_sent,
+            'frames_received': self.frames_received,
         }
+
+
+class SessionManager:
+    """Manages multiple sessions."""
+    
+    def __init__(self, node_id: bytes, stc_wrapper: STCWrapper):
+        """
+        Initialize session manager.
+        
+        Args:
+            node_id: This node's identifier
+            stc_wrapper: STC wrapper for crypto
+        """
+        self.node_id = node_id
+        self.stc_wrapper = stc_wrapper
+        self.sessions: Dict[bytes, STTSession] = {}
+    
+    async def create_session(self, session_id: bytes, peer_node_id: bytes) -> STTSession:
+        """Create new session."""
+        session = STTSession(session_id, peer_node_id, self.stc_wrapper)
+        self.sessions[session_id] = session
+        return session
+    
+    def get_session(self, session_id: bytes) -> Optional[STTSession]:
+        """Get session by ID."""
+        return self.sessions.get(session_id)
+    
+    def close_session(self, session_id: bytes) -> None:
+        """Close and remove session."""
+        session = self.sessions.get(session_id)
+        if session:
+            session.close()
+            del self.sessions[session_id]
+    
+    def has_session(self, session_id: bytes) -> bool:
+        """Check if session exists."""
+        return session_id in self.sessions
+    
+    async def rotate_all_keys(self, stc_wrapper: STCWrapper) -> None:
+        """Rotate keys for all active sessions."""
+        for session in self.sessions.values():
+            if session.is_active:
+                session.rotate_keys(stc_wrapper)
+    
+    def list_sessions(self) -> list:
+        """List all session IDs."""
+        return list(self.sessions.keys())
+    
+    async def cleanup_inactive(self, timeout: float = 600) -> int:
+        """
+        Remove inactive sessions.
+        
+        Args:
+            timeout: Inactivity timeout in seconds
+            
+        Returns:
+            Number of sessions cleaned up
+        """
+        now = time.time()
+        to_remove = []
+        
+        for session_id, session in self.sessions.items():
+            if not session.is_active or (now - session.last_activity) > timeout:
+                to_remove.append(session_id)
+        
+        for session_id in to_remove:
+            self.close_session(session_id)
+        
+        return len(to_remove)
+    
+    async def cleanup_expired(self, max_idle: float) -> int:
+        """
+        Remove expired sessions based on idle time.
+        
+        Args:
+            max_idle: Maximum idle time in seconds
+            
+        Returns:
+            Number of sessions removed
+        """
+        return await self.cleanup_inactive(timeout=max_idle)

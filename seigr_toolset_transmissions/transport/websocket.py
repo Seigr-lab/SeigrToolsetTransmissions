@@ -52,23 +52,32 @@ class WebSocketTransport:
     
     def __init__(
         self,
-        reader: asyncio.StreamReader,
-        writer: asyncio.StreamWriter,
+        reader: Optional[asyncio.StreamReader] = None,
+        writer: Optional[asyncio.StreamWriter] = None,
         is_client: bool = False,
+        host: Optional[str] = None,
+        port: Optional[int] = None,
+        stc_wrapper: Optional['STCWrapper'] = None,
         on_frame_received: Optional[Callable[[STTFrame], None]] = None
     ):
         """
         Initialize WebSocket transport.
         
         Args:
-            reader: Async stream reader
-            writer: Async stream writer
+            reader: Async stream reader (optional if connecting later)
+            writer: Async stream writer (optional if connecting later)
             is_client: True if client role, False if server
+            host: Host to connect to (if connecting)
+            port: Port to connect to (if connecting)
+            stc_wrapper: STC wrapper for encryption
             on_frame_received: Callback for received STT frames
         """
         self.reader = reader
         self.writer = writer
         self.is_client = is_client
+        self.host = host
+        self.port = port
+        self.stc_wrapper = stc_wrapper
         self.on_frame_received = on_frame_received
         
         self.state = WebSocketState.CONNECTING

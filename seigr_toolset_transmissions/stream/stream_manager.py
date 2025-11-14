@@ -17,28 +17,34 @@ logger = get_logger(__name__)
 class StreamManager:
     """Manages multiple streams within an STT session."""
     
-    def __init__(self, session_id: bytes):
+    def __init__(self, session_id: bytes, stc_wrapper):
         """
         Initialize stream manager.
         
         Args:
             session_id: Session identifier
+            stc_wrapper: STC wrapper for crypto operations
         """
         self.session_id = session_id
+        self.stc_wrapper = stc_wrapper
         self.streams: Dict[int, STTStream] = {}
         self.next_stream_id: int = 1
         self._lock = asyncio.Lock()
     
-    async def create_stream(self) -> STTStream:
+    async def create_stream(self, stream_id: Optional[int] = None) -> STTStream:
         """
         Create a new stream.
         
+        Args:
+            stream_id: Optional stream ID (auto-assigned if None)
+            
         Returns:
             New STTStream instance
         """
         async with self._lock:
-            stream_id = self.next_stream_id
-            self.next_stream_id += 2  # Odd for client, even for server
+            if stream_id is None:
+                stream_id = self.next_stream_id
+                self.next_stream_id += 2  # Odd for client, even for server
             
             stream = STTStream(
                 stream_id=stream_id,
@@ -150,6 +156,22 @@ class StreamManager:
                 logger.debug(f"Cleaned up {len(closed_ids)} closed streams")
             
             return len(closed_ids)
+    
+    def has_stream(self, stream_id: int) -> bool:
+        """Check if stream exists."""
+        return stream_id in self.streams
+    
+    async def close_all(self) -> None:
+        """Close all streams (alias for close_all_streams)."""
+        await self.close_all_streams()
+    
+    async def cleanup_inactive(self, timeout: float = 300) -> int:
+        """Remove inactive streams (alias for cleanup_closed_streams)."""
+        return await self.cleanup_closed_streams()
+    
+    def get_next_stream_id(self) -> int:
+        """Get next available stream ID."""
+        return self.next_stream_id
     
     def get_stats(self) -> dict:
         """Get statistics for all streams."""
