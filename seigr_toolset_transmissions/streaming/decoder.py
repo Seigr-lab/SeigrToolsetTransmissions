@@ -4,6 +4,7 @@ STC-based streaming decoder for chunk-wise decryption.
 
 from typing import Dict, List, Optional
 
+from interfaces.api.streaming_context import StreamingContext, ChunkHeader
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamingError
 
@@ -26,8 +27,8 @@ class StreamDecoder:
         self.session_id = session_id
         self.stream_id = stream_id
         
-        # Create isolated stream context
-        self.stream_context = stc_wrapper.create_stream_context(session_id, stream_id)
+        # Get StreamingContext directly from STC v0.4.0 (no wrapper)
+        self.stream_context: StreamingContext = stc_wrapper.create_stream_context(session_id, stream_id)
         
         # Track chunks for out-of-order delivery
         self.chunk_buffer: Dict[int, bytes] = {}
@@ -38,10 +39,11 @@ class StreamDecoder:
     
     def decode_chunk(self, encoded_data: bytes, sequence: Optional[int] = None) -> bytes:
         """
-        Decode (decrypt) a data chunk.
+        Decode (decrypt) a data chunk using STC v0.4.0 StreamingContext.
         
         Args:
-            encoded_data: Encrypted chunk with TLV metadata
+            encoded_data: Encrypted chunk with 16-byte fixed header
+                         Format: [empty_flag(1)] [header(16)] [encrypted_data]
             sequence: Optional sequence number for out-of-order delivery
             
         Returns:
@@ -54,30 +56,19 @@ class StreamDecoder:
             if not isinstance(encoded_data, bytes):
                 raise STTStreamingError("Encoded data must be bytes")
             
-            if len(encoded_data) < 5:  # 1 byte flag + 4 bytes length minimum
+            if len(encoded_data) < 17:  # 1 byte flag + 16 bytes header minimum
                 raise STTStreamingError("Encoded data too short")
             
             # Parse encoded data
-            # Format: [empty_flag (1 byte)] [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
+            # Format: [empty_flag(1)] [header(16)] [encrypted]
             empty_flag = encoded_data[0]
-            metadata_length = int.from_bytes(encoded_data[1:5], 'big')
+            header_bytes = encoded_data[1:17]  # 16-byte fixed header
+            encrypted = encoded_data[17:]
             
-            if metadata_length > len(encoded_data) - 5:
-                raise STTStreamingError("Invalid metadata length")
-            
-            metadata_bytes = encoded_data[5:5 + metadata_length]
-            encrypted = encoded_data[5 + metadata_length:]
-            
-            # Use provided sequence or auto-increment
-            chunk_index = sequence if sequence is not None else self.next_expected_index
-            
-            # Decrypt chunk using stream context
-            # metadata_bytes is already in TLV format from STC
-            decrypted = self.stream_context.decrypt_chunk(
-                encrypted,
-                metadata_bytes,
-                chunk_index
-            )
+            # Deserialize ChunkHeader and decrypt
+            # StreamingContext.decrypt_chunk expects (ChunkHeader, encrypted_bytes)
+            header_obj = ChunkHeader.from_bytes(header_bytes)
+            decrypted = self.stream_context.decrypt_chunk(header_obj, encrypted)
             
             # If empty flag is set, return empty bytes (ignore decrypted placeholder)
             if empty_flag == 0x01:
@@ -126,4 +117,7 @@ class StreamDecoder:
         self.chunk_buffer.clear()
         self.decoded_chunks.clear()
         self.next_expected_index = 0
-        self.stream_context.reset_index()
+        # Recreate StreamingContext (no reset method in v0.4.0)
+        self.stream_context = self.stc_wrapper.create_stream_context(
+            self.session_id, self.stream_id
+        )

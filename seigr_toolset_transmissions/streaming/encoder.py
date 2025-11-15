@@ -2,6 +2,7 @@
 STC-based streaming encoder for chunk-wise encryption.
 """
 
+from interfaces.api.streaming_context import StreamingContext
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamingError
 
@@ -24,40 +25,39 @@ class StreamEncoder:
         self.session_id = session_id
         self.stream_id = stream_id
         
-        # Create isolated stream context
-        self.stream_context = stc_wrapper.create_stream_context(session_id, stream_id)
+        # Get StreamingContext directly from STC v0.4.0 (no wrapper)
+        self.stream_context: StreamingContext = stc_wrapper.create_stream_context(session_id, stream_id)
         
         # Track sequence
         self._sequence = 0
     
     def encode_chunk(self, data: bytes) -> bytes:
         """
-        Encode (encrypt) a data chunk.
+        Encode (encrypt) a data chunk using STC v0.4.0 StreamingContext.
         
         Args:
             data: Chunk data to encrypt (can be empty)
             
         Returns:
-            Encrypted chunk with metadata in TLV format
+            Encrypted chunk with 16-byte fixed header
+            Format: [empty_flag(1)] [header(16)] [encrypted_data]
         """
         if not isinstance(data, bytes):
             raise STTStreamingError("Data must be bytes")
         
-        # Handle empty data - STC DSF doesn't accept empty data
-        # Use a placeholder byte and mark it in metadata
+        # Handle empty data - StreamingContext handles gracefully
         is_empty = len(data) == 0
         encrypt_data = b'\x00' if is_empty else data
         
-        # Encrypt chunk using stream context - returns (encrypted_bytes, metadata_bytes)
-        encrypted, metadata_bytes = self.stream_context.encrypt_chunk(encrypt_data)
+        # StreamingContext.encrypt_chunk returns (ChunkHeader, encrypted_bytes)
+        header_obj, encrypted = self.stream_context.encrypt_chunk(encrypt_data)
         
-        # If original was empty, prepend a flag byte (0x01 = empty, 0x00 = not empty)
+        # Serialize ChunkHeader to 16-byte fixed format
+        header_bytes = header_obj.to_bytes()
+        
+        # Format: [empty_flag(1)] [header(16)] [encrypted]
         flag = b'\x01' if is_empty else b'\x00'
-        
-        # Metadata is already in TLV format from STC
-        # Format: [empty_flag (1 byte)] [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
-        metadata_length = len(metadata_bytes).to_bytes(4, 'big')
-        encoded = flag + metadata_length + metadata_bytes + encrypted
+        encoded = flag + header_bytes + encrypted
         
         # Increment sequence
         self._sequence += 1
@@ -70,5 +70,8 @@ class StreamEncoder:
     
     def reset(self) -> None:
         """Reset encoder sequence."""
-        self.stream_context.reset_index()
+        # Recreate StreamingContext (no reset method in v0.4.0)
+        self.stream_context = self.stc_wrapper.create_stream_context(
+            self.session_id, self.stream_id
+        )
         self._sequence = 0

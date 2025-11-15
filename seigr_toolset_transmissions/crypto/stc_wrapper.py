@@ -16,11 +16,13 @@ import sys
 # Import STC - handle path issues
 try:
     from interfaces.api import stc_api
+    from interfaces.api.streaming_context import StreamingContext
 except ImportError:
     # Add site-packages to path if needed
     import site
     sys.path.extend(site.getsitepackages())
     from interfaces.api import stc_api
+    from interfaces.api.streaming_context import StreamingContext
 
 
 class STCWrapper:
@@ -280,11 +282,11 @@ class STCWrapper:
             context_data=assoc_dict
         )
     
-    def create_stream_context(self, session_id: bytes, stream_id: int) -> 'StreamContext':
+    def create_stream_context(self, session_id: bytes, stream_id: int) -> StreamingContext:
         """
-        Create isolated STC context for a specific stream.
+        Create isolated StreamingContext for a specific stream.
         
-        Each stream gets its own STC context to prevent nonce reuse
+        Each stream gets its own StreamingContext to prevent nonce reuse
         and provide cryptographic isolation between streams.
         
         Args:
@@ -292,7 +294,7 @@ class STCWrapper:
             stream_id: Stream identifier (4-byte integer)
             
         Returns:
-            StreamContext instance
+            StreamingContext from STC v0.4.0 (no wrapper needed)
         """
         # Create unique cache key
         cache_key = (session_id, stream_id)
@@ -307,11 +309,8 @@ class STCWrapper:
             {'purpose': 'stream_context'}
         )
         
-        # Create isolated STC context
-        stream_ctx = stc_api.initialize(stream_seed)
-        
-        # Create and cache StreamContext
-        context = StreamContext(stream_ctx, stream_id)
+        # Create StreamingContext directly (no wrapper)
+        context = StreamingContext(stream_seed)
         self._stream_contexts[cache_key] = context
         
         return context
@@ -326,88 +325,3 @@ class STCWrapper:
         """
         cache_key = (session_id, stream_id)
         self._stream_contexts.pop(cache_key, None)
-
-
-class StreamContext:
-    """
-    Isolated STC context for a specific stream.
-    
-    Provides cryptographic isolation between streams and prevents
-    nonce reuse by maintaining per-stream encryption state.
-    """
-    
-    def __init__(self, stc_context, stream_id: int):
-        """
-        Initialize stream context.
-        
-        Args:
-            stc_context: Isolated STC context for this stream
-            stream_id: Stream identifier
-        """
-        self.context = stc_context
-        self.stream_id = stream_id
-        self.chunk_index = 0
-    
-    def encrypt_chunk(self, chunk: bytes) -> Tuple[bytes, bytes]:
-        """
-        Encrypt single stream chunk.
-        
-        Args:
-            chunk: Chunk data to encrypt
-            
-        Returns:
-            Tuple of (encrypted_chunk, compact_metadata)
-        """
-        # Associated data includes stream_id and chunk_index
-        associated_data = {
-            'stream_id': self.stream_id,
-            'chunk_index': self.chunk_index,
-            'purpose': 'stream_chunk'
-        }
-        
-        # Encrypt chunk - STC returns (encrypted_bytes, metadata_bytes)
-        # where metadata_bytes is already TLV-encoded
-        encrypted, metadata_bytes = self.context.encrypt(
-            data=chunk,
-            context_data=associated_data
-        )
-        
-        # Increment chunk index for next encryption
-        self.chunk_index += 1
-        
-        # Return encrypted data and TLV-encoded metadata (already serialized by STC)
-        return encrypted, metadata_bytes
-    
-    def decrypt_chunk(self, encrypted: bytes, metadata_bytes: bytes,
-                     chunk_index: int) -> bytes:
-        """
-        Decrypt stream chunk.
-        
-        Args:
-            encrypted: Encrypted chunk data
-            metadata_bytes: TLV-encoded metadata bytes (from encrypt_chunk)
-            chunk_index: Chunk index (for verification)
-            
-        Returns:
-            Decrypted chunk data
-            
-        Raises:
-            Exception: If decryption or verification fails
-        """
-        # Associated data must match encryption
-        associated_data = {
-            'stream_id': self.stream_id,
-            'chunk_index': chunk_index,
-            'purpose': 'stream_chunk'
-        }
-        
-        # Decrypt - STC's decrypt() expects metadata as TLV bytes, not dict
-        return self.context.decrypt(
-            encrypted_data=encrypted,
-            metadata=metadata_bytes,
-            context_data=associated_data
-        )
-    
-    def reset_index(self):
-        """Reset chunk index (e.g., for stream restart)."""
-        self.chunk_index = 0

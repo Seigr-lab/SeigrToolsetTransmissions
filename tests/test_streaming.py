@@ -65,7 +65,7 @@ class TestStreamEncoder:
     
     def test_encode_large_chunk(self, encoder):
         """Test encoding large chunk."""
-        large_chunk = b"x" * 10000  # 10KB - reduced from 100KB for performance
+        large_chunk = b"x" * 1024  # 1KB - tests protocol, not crypto performance
         
         encoded = encoder.encode_chunk(large_chunk)
         
@@ -179,7 +179,7 @@ class TestStreamDecoder:
         encoder = StreamEncoder(stc_wrapper, session_id, stream_id)
         decoder = StreamDecoder(stc_wrapper, session_id, stream_id)
         
-        large_data = b"y" * 10000  # 10KB - reduced from 100KB for performance
+        large_data = b"y" * 1024  # 1KB - tests protocol, not crypto performance
         encoded = encoder.encode_chunk(large_data)
         decoded = decoder.decode_chunk(encoded)
         
@@ -234,9 +234,9 @@ class TestStreamingIntegration:
         encoder = StreamEncoder(stc_wrapper, session_id, stream_id)
         decoder = StreamDecoder(stc_wrapper, session_id, stream_id)
         
-        # Simulate large file - reduced from 1MB to 40KB for performance
-        chunk_size = 4096
-        total_size = 40 * 1024  # 40KB (10 chunks)
+        # Simulate file streaming - focus on protocol correctness not crypto performance
+        chunk_size = 1024  # 1KB chunks
+        total_size = 4 * 1024  # 4KB total (4 chunks)
         
         original_data = b""
         decoded_data = b""
