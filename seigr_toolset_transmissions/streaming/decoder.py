@@ -54,18 +54,19 @@ class StreamDecoder:
             if not isinstance(encoded_data, bytes):
                 raise STTStreamingError("Encoded data must be bytes")
             
-            if len(encoded_data) < 4:
+            if len(encoded_data) < 5:  # 1 byte flag + 4 bytes length minimum
                 raise STTStreamingError("Encoded data too short")
             
             # Parse encoded data
-            # Format: [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
-            metadata_length = int.from_bytes(encoded_data[:4], 'big')
+            # Format: [empty_flag (1 byte)] [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
+            empty_flag = encoded_data[0]
+            metadata_length = int.from_bytes(encoded_data[1:5], 'big')
             
-            if metadata_length > len(encoded_data) - 4:
+            if metadata_length > len(encoded_data) - 5:
                 raise STTStreamingError("Invalid metadata length")
             
-            metadata_bytes = encoded_data[4:4 + metadata_length]
-            encrypted = encoded_data[4 + metadata_length:]
+            metadata_bytes = encoded_data[5:5 + metadata_length]
+            encrypted = encoded_data[5 + metadata_length:]
             
             # Use provided sequence or auto-increment
             chunk_index = sequence if sequence is not None else self.next_expected_index
@@ -77,6 +78,10 @@ class StreamDecoder:
                 metadata_bytes,
                 chunk_index
             )
+            
+            # If empty flag is set, return empty bytes (ignore decrypted placeholder)
+            if empty_flag == 0x01:
+                decrypted = b""
             
             # Store in buffer if out-of-order
             if sequence is not None:

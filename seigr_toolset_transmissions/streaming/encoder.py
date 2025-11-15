@@ -43,14 +43,21 @@ class StreamEncoder:
         if not isinstance(data, bytes):
             raise STTStreamingError("Data must be bytes")
         
-        # Handle empty data - still encrypt for integrity
+        # Handle empty data - STC DSF doesn't accept empty data
+        # Use a placeholder byte and mark it in metadata
+        is_empty = len(data) == 0
+        encrypt_data = b'\x00' if is_empty else data
+        
         # Encrypt chunk using stream context - returns (encrypted_bytes, metadata_bytes)
-        encrypted, metadata_bytes = self.stream_context.encrypt_chunk(data)
+        encrypted, metadata_bytes = self.stream_context.encrypt_chunk(encrypt_data)
+        
+        # If original was empty, prepend a flag byte (0x01 = empty, 0x00 = not empty)
+        flag = b'\x01' if is_empty else b'\x00'
         
         # Metadata is already in TLV format from STC
-        # Format: [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
+        # Format: [empty_flag (1 byte)] [metadata_length (4 bytes)] [metadata_bytes] [encrypted_data]
         metadata_length = len(metadata_bytes).to_bytes(4, 'big')
-        encoded = metadata_length + metadata_bytes + encrypted
+        encoded = flag + metadata_length + metadata_bytes + encrypted
         
         # Increment sequence
         self._sequence += 1

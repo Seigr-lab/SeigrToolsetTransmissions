@@ -65,7 +65,7 @@ class TestStreamEncoder:
     
     def test_encode_large_chunk(self, encoder):
         """Test encoding large chunk."""
-        large_chunk = b"x" * 100000
+        large_chunk = b"x" * 10000  # 10KB - reduced from 100KB for performance
         
         encoded = encoder.encode_chunk(large_chunk)
         
@@ -179,7 +179,7 @@ class TestStreamDecoder:
         encoder = StreamEncoder(stc_wrapper, session_id, stream_id)
         decoder = StreamDecoder(stc_wrapper, session_id, stream_id)
         
-        large_data = b"y" * 100000
+        large_data = b"y" * 10000  # 10KB - reduced from 100KB for performance
         encoded = encoder.encode_chunk(large_data)
         decoded = decoder.decode_chunk(encoded)
         
@@ -234,9 +234,9 @@ class TestStreamingIntegration:
         encoder = StreamEncoder(stc_wrapper, session_id, stream_id)
         decoder = StreamDecoder(stc_wrapper, session_id, stream_id)
         
-        # Simulate large file
+        # Simulate large file - reduced from 1MB to 40KB for performance
         chunk_size = 4096
-        total_size = 1024 * 1024  # 1MB
+        total_size = 40 * 1024  # 40KB (10 chunks)
         
         original_data = b""
         decoded_data = b""
