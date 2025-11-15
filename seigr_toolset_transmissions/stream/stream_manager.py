@@ -57,7 +57,7 @@ class StreamManager:
             
             return stream
     
-    async def get_stream(self, stream_id: int) -> Optional[STTStream]:
+    def get_stream(self, stream_id: int) -> Optional[STTStream]:
         """
         Get stream by ID.
         
@@ -106,7 +106,7 @@ class StreamManager:
         """
         stream = self.streams.get(stream_id)
         if stream:
-            await stream.close()
+            stream.close()
             logger.info(f"Closed stream {stream_id}")
     
     async def close_all_streams(self) -> None:
@@ -114,7 +114,7 @@ class StreamManager:
         async with self._lock:
             for stream in self.streams.values():
                 if not stream.is_closed():
-                    await stream.close()
+                    stream.close()
             
             logger.info(
                 f"Closed all {len(self.streams)} streams "

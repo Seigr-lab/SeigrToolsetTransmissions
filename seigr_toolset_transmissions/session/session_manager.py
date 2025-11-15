@@ -73,7 +73,7 @@ class SessionManager:
             
             return session
     
-    async def get_session(self, session_id: bytes) -> Optional[STTSession]:
+    def get_session(self, session_id: bytes) -> Optional[STTSession]:
         """
         Get session by ID.
         
@@ -98,7 +98,7 @@ class SessionManager:
         """
         session = self.sessions.get(session_id)
         if session:
-            await session.close()
+            session.close()
             logger.info(f"Closed session {session_id.hex()}")
     
     async def close_all_sessions(self) -> None:
@@ -106,7 +106,7 @@ class SessionManager:
         async with self._lock:
             for session in self.sessions.values():
                 if not session.is_closed():
-                    await session.close()
+                    session.close()
             
             logger.info(f"Closed all {len(self.sessions)} sessions")
     
@@ -146,9 +146,9 @@ class SessionManager:
             
             return len(closed_ids)
     
-    def list_sessions(self) -> List[bytes]:
-        """List all session IDs."""
-        return list(self.sessions.keys())
+    def list_sessions(self) -> List[STTSession]:
+        """List all sessions."""
+        return list(self.sessions.values())
     
     async def rotate_all_keys(self, stc_wrapper) -> None:
         """Rotate keys for all active sessions."""

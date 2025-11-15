@@ -92,6 +92,10 @@ class STTSession:
         """Close session."""
         self.is_active = False
     
+    def is_closed(self) -> bool:
+        """Check if session is closed."""
+        return not self.is_active
+    
     def get_stats(self) -> Dict:
         """Get session statistics."""
         return {

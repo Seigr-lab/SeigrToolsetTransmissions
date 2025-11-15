@@ -178,6 +178,10 @@ class STTStream:
         self.is_active = False
         self._receive_event.set()  # Wake up any waiters
     
+    def is_closed(self) -> bool:
+        """Check if stream is closed."""
+        return not self.is_active
+    
     def get_stats(self) -> Dict:
         """Get stream statistics."""
         return {
