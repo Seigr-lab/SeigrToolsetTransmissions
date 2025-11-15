@@ -136,6 +136,10 @@ class STTStream:
         
         self.last_activity = time.time()
         
+        # Update statistics
+        self.bytes_received += len(data)
+        self.messages_received += 1
+        
         # Check if this is the expected sequence
         if sequence == self.expected_sequence:
             # Deliver in order
@@ -173,7 +177,7 @@ class STTStream:
         """Check if receive buffer is empty."""
         return len(self.receive_buffer) == 0
     
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close stream."""
         self.is_active = False
         self._receive_event.set()  # Wake up any waiters

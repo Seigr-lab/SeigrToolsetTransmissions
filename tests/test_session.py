@@ -199,6 +199,14 @@ class TestSessionManager:
         # Close session
         await manager.close_session(session_id)
         
+        # Session still exists but is closed
+        assert manager.has_session(session_id)
+        session = manager.get_session(session_id)
+        assert session.is_closed()
+        
+        # Cleanup removes it
+        removed = await manager.cleanup_closed_sessions()
+        assert removed == 1
         assert not manager.has_session(session_id)
     
     @pytest.mark.asyncio

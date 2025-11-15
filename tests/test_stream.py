@@ -138,7 +138,7 @@ class TestStream:
     async def test_stream_timeout(self, stream):
         """Test stream timeout handling."""
         # Simulate timeout
-        stream._last_activity = 0
+        stream.last_activity = 0
         
         is_expired = stream.is_expired(max_idle=1)
         
@@ -216,6 +216,14 @@ class TestStreamManager:
         # Close stream
         await manager.close_stream(stream_id)
         
+        # Stream still exists but is closed
+        assert manager.has_stream(stream_id)
+        stream = manager.get_stream(stream_id)
+        assert stream.is_closed()
+        
+        # Cleanup removes it
+        removed = await manager.cleanup_closed_streams()
+        assert removed == 1
         assert not manager.has_stream(stream_id)
     
     @pytest.mark.asyncio
@@ -263,10 +271,16 @@ class TestStreamManager:
     @pytest.mark.asyncio
     async def test_get_next_stream_id(self, manager):
         """Test getting next available stream ID."""
-        stream_id_1 = manager.get_next_stream_id()
-        stream_id_2 = manager.get_next_stream_id()
+        # Get current next ID
+        next_id = manager.get_next_stream_id()
+        assert next_id == 1  # Initial value
         
-        assert stream_id_2 > stream_id_1
+        # Create stream - this should increment next_id
+        await manager.create_stream()
+        
+        # Next ID should now be incremented
+        new_next_id = manager.get_next_stream_id()
+        assert new_next_id > next_id  # Should be 3 (increments by 2)
     
     @pytest.mark.asyncio
     async def test_stream_isolation(self, manager):

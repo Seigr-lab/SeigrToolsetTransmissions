@@ -3,6 +3,7 @@ Session manager for handling multiple active sessions.
 """
 
 import asyncio
+import time
 from typing import Dict, Optional, List
 
 from .session import STTSession
@@ -91,7 +92,8 @@ class SessionManager:
     
     async def close_session(self, session_id: bytes) -> None:
         """
-        Close a session.
+        Close a session (marks as closed, but keeps in manager for cleanup).
+        Use cleanup_closed_sessions() to remove closed sessions.
         
         Args:
             session_id: Session to close
@@ -114,7 +116,7 @@ class SessionManager:
         """Get list of active sessions."""
         return [
             session for session in self.sessions.values()
-            if session.is_active()
+            if session.is_active
         ]
     
     def get_session_count(self) -> int:
@@ -161,8 +163,31 @@ class SessionManager:
         return await self.cleanup_closed_sessions()
     
     async def cleanup_expired(self, max_idle: float) -> int:
-        """Remove expired sessions."""
-        return await self.cleanup_inactive(timeout=max_idle)
+        """
+        Remove expired sessions based on inactivity.
+        
+        Args:
+            max_idle: Maximum idle time in seconds
+            
+        Returns:
+            Number of sessions removed
+        """
+        async with self._lock:
+            current_time = time.time()
+            expired_ids = [
+                sid for sid, session in self.sessions.items()
+                if (current_time - session._last_activity) > max_idle
+            ]
+            
+            for sid in expired_ids:
+                session = self.sessions[sid]
+                session.close()
+                del self.sessions[sid]
+            
+            if expired_ids:
+                logger.debug(f"Cleaned up {len(expired_ids)} expired sessions")
+            
+            return len(expired_ids)
     
     async def find_session_by_peer(
         self,

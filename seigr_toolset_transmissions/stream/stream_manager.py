@@ -49,6 +49,7 @@ class StreamManager:
             stream = STTStream(
                 stream_id=stream_id,
                 session_id=self.session_id,
+                stc_wrapper=self.stc_wrapper,
             )
             
             self.streams[stream_id] = stream
@@ -86,6 +87,7 @@ class StreamManager:
             stream = STTStream(
                 stream_id=stream_id,
                 session_id=self.session_id,
+                stc_wrapper=self.stc_wrapper,
             )
             
             self.streams[stream_id] = stream
@@ -99,14 +101,15 @@ class StreamManager:
     
     async def close_stream(self, stream_id: int) -> None:
         """
-        Close a stream.
+        Close a stream (marks as closed, but keeps in manager for cleanup).
+        Use cleanup_closed_streams() to remove closed streams.
         
         Args:
             stream_id: Stream to close
         """
         stream = self.streams.get(stream_id)
         if stream:
-            stream.close()
+            await stream.close()
             logger.info(f"Closed stream {stream_id}")
     
     async def close_all_streams(self) -> None:
@@ -114,7 +117,7 @@ class StreamManager:
         async with self._lock:
             for stream in self.streams.values():
                 if not stream.is_closed():
-                    stream.close()
+                    await stream.close()
             
             logger.info(
                 f"Closed all {len(self.streams)} streams "
@@ -146,7 +149,7 @@ class StreamManager:
         async with self._lock:
             closed_ids = [
                 sid for sid, stream in self.streams.items()
-                if stream.state == STT_STREAM_STATE_CLOSED
+                if stream.is_closed()
             ]
             
             for sid in closed_ids:
@@ -161,6 +164,10 @@ class StreamManager:
         """Check if stream exists."""
         return stream_id in self.streams
     
+    def list_streams(self) -> List[STTStream]:
+        """List all streams."""
+        return list(self.streams.values())
+    
     async def close_all(self) -> None:
         """Close all streams (alias for close_all_streams)."""
         await self.close_all_streams()
@@ -170,7 +177,7 @@ class StreamManager:
         return await self.cleanup_closed_streams()
     
     def get_next_stream_id(self) -> int:
-        """Get next available stream ID."""
+        """Get next available stream ID (without incrementing)."""
         return self.next_stream_id
     
     def get_stats(self) -> dict:
