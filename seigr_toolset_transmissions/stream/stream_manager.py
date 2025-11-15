@@ -119,10 +119,14 @@ class StreamManager:
                 if not stream.is_closed():
                     await stream.close()
             
+            count = len(self.streams)
             logger.info(
-                f"Closed all {len(self.streams)} streams "
+                f"Closed all {count} streams "
                 f"for session {self.session_id.hex()}"
             )
+            
+            # Cleanup closed streams immediately
+            self.streams.clear()
     
     def get_active_streams(self) -> List[STTStream]:
         """Get list of currently active (non-closed) streams."""

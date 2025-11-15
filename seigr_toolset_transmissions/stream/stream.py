@@ -55,6 +55,14 @@ class STTStream:
         
         # Async support
         self._receive_event = asyncio.Event()
+        
+        # Create StreamingContext for this stream (cached in stc_wrapper)
+        self._stc_context = stc_wrapper.create_stream_context(session_id, stream_id)
+    
+    @property
+    def stc_context(self):
+        """Get StreamingContext for this stream (for test compatibility)."""
+        return self._stc_context
     
     async def send(self, data: bytes) -> None:
         """

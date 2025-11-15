@@ -34,6 +34,7 @@ class STTSession:
         # Session state
         self.is_active = True
         self.key_version = 0
+        self.session_key: Optional[bytes] = None
         self.created_at = time.time()
         self.last_activity = time.time()
         
@@ -117,6 +118,29 @@ class STTSession:
     def is_active_method(self) -> bool:
         """Check if session is active (method version)."""
         return self.is_active
+    
+    async def rotate_key(self, stc_wrapper: STCWrapper) -> None:
+        """Rotate session key using STC.
+        
+        Args:
+            stc_wrapper: STC wrapper for key derivation
+        """
+        # Generate rotation nonce
+        import secrets
+        rotation_nonce = secrets.token_bytes(32)
+        
+        # Derive new session key from current key + nonce
+        if self.session_key:
+            new_key = stc_wrapper.rotate_session_key(self.session_key, rotation_nonce)
+            self.session_key = new_key
+            self.key_version += 1
+        else:
+            # If no session key yet, derive one from session_id
+            self.session_key = stc_wrapper.derive_session_key({
+                'session_id': self.session_id.hex(),
+                'peer_id': self.peer_node_id.hex()
+            })
+            self.key_version = 1
 
 
 class SessionManager:

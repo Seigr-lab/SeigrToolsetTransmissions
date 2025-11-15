@@ -155,8 +155,8 @@ class SessionManager:
     async def rotate_all_keys(self, stc_wrapper) -> None:
         """Rotate keys for all active sessions."""
         for session in self.get_active_sessions():
-            # Update session with new STC wrapper
-            pass  # Key rotation logic here
+            # Rotate session key using STC
+            await session.rotate_key(stc_wrapper)
     
     async def cleanup_inactive(self, timeout: float = 600) -> int:
         """Remove inactive sessions."""
