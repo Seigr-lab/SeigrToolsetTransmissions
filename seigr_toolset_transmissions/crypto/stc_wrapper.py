@@ -133,8 +133,9 @@ class STCWrapper:
         """Decrypt frame and verify authentication."""
         # Parse flexible arguments
         if kwargs:
-            encrypted_payload = kwargs.get('encrypted_payload')
-            nonce = kwargs.get('nonce')
+            # Support both naming conventions
+            encrypted_payload = kwargs.get('encrypted_payload') or kwargs.get('encrypted')
+            nonce = kwargs.get('nonce') or kwargs.get('metadata')
             session_id = kwargs.get('session_id')
             stream_id = kwargs.get('stream_id')
             associated_data = kwargs.get('associated_data', {})

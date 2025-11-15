@@ -42,8 +42,10 @@ class Chamber:
         self.node_id = node_id
         self.stc_wrapper = stc_wrapper
         
-        # Create chamber directory if it doesn't exist
-        self.chamber_path.mkdir(parents=True, exist_ok=True)
+        # Create node-specific subdirectory for isolation
+        node_dir = node_id.hex()[:16]  # First 16 hex chars of node_id
+        self.storage_path = self.chamber_path / node_dir
+        self.storage_path.mkdir(parents=True, exist_ok=True)
         
         # Metadata
         self.metadata: Dict = {}
@@ -80,7 +82,7 @@ class Chamber:
         }
         
         # Write to file
-        file_path = self.chamber_path / f"{key}.stt"
+        file_path = self.storage_path / f"{key}.stt"
         with open(file_path, 'wb') as f:
             f.write(serialize_stt(storage_data))
     
@@ -97,7 +99,7 @@ class Chamber:
         Raises:
             STTChamberError: If key doesn't exist or decryption fails
         """
-        file_path = self.chamber_path / f"{key}.stt"
+        file_path = self.storage_path / f"{key}.stt"
         
         if not file_path.exists():
             raise STTChamberError(f"Key '{key}' not found in chamber")
@@ -127,7 +129,7 @@ class Chamber:
         Args:
             key: Storage key
         """
-        file_path = self.chamber_path / f"{key}.stt"
+        file_path = self.storage_path / f"{key}.stt"
         
         if file_path.exists():
             file_path.unlink()
@@ -144,7 +146,7 @@ class Chamber:
         Returns:
             True if key exists
         """
-        file_path = self.chamber_path / f"{key}.stt"
+        file_path = self.storage_path / f"{key}.stt"
         return file_path.exists()
     
     def list_keys(self) -> List[str]:
@@ -155,13 +157,13 @@ class Chamber:
             List of storage keys
         """
         keys = []
-        for file_path in self.chamber_path.glob("*.stt"):
+        for file_path in self.storage_path.glob("*.stt"):
             keys.append(file_path.stem)
         return sorted(keys)
     
     def clear(self) -> None:
         """Clear all data from chamber."""
-        for file_path in self.chamber_path.glob("*.stt"):
+        for file_path in self.storage_path.glob("*.stt"):
             file_path.unlink()
     
     def update(self, key: str, data: Any) -> None:
@@ -184,7 +186,7 @@ class Chamber:
         Returns:
             Metadata dictionary
         """
-        file_path = self.chamber_path / f"{key}.stt"
+        file_path = self.storage_path / f"{key}.stt"
         
         if not file_path.exists():
             raise STTChamberError(f"Key '{key}' not found in chamber")
