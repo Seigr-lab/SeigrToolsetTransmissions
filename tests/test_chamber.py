@@ -264,3 +264,10 @@ class TestChamber:
         # Should fail to decrypt
         with pytest.raises(STTChamberError):
             chamber2.retrieve(key)
+    
+    def test_chamber_delete_nonexistent(self, temp_chamber_dir, stc_wrapper, node_id):
+        """Test deleting non-existent key raises error."""
+        chamber = Chamber(temp_chamber_dir, node_id, stc_wrapper)
+        
+        with pytest.raises(STTChamberError, match="not found"):
+            chamber.delete("nonexistent")

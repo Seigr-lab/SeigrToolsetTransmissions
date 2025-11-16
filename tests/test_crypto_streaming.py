@@ -163,6 +163,17 @@ class TestCryptoStreaming:
         # Should have 9 unique contexts
         assert len(_stream_contexts) == 9
         assert len(set(contexts.values())) == 9
+    
+    def test_get_context_not_initialized(self):
+        """Test getting context when not initialized."""
+        import seigr_toolset_transmissions.crypto.context as ctx_module
+        old_context = ctx_module._context
+        try:
+            ctx_module._context = None
+            with pytest.raises(RuntimeError, match="not initialized"):
+                ctx_module.get_context()
+        finally:
+            ctx_module._context = old_context
 
 
 if __name__ == "__main__":

@@ -424,3 +424,25 @@ class TestSTCWrapper:
         
         # Different wrappers should produce different contexts
         assert ctx1 is not ctx2
+    
+    def test_encrypt_frame_invalid_args(self, stc_wrapper):
+        """Test encrypt_frame with invalid number of arguments."""
+        with pytest.raises(TypeError, match="invalid arguments"):
+            stc_wrapper.encrypt_frame(b"only_one_arg")
+    
+    def test_clear_stream_context(self, stc_wrapper):
+        """Test clearing stream context from cache."""
+        session_id = b'\x0e' * 8
+        stream_id = 14
+        
+        # Create context
+        ctx = stc_wrapper.create_stream_context(session_id, stream_id)
+        assert ctx is not None
+        
+        # Clear it
+        stc_wrapper.clear_stream_context(session_id, stream_id)
+        
+        # Next creation should give new context
+        ctx2 = stc_wrapper.create_stream_context(session_id, stream_id)
+        # Can't guarantee different object, but operation should succeed
+        assert ctx2 is not None

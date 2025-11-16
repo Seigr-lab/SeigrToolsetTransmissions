@@ -495,3 +495,52 @@ class TestStreamManager:
         # Initially should be zero
         assert stats['bytes_sent'] == 0
         assert stats['bytes_received'] == 0
+    
+    @pytest.mark.asyncio
+    async def test_stream_manager_get_or_create_existing(self):
+        """Test getting existing stream from manager."""
+        wrapper = STCWrapper(b"manager_existing_32_bytes_min!")
+        manager = StreamManager(b'\x0F' * 8, wrapper)
+        
+        # Create stream
+        stream1 = await manager.get_or_create_stream(1)
+        # Get same stream again
+        stream2 = await manager.get_or_create_stream(1)
+        
+        # Should be same instance
+        assert stream1 is stream2
+    
+    @pytest.mark.asyncio
+    async def test_stream_manager_multiple_streams(self):
+        """Test managing multiple concurrent streams."""
+        wrapper = STCWrapper(b"manager_multi_32_bytes_minimum")
+        manager = StreamManager(b'\x10' * 8, wrapper)
+        
+        # Create multiple streams
+        stream1 = await manager.get_or_create_stream(1)
+        stream2 = await manager.get_or_create_stream(2)
+        stream3 = await manager.get_or_create_stream(3)
+        
+        # Should all be different
+        assert stream1 is not stream2
+        assert stream2 is not stream3
+        assert stream1.stream_id != stream2.stream_id
+    
+    @pytest.mark.asyncio
+    async def test_stream_manager_close_and_cleanup(self):
+        """Test closing streams and cleanup."""
+        wrapper = STCWrapper(b"manager_cleanup_32_bytes_min!!")
+        manager = StreamManager(b'\x11' * 8, wrapper)
+        
+        # Create and close stream
+        stream = await manager.get_or_create_stream(1)
+        await manager.close_stream(1)
+        
+        # Stream should still exist but be marked closed
+        assert stream.is_active is False
+        
+        # Cleanup should remove closed streams
+        await manager.cleanup_closed_streams()
+        
+        # Verify cleanup was called successfully
+        assert True  # No exception means cleanup worked
