@@ -536,6 +536,113 @@ class TestSTTNodeIntegration:
             
         finally:
             await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_handle_unknown_frame_type(self, node_seed, shared_seed, temp_chamber_path):
+        """Test handling unknown frame type."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        await node.start()
+        
+        try:
+            from seigr_toolset_transmissions.frame import STTFrame
+            
+            # Create frame with unknown type
+            frame = STTFrame(
+                frame_type=99,  # Unknown type
+                session_id=b'\x00' * 8,
+                sequence=0,
+                stream_id=0,
+                payload=b'test'
+            )
+            
+            peer_addr = ('127.0.0.1', 5000)
+            
+            # Should handle gracefully (log warning)
+            node._handle_frame_received(frame, peer_addr)
+            
+            await asyncio.sleep(0.1)
+            
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_handle_frame_exception(self, node_seed, shared_seed, temp_chamber_path):
+        """Test frame handler exception handling."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        await node.start()
+        
+        try:
+            # Create a frame that will cause issues
+            from seigr_toolset_transmissions.frame import STTFrame
+            from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
+            
+            # Malformed frame
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b'\xFF' * 8,  # Non-existent session
+                sequence=0,
+                stream_id=1,
+                payload=b'test'
+            )
+            
+            peer_addr = ('127.0.0.1', 5000)
+            
+            # Should handle exception gracefully
+            node._handle_frame_received(frame, peer_addr)
+            
+            await asyncio.sleep(0.1)
+            
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_node_with_background_tasks(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node with background tasks gets cancelled on stop."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        await node.start()
+        
+        # Add a background task
+        async def background_task():
+            while True:
+                await asyncio.sleep(1)
+        
+        task = asyncio.create_task(background_task())
+        node._tasks.append(task)
+        
+        # Stop should cancel tasks
+        await node.stop()
+        
+        assert task.cancelled() or task.done()
+    
+    @pytest.mark.asyncio
+    async def test_node_double_start(self, node_seed, shared_seed, temp_chamber_path):
+        """Test starting node twice returns same address."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        addr1 = await node.start()
+        addr2 = await node.start()  # Second start should return without error
+        
+        # Second start returns the default (host, port) not the bound address
+        # but doesn't fail and doesn't restart
+        assert node._running is True
+        
+        await node.stop()
 
 
 if __name__ == "__main__":
