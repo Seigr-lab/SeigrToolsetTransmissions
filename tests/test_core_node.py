@@ -643,6 +643,137 @@ class TestSTTNodeIntegration:
         assert node._running is True
         
         await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_connect_udp_not_started(self, temp_chamber_path, node_seed, shared_seed):
+        """Test connect_udp raises error when node not started."""
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        # Try to connect without starting node
+        with pytest.raises(STTException, match="Node not started"):
+            await node.connect_udp("127.0.0.1", 9999)
+    
+    @pytest.mark.asyncio
+    async def test_connect_udp_handshake_flow(self, temp_chamber_path, node_seed, shared_seed):
+        """Test connect_udp handshake flow (covers most of method)."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from seigr_toolset_transmissions.utils.constants import STT_SESSION_STATE_ACTIVE
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Mock the handshake object returned by initiate_handshake
+            mock_handshake = MagicMock()
+            mock_handshake.hello = b"hello_bytes_message"
+            mock_handshake.session_key = b"session_key_16_bytes"
+            mock_handshake.peer_node_id = b"peer_node_id_val"
+            
+            with patch.object(node.handshake_manager, 'initiate_handshake', new_callable=AsyncMock, return_value=mock_handshake) as mock_init:
+                with patch.object(node.udp_transport, 'send_raw', new_callable=AsyncMock) as mock_send:
+                    # Attempt to connect
+                    session = await node.connect_udp("127.0.0.1", 8888)
+                    
+                    # Verify handshake was initiated
+                    mock_init.assert_called_once_with(("127.0.0.1", 8888))
+                    
+                    # Verify HELLO was sent
+                    mock_send.assert_called_once()
+                    args = mock_send.call_args[0]
+                    assert args[0] == b"hello_bytes_message"
+                    assert args[1] == ("127.0.0.1", 8888)
+                    
+                    # Verify session was created with correct state
+                    assert session is not None
+                    assert session.state == STT_SESSION_STATE_ACTIVE
+                    assert session.session_key == b"session_key_16_bytes"
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_connect_udp_incomplete_handshake(self, temp_chamber_path, node_seed, shared_seed):
+        """Test connect_udp with incomplete handshake (no session key)."""
+        from unittest.mock import MagicMock, AsyncMock, patch
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Mock handshake that doesn't have session key
+            mock_handshake = MagicMock()
+            mock_handshake.hello = b"hello"
+            mock_handshake.session_key = None  # Incomplete!
+            mock_handshake.peer_node_id = b"peer_id"
+            
+            with patch.object(node.handshake_manager, 'initiate_handshake', new_callable=AsyncMock, return_value=mock_handshake):
+                # Should raise exception for incomplete handshake
+                with pytest.raises(STTException, match="Handshake incomplete"):
+                    await node.connect_udp("127.0.0.1", 9999)
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_connect_udp_no_peer_id(self, temp_chamber_path, node_seed, shared_seed):
+        """Test connect_udp with missing peer node ID."""
+        from unittest.mock import MagicMock, AsyncMock, patch
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Mock handshake that doesn't have peer ID
+            mock_handshake = MagicMock()
+            mock_handshake.hello = b"hello"
+            mock_handshake.session_key = b"session_key_value"
+            mock_handshake.peer_node_id = None  # Missing peer ID!
+            
+            with patch.object(node.handshake_manager, 'initiate_handshake', new_callable=AsyncMock, return_value=mock_handshake):
+                # Should raise exception for incomplete handshake
+                with pytest.raises(STTException, match="Handshake incomplete"):
+                    await node.connect_udp("127.0.0.1", 9999)
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_connect_udp_exception_handling(self, temp_chamber_path, node_seed, shared_seed):
+        """Test connect_udp exception handling."""
+        from unittest.mock import AsyncMock, patch
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Mock handshake that raises exception
+            with patch.object(node.handshake_manager, 'initiate_handshake', new_callable=AsyncMock, side_effect=Exception("Handshake creation failed")):
+                # Should wrap exception in STTException
+                with pytest.raises(STTException, match="Failed to connect to 127.0.0.1:9999"):
+                    await node.connect_udp("127.0.0.1", 9999)
+        finally:
+            await node.stop()
 
 
 if __name__ == "__main__":

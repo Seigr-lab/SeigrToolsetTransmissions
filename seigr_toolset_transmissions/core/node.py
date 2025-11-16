@@ -162,22 +162,22 @@ class STTNode:
             raise STTException("Node not started")
         
         try:
-            # Create handshake
-            peer_addr = f"{peer_host}:{peer_port}"
-            handshake = self.handshake_manager.create_handshake(peer_addr)
-            
             # Initiate handshake
-            hello_bytes = handshake.initiate_handshake()
+            peer_addr = (peer_host, peer_port)
+            handshake = await self.handshake_manager.initiate_handshake(peer_addr)
+            
+            # Get HELLO bytes
+            hello_bytes = handshake.hello
             
             # Send HELLO via UDP
-            await self.udp_transport.send_raw(hello_bytes, (peer_host, peer_port))
+            await self.udp_transport.send_raw(hello_bytes, peer_addr)
             
             # Wait for response (simplified - should use proper async waiting)
             await asyncio.sleep(0.1)
             
             # Get session key and peer ID from handshake
-            session_key = handshake.get_session_key()
-            peer_node_id = handshake.get_peer_node_id()
+            session_key = handshake.session_key
+            peer_node_id = handshake.peer_node_id
             
             if not session_key or not peer_node_id:
                 raise STTException("Handshake incomplete")
