@@ -232,6 +232,16 @@ class TestStreamingIntegration:
         """STC wrapper for tests."""
         return STCWrapper(b"integration_seed_32_bytes_min!")
     
+    @pytest.fixture
+    def encoder(self, stc_wrapper):
+        """Create encoder for integration tests."""
+        return StreamEncoder(stc_wrapper, b'\x01' * 8, 1)
+    
+    @pytest.fixture
+    def decoder(self, stc_wrapper):
+        """Create decoder for integration tests."""
+        return StreamDecoder(stc_wrapper, b'\x01' * 8, 1)
+    
     def test_stream_large_file(self, stc_wrapper):
         """Test streaming large file in chunks."""
         session_id = b'\x01' * 8
@@ -361,8 +371,8 @@ class TestStreamingIntegration:
             encoded = encoder.encode_chunk(chunk)
             decoder.decode_chunk(encoded)
         
-        received = decoder.get_received_chunks()
-        assert len(received) == len(chunks)
+        # Check decoded chunks (in order)
+        assert len(decoder.decoded_chunks) == len(chunks)
     
     def test_decoder_reset(self, decoder, encoder):
         """Test decoder reset."""

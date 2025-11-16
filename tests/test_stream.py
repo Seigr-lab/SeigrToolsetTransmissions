@@ -5,6 +5,7 @@ Tests for STT stream management.
 import pytest
 import asyncio
 from seigr_toolset_transmissions.stream import STTStream as Stream, StreamManager
+from seigr_toolset_transmissions.stream.stream import STTStream
 from seigr_toolset_transmissions.crypto import STCWrapper
 from seigr_toolset_transmissions.utils.exceptions import STTStreamError
 

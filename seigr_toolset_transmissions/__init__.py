@@ -5,7 +5,7 @@ Binary, encrypted, application-agnostic transmission protocol for the Seigr Ecos
 """
 
 __version__ = "0.1.0"
-__author__ = "Seigr Development Team"
+__author__ = "Sergi Saldaña-Massó - Seigr Lab"
 
 from .core import STTNode, ReceivedPacket
 from .session import STTSession, SessionManager

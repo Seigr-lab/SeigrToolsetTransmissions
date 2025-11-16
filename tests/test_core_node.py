@@ -162,6 +162,23 @@ class TestSTTNode:
 class TestSTTNodeIntegration:
     """Integration tests for STT Node."""
     
+    @pytest.fixture
+    def temp_chamber_path(self):
+        """Create temporary chamber directory."""
+        temp_dir = Path(tempfile.mkdtemp())
+        yield temp_dir
+        shutil.rmtree(temp_dir, ignore_errors=True)
+    
+    @pytest.fixture
+    def node_seed(self):
+        """Node seed for testing."""
+        return b"test_node_seed_12345678"
+    
+    @pytest.fixture
+    def shared_seed(self):
+        """Shared seed for authentication."""
+        return b"test_shared_seed_1234567"
+    
     @pytest.mark.asyncio
     async def test_two_nodes_communication(self):
         """Test two nodes can communicate."""
@@ -277,7 +294,7 @@ class TestSTTNodeIntegration:
         )
         
         assert node.session_manager is not None
-        assert node.session_manager.node_id == node.node_id
+        assert node.session_manager.local_node_id == node.node_id
     
     @pytest.mark.asyncio
     async def test_node_handshake_manager_initialization(self, node_seed, shared_seed, temp_chamber_path):
@@ -338,6 +355,187 @@ class TestSTTNodeIntegration:
         )
         
         assert len(node._tasks) == 0
+    
+    @pytest.mark.asyncio
+    async def test_node_get_stats(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node statistics retrieval."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        stats = node.get_stats()
+        
+        assert isinstance(stats, dict)
+        assert 'node_id' in stats
+        assert stats['node_id'] == node.node_id.hex()
+    
+    @pytest.mark.asyncio
+    async def test_node_receive_queue(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node receive queue."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        # Queue should be empty initially
+        assert node._recv_queue.empty()
+        
+        # Put test packet
+        test_packet = ReceivedPacket(
+            session_id=b'\x01' * 8,
+            stream_id=1,
+            data=b"test data"
+        )
+        await node._recv_queue.put(test_packet)
+        
+        assert not node._recv_queue.empty()
+    
+    @pytest.mark.asyncio
+    async def test_handle_handshake_frame(self, node_seed, shared_seed, temp_chamber_path):
+        """Test handling handshake frames."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        await node.start()
+        
+        try:
+            # Create a handshake frame
+            from seigr_toolset_transmissions.frame import STTFrame
+            from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_HANDSHAKE
+            
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_HANDSHAKE,
+                session_id=b'\x00' * 8,
+                sequence=0,
+                stream_id=0,
+                payload=b'test handshake data'
+            )
+            
+            peer_addr = ('127.0.0.1', 5000)
+            
+            # Call handler directly
+            node._handle_frame_received(frame, peer_addr)
+            
+            # Give async task time to execute
+            await asyncio.sleep(0.1)
+            
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_handle_data_frame_no_session(self, node_seed, shared_seed, temp_chamber_path):
+        """Test handling data frame with no session."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        await node.start()
+        
+        try:
+            from seigr_toolset_transmissions.frame import STTFrame
+            from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
+            
+            # Create data frame with non-existent session
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b'\xFF' * 8,
+                sequence=0,
+                stream_id=1,
+                payload=b'test data'
+            )
+            
+            peer_addr = ('127.0.0.1', 5000)
+            
+            # Should handle gracefully
+            node._handle_frame_received(frame, peer_addr)
+            
+            await asyncio.sleep(0.1)
+            
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_handle_data_frame_with_session(self, node_seed, shared_seed, temp_chamber_path):
+        """Test handling data frame with valid session."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        await node.start()
+        
+        try:
+            from seigr_toolset_transmissions.frame import STTFrame
+            from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
+            
+            # Create a session first
+            session_id = b'\x01' * 8
+            session = await node.session_manager.create_session(
+                session_id=session_id,
+                peer_node_id=b'\x02' * 32,
+                capabilities=0
+            )
+            
+            # Create data frame
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=session_id,
+                sequence=0,
+                stream_id=1,
+                payload=b'test data'
+            )
+            
+            peer_addr = ('127.0.0.1', 5000)
+            
+            # Handle frame
+            node._handle_frame_received(frame, peer_addr)
+            
+            await asyncio.sleep(0.1)
+            
+            # Check receive queue has data
+            assert not node._recv_queue.empty()
+            
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_receive_generator(self, node_seed, shared_seed, temp_chamber_path):
+        """Test receive generator."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        await node.start()
+        
+        try:
+            # Put test packet in queue
+            test_packet = ReceivedPacket(
+                session_id=b'\x01' * 8,
+                stream_id=1,
+                data=b"test data"
+            )
+            await node._recv_queue.put(test_packet)
+            
+            # Receive one packet
+            received = False
+            async for packet in node.receive():
+                assert packet.session_id == test_packet.session_id
+                assert packet.stream_id == test_packet.stream_id
+                assert packet.data == test_packet.data
+                received = True
+                break
+            
+            assert received
+            
+        finally:
+            await node.stop()
 
 
 if __name__ == "__main__":

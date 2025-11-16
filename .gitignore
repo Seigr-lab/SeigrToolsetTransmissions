@@ -13,6 +13,7 @@ htmlcov/
 .pytest_cache/
 *.cover
 .hypothesis/
+.coveragerc
 
 # Build artifacts
 build/

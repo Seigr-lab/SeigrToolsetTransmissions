@@ -12,8 +12,8 @@ long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 setup(
     name="seigr-toolset-transmissions",
     version="0.1.0",
-    author="Seigr Development Team",
-    author_email="dev@seigr.net",
+    author="Sergi Saldaña-Massó - Seigr Lab",
+    author_email="sergism@gmail.com",
     description="Binary encrypted transmission protocol for the Seigr Ecosystem",
     long_description=long_description,
     long_description_content_type="text/markdown",

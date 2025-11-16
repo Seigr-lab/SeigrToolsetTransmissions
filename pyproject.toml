@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-    {name = "Seigr Development Team", email = "dev@seigr.net"}
+    {name = "Sergi Saldaña-Massó - Seigr Lab", email = "sergism@gmail.com"}
 ]
 keywords = ["seigr", "encryption", "networking", "protocol", "binary", "transmission"]
 classifiers = [

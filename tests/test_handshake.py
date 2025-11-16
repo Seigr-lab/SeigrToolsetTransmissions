@@ -236,6 +236,16 @@ class TestHandshakeManager:
         return b"manager_seed_32_bytes_minimum!"
     
     @pytest.fixture
+    def stc_wrapper(self, shared_seed):
+        """Create STC wrapper with shared seed."""
+        return STCWrapper(shared_seed)
+    
+    @pytest.fixture
+    def initiator_node_id(self):
+        """Initiator node ID."""
+        return b'\x01' * 32
+    
+    @pytest.fixture
     def node_id(self):
         """Node ID for manager."""
         return b'\x01' * 32
@@ -426,11 +436,18 @@ class TestHandshakeManager:
         initiator = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
         
         hello = initiator.create_hello()
-        response = responder.process_hello(hello)
+        challenge_response = responder.process_hello(hello)
+        auth_proof = initiator.process_challenge(challenge_response)
         
-        # Responder should have generated session_id
-        assert responder.session_id is not None
-        assert len(responder.session_id) == 8
+        # Session ID is generated during process_challenge by initiator
+        # Check the auth_proof message contains session_id
+        from seigr_toolset_transmissions.utils.serialization import deserialize_stt
+        proof_msg = deserialize_stt(auth_proof)
+        
+        assert 'session_id' in proof_msg
+        assert len(proof_msg['session_id']) == 8
+        assert initiator.session_id is not None
+        assert len(initiator.session_id) == 8
     
     def test_handshake_roles_initiator(self, initiator_node_id, stc_wrapper):
         """Test initiator role is set correctly."""
@@ -454,3 +471,148 @@ class TestHandshakeManager:
         responder.process_hello(hello)
         
         assert responder.peer_node_id == initiator_node_id
+    
+    def test_handshake_malformed_hello(self, stc_wrapper):
+        """Test handling malformed HELLO message."""
+        responder = STTHandshake(b'\x05' * 32, stc_wrapper, is_initiator=False)
+        
+        # Malformed data
+        with pytest.raises(Exception):
+            responder.process_hello(b'garbage data')
+    
+    def test_handshake_empty_message(self, initiator_node_id, stc_wrapper):
+        """Test handling empty message."""
+        handshake = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        with pytest.raises(Exception):
+            handshake.process_hello(b'')
+    
+    def test_handshake_truncated_message(self, initiator_node_id, stc_wrapper):
+        """Test handling truncated message."""
+        handshake = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=False)
+        initiator = STTHandshake(b'\x06' * 32, stc_wrapper, is_initiator=True)
+        
+        hello = initiator.create_hello()
+        
+        # Truncate message
+        truncated = hello[:len(hello)//2]
+        
+        with pytest.raises(Exception):
+            handshake.process_hello(truncated)
+    
+    def test_handshake_replay_attack_protection(self, initiator_node_id, stc_wrapper):
+        """Test protection against replay attacks."""
+        responder = STTHandshake(b'\x07' * 32, stc_wrapper, is_initiator=False)
+        initiator = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        hello = initiator.create_hello()
+        
+        # Process hello once
+        challenge1 = responder.process_hello(hello)
+        
+        # Create new responder
+        responder2 = STTHandshake(b'\x08' * 32, stc_wrapper, is_initiator=False)
+        
+        # Process same hello again - should have different challenge
+        challenge2 = responder2.process_hello(hello)
+        
+        # Challenges should be different (different nonces)
+        assert challenge1 != challenge2
+    
+    @pytest.mark.asyncio
+    async def test_manager_concurrent_handshakes(self, node_id, shared_seed):
+        """Test manager handles multiple concurrent handshakes."""
+        stc_wrapper = STCWrapper(shared_seed)
+        manager = HandshakeManager(node_id=node_id, stc_wrapper=stc_wrapper)
+        
+        # Start multiple handshakes
+        addresses = [
+            ("127.0.0.1", 9000),
+            ("127.0.0.1", 9001),
+            ("127.0.0.1", 9002),
+            ("127.0.0.1", 9003),
+        ]
+        
+        for addr in addresses:
+            await manager.initiate_handshake(addr)
+        
+        assert len(manager.active_handshakes) == 4
+    
+    @pytest.mark.asyncio
+    async def test_manager_remove_handshake(self, node_id, stc_wrapper):
+        """Test removing handshake from manager."""
+        manager = HandshakeManager(node_id=node_id, stc_wrapper=stc_wrapper)
+        
+        peer_addr = ("127.0.0.1", 9100)
+        await manager.initiate_handshake(peer_addr)
+        
+        assert peer_addr in manager.active_handshakes
+        
+        # Remove handshake
+        manager.remove_handshake(peer_addr)
+        
+        assert peer_addr not in manager.active_handshakes
+    
+    @pytest.mark.asyncio
+    async def test_manager_handshake_failure_cleanup(self, node_id, shared_seed):
+        """Test cleanup after handshake failure."""
+        stc_wrapper = STCWrapper(shared_seed)
+        manager = HandshakeManager(node_id=node_id, stc_wrapper=stc_wrapper)
+        
+        peer_addr = ("127.0.0.1", 9200)
+        await manager.initiate_handshake(peer_addr)
+        
+        # Simulate failure by trying to process invalid data
+        try:
+            await manager.handle_incoming(peer_addr, b'invalid')
+        except:
+            pass
+        
+        # Manager should still track the handshake (manual cleanup needed)
+        assert peer_addr in manager.active_handshakes
+        
+        # Clean it up
+        manager.remove_handshake(peer_addr)
+        assert peer_addr not in manager.active_handshakes
+    
+    def test_handshake_session_key_derivation(self, initiator_node_id, shared_seed):
+        """Test session key is derived correctly."""
+        responder_stc = STCWrapper(shared_seed)
+        responder = STTHandshake(b'\x09' * 32, responder_stc, is_initiator=False)
+        
+        initiator_stc = STCWrapper(shared_seed)
+        initiator = STTHandshake(initiator_node_id, initiator_stc, is_initiator=True)
+        
+        # Complete handshake
+        hello = initiator.create_hello()
+        challenge = responder.process_hello(hello)
+        response = initiator.process_challenge(challenge)
+        responder.verify_response(response)
+        
+        # Both should have session keys
+        assert initiator.session_key is not None
+        assert responder.session_key is not None
+        
+        # Keys should match
+        assert initiator.session_key == responder.session_key
+    
+    def test_handshake_completion_flag(self, initiator_node_id, shared_seed):
+        """Test completion flag is set after successful handshake."""
+        responder_stc = STCWrapper(shared_seed)
+        responder = STTHandshake(b'\x0A' * 32, responder_stc, is_initiator=False)
+        
+        initiator_stc = STCWrapper(shared_seed)
+        initiator = STTHandshake(initiator_node_id, initiator_stc, is_initiator=True)
+        
+        assert initiator.completed is False
+        assert responder.completed is False
+        
+        # Complete handshake
+        hello = initiator.create_hello()
+        challenge = responder.process_hello(hello)
+        response = initiator.process_challenge(challenge)
+        final = responder.verify_response(response)
+        initiator.process_final(final)
+        
+        assert initiator.completed is True
+        assert responder.completed is True

@@ -120,12 +120,22 @@ class TestUDPTransport:
             await transport2.stop()
     
     @pytest.mark.asyncio
-    async def test_get_local_address(self, udp_transport):
+    async def test_get_local_address(self, stc_wrapper):
         """Test getting local address."""
-        addr = udp_transport.get_address()
+        transport = UDPTransport(
+            host="127.0.0.1",
+            port=0,
+            stc_wrapper=stc_wrapper,
+        )
+        await transport.start()
         
-        assert addr[0] == "127.0.0.1"
-        assert addr[1] > 0
+        try:
+            addr = transport.get_address()
+            
+            assert addr[0] == "127.0.0.1"
+            assert addr[1] > 0
+        finally:
+            await transport.stop()
 
 
 class TestWebSocketTransport:
@@ -177,152 +187,200 @@ class TestWebSocketTransport:
         assert not server.is_running
     
     @pytest.mark.asyncio
-    async def test_websocket_handshake(self, stc_wrapper, ws_server):
+    async def test_websocket_handshake(self, stc_wrapper):
         """Test WebSocket handshake (RFC 6455)."""
-        port = ws_server.get_port()
-        
-        # Create client
-        client = WebSocketTransport(
-            "127.0.0.1", port, stc_wrapper, is_server=False
+        server = WebSocketTransport(
+            "127.0.0.1", 0, stc_wrapper, is_server=True
         )
+        await server.start()
         
         try:
-            await client.connect()
-            assert client.is_connected
-        finally:
-            await client.disconnect()
-    
-    @pytest.mark.asyncio
-    async def test_send_receive_websocket_message(self, stc_wrapper, ws_server):
-        """Test sending and receiving WebSocket messages."""
-        port = ws_server.get_port()
-        
-        # Set up server handler
-        received_messages = []
-        
-        async def server_handler(data, client_id):
-            received_messages.append(data)
-        
-        ws_server.set_message_handler(server_handler)
-        
-        # Connect client
-        client = WebSocketTransport(
-            "127.0.0.1", port, stc_wrapper, is_server=False
-        )
-        
-        try:
-            await client.connect()
+            port = server.get_port()
             
-            # Send message
-            message = b"websocket test"
-            await client.send(message)
+            # Create client
+            client = WebSocketTransport(
+                "127.0.0.1", port, stc_wrapper, is_server=False
+            )
             
-            # Wait for message
-            await asyncio.sleep(0.1)
-            
-            assert len(received_messages) > 0
-            assert received_messages[0] == message
-            
-        finally:
-            await client.disconnect()
-    
-    @pytest.mark.asyncio
-    async def test_send_large_websocket_message(self, stc_wrapper, ws_server):
-        """Test sending large WebSocket message."""
-        port = ws_server.get_port()
-        
-        received_messages = []
-        
-        async def server_handler(data, client_id):
-            received_messages.append(data)
-        
-        ws_server.set_message_handler(server_handler)
-        
-        client = WebSocketTransport(
-            "127.0.0.1", port, stc_wrapper, is_server=False
-        )
-        
-        try:
-            await client.connect()
-            
-            # Send 100KB message
-            large_message = b"y" * 100000
-            await client.send(large_message)
-            
-            await asyncio.sleep(0.2)
-            
-            assert len(received_messages) > 0
-            assert received_messages[0] == large_message
-            
-        finally:
-            await client.disconnect()
-    
-    @pytest.mark.asyncio
-    async def test_websocket_ping_pong(self, stc_wrapper, ws_server):
-        """Test WebSocket ping/pong frames."""
-        port = ws_server.get_port()
-        
-        client = WebSocketTransport(
-            "127.0.0.1", port, stc_wrapper, is_server=False
-        )
-        
-        try:
-            await client.connect()
-            
-            # Send ping
-            await client.ping()
-            
-            # Should receive pong
-            await asyncio.sleep(0.1)
-
-            assert client.is_connected
-        
-        finally:
-            await client.disconnect()
-    
-    @pytest.mark.asyncio
-    async def test_multiple_websocket_clients(self, stc_wrapper, ws_server):
-        """Test multiple WebSocket clients."""
-        port = ws_server.get_port()
-        
-        clients = []
-        
-        try:
-            # Connect 5 clients
-            for i in range(5):
-                client = WebSocketTransport(
-                    "127.0.0.1", port, stc_wrapper, is_server=False
-                )
+            try:
                 await client.connect()
-                clients.append(client)
-            
-            # All should be connected
-            assert all(c.is_connected for c in clients)
-            
-        finally:
-            for client in clients:
+                assert client.is_connected
+            finally:
                 await client.disconnect()
+        finally:
+            await server.stop()
     
     @pytest.mark.asyncio
-    async def test_websocket_close_frame(self, stc_wrapper, ws_server):
-        """Test WebSocket close frame handling."""
-        port = ws_server.get_port()
-        
-        client = WebSocketTransport(
-            "127.0.0.1", port, stc_wrapper, is_server=False
+    async def test_send_receive_websocket_message(self, stc_wrapper):
+        """Test sending and receiving WebSocket messages."""
+        server = WebSocketTransport(
+            "127.0.0.1", 0, stc_wrapper, is_server=True
         )
+        await server.start()
         
         try:
-            await client.connect()
-            assert client.is_connected
-
-            # Disconnect
-            await client.disconnect()
-            assert not client.is_connected
-
-        finally:
-            if client.is_connected:
+            port = server.get_port()
+            
+            # Set up server handler
+            received_messages = []
+            
+            async def server_handler(data, client_id):
+                received_messages.append(data)
+            
+            server.set_message_handler(server_handler)
+            
+            # Connect client
+            client = WebSocketTransport(
+                "127.0.0.1", port, stc_wrapper, is_server=False
+            )
+            
+            try:
+                await client.connect()
+                
+                # Send message
+                message = b"websocket test"
+                await client.send(message)
+                
+                # Wait for message
+                await asyncio.sleep(0.1)
+                
+                assert len(received_messages) > 0
+                assert received_messages[0] == message
+                
+            finally:
                 await client.disconnect()
+        finally:
+            await server.stop()
+    
+    @pytest.mark.asyncio
+    async def test_send_large_websocket_message(self, stc_wrapper):
+        """Test sending large WebSocket message."""
+        server = WebSocketTransport(
+            "127.0.0.1", 0, stc_wrapper, is_server=True
+        )
+        await server.start()
+        
+        try:
+            port = server.get_port()
+            
+            received_messages = []
+            
+            async def server_handler(data, client_id):
+                received_messages.append(data)
+            
+            server.set_message_handler(server_handler)
+            
+            client = WebSocketTransport(
+                "127.0.0.1", port, stc_wrapper, is_server=False
+            )
+            
+            try:
+                await client.connect()
+                
+                # Send 100KB message
+                large_message = b"y" * 100000
+                await client.send(large_message)
+                
+                await asyncio.sleep(0.2)
+                
+                assert len(received_messages) > 0
+                assert received_messages[0] == large_message
+                
+            finally:
+                await client.disconnect()
+        finally:
+            await server.stop()
+    
+    @pytest.mark.asyncio
+    async def test_websocket_ping_pong(self, stc_wrapper):
+        """Test WebSocket ping/pong frames."""
+        server = WebSocketTransport(
+            "127.0.0.1", 0, stc_wrapper, is_server=True
+        )
+        await server.start()
+        
+        try:
+            port = server.get_port()
+        
+            client = WebSocketTransport(
+                "127.0.0.1", port, stc_wrapper, is_server=False
+            )
+            
+            try:
+                await client.connect()
+                
+                # Send ping
+                await client.ping()
+                
+                # Should receive pong
+                await asyncio.sleep(0.1)
+
+                assert client.is_connected
+            
+            finally:
+                await client.disconnect()
+        finally:
+            await server.stop()
+    
+    @pytest.mark.asyncio
+    async def test_multiple_websocket_clients(self, stc_wrapper):
+        """Test multiple concurrent WebSocket clients."""
+        server = WebSocketTransport(
+            "127.0.0.1", 0, stc_wrapper, is_server=True
+        )
+        await server.start()
+        
+        try:
+            port = server.get_port()
+        
+            clients = []
+            
+            try:
+                # Connect 5 clients
+                for i in range(5):
+                    client = WebSocketTransport(
+                        "127.0.0.1", port, stc_wrapper, is_server=False
+                    )
+                    await client.connect()
+                    clients.append(client)
+                
+                # All should be connected
+                assert all(c.is_connected for c in clients)
+                
+            finally:
+                for client in clients:
+                    await client.disconnect()
+        finally:
+            await server.stop()
+    
+    @pytest.mark.asyncio
+    async def test_websocket_close_frame(self, stc_wrapper):
+        """Test WebSocket close frame handling."""
+        server = WebSocketTransport(
+            "127.0.0.1", 0, stc_wrapper, is_server=True
+        )
+        await server.start()
+        
+        try:
+            port = server.get_port()
+        
+            client = WebSocketTransport(
+                "127.0.0.1", port, stc_wrapper, is_server=False
+            )
+            
+            try:
+                await client.connect()
+                assert client.is_connected
+
+                # Disconnect
+                await client.disconnect()
+                assert not client.is_connected
+
+            finally:
+                if client.is_connected:
+                    await client.disconnect()
+        finally:
+            await server.stop()
 
 
 class TestTransportIntegration:

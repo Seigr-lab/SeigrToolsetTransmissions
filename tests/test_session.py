@@ -136,6 +136,16 @@ class TestSessionManager:
     """Test session manager for multiple sessions."""
     
     @pytest.fixture
+    def session_id(self):
+        """Session ID for tests."""
+        return b'\x01\x02\x03\x04\x05\x06\x07\x08'
+    
+    @pytest.fixture
+    def peer_node_id(self):
+        """Peer node ID."""
+        return b'\xaa' * 32
+    
+    @pytest.fixture
     def node_id(self):
         """Node ID for manager."""
         return b'\x01' * 32
@@ -384,3 +394,89 @@ class TestSessionManager:
         assert session.key_version == 1
         session.rotate_keys(stc_wrapper)
         assert session.key_version == 2
+    
+    def test_session_double_close(self, session_id, peer_node_id, stc_wrapper):
+        """Test closing session twice is safe."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        session.close()
+        assert session.is_closed()
+        
+        # Second close should be safe
+        session.close()
+        assert session.is_closed()
+    
+    @pytest.mark.asyncio
+    async def test_manager_duplicate_session_id(self, manager):
+        """Test creating session with duplicate ID raises error."""
+        session_id = b'\xAA' * 8
+        peer_id = b'\xBB' * 32
+        
+        await manager.create_session(session_id, peer_id)
+        
+        # Try to create again with same ID
+        with pytest.raises(STTSessionError, match="already exists"):
+            await manager.create_session(session_id, peer_id)
+    
+    @pytest.mark.asyncio
+    async def test_manager_get_nonexistent_session(self, manager):
+        """Test getting nonexistent session returns None."""
+        session_id = b'\xCC' * 8
+        
+        session = manager.get_session(session_id)
+        assert session is None
+    
+    @pytest.mark.asyncio
+    async def test_manager_close_nonexistent_session(self, manager):
+        """Test closing nonexistent session raises error."""
+        session_id = b'\xDD' * 8
+        
+        with pytest.raises(STTSessionError, match="not found"):
+            await manager.close_session(session_id)
+    
+    @pytest.mark.asyncio
+    async def test_manager_session_count(self, manager):
+        """Test session count tracking."""
+        assert manager.session_count() == 0
+        
+        # Create 3 sessions
+        for i in range(3):
+            session_id = bytes([0xE0 + i] * 8)
+            peer_id = bytes([0xF0 + i] * 32)
+            await manager.create_session(session_id, peer_id)
+        
+        assert manager.session_count() == 3
+        
+        # Close one
+        await manager.close_session(bytes([0xE0] * 8))
+        await manager.cleanup_closed_sessions()
+        
+        assert manager.session_count() == 2
+    
+    def test_session_str_repr(self, session_id, peer_node_id, stc_wrapper):
+        """Test session string representation."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        str_repr = str(session)
+        assert session_id.hex() in str_repr or repr(session_id) in str_repr
+    
+    def test_session_capabilities(self, session_id, peer_node_id, stc_wrapper):
+        """Test session capabilities field."""
+        capabilities = 0b1011  # Some capability flags
+        
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+            capabilities=capabilities
+        )
+        
+        assert session.capabilities == capabilities
