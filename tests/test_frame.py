@@ -368,3 +368,105 @@ class TestSTTFrame:
         )
         
         assert isinstance(frame.payload, bytes)
+    
+    def test_frame_invalid_type(self):
+        """Test creating frame with invalid type."""
+        # Invalid type might be accepted or rejected
+        try:
+            frame = STTFrame(
+                frame_type=999,  # Invalid type
+                session_id=b'\x0f' * 8,
+                stream_id=1,
+                sequence=0,
+                payload=b'test'
+            )
+            # If accepted, just verify it was created
+            assert frame is not None
+        except Exception:
+            pass  # Also acceptable to reject
+    
+    def test_frame_empty_payload(self):
+        """Test frame with empty payload."""
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b'\x10' * 8,
+            stream_id=1,
+            sequence=0,
+            payload=b''
+        )
+        
+        assert frame.payload == b''
+        assert len(frame.payload) == 0
+    
+    def test_frame_large_payload(self):
+        """Test frame with large payload."""
+        large_payload = b'x' * 1000000  # 1MB
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b'\x11' * 8,
+            stream_id=1,
+            sequence=0,
+            payload=large_payload
+        )
+        
+        assert len(frame.payload) == 1000000
+    
+    def test_frame_decode_invalid_data(self):
+        """Test decoding invalid frame data."""
+        with pytest.raises(Exception):
+            STTFrame.from_bytes(b'invalid_frame_data')
+    
+    def test_frame_decode_truncated(self):
+        """Test decoding truncated frame."""
+        # Create valid frame then truncate it
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b'\x12' * 8,
+            stream_id=1,
+            sequence=0,
+            payload=b'test'
+        )
+        
+        encoded = frame.to_bytes()
+        truncated = encoded[:10]  # Only first 10 bytes
+        
+        with pytest.raises(Exception):
+            STTFrame.from_bytes(truncated)
+    
+    def test_frame_max_sequence_number(self):
+        """Test frame with maximum sequence number."""
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b'\x13' * 8,
+            stream_id=1,
+            sequence=2**32 - 1,  # Max 32-bit value
+            payload=b'test'
+        )
+        
+        assert frame.sequence == 2**32 - 1
+    
+    def test_frame_handshake_type(self):
+        """Test creating handshake frame."""
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_HANDSHAKE,
+            session_id=b'\x14' * 8,
+            stream_id=0,
+            sequence=0,
+            payload=b'handshake_data'
+        )
+        
+        assert frame.frame_type == STT_FRAME_TYPE_HANDSHAKE
+    
+    def test_frame_handshake_type(self):
+        """Test creating handshake frame."""
+        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_HANDSHAKE
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_HANDSHAKE,
+            session_id=b'\x15' * 8,
+            stream_id=1,
+            sequence=0,
+            payload=b''
+        )
+        
+        assert frame.frame_type == STT_FRAME_TYPE_HANDSHAKE

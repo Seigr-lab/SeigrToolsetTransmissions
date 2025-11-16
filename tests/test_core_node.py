@@ -774,6 +774,153 @@ class TestSTTNodeIntegration:
                     await node.connect_udp("127.0.0.1", 9999)
         finally:
             await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_handle_handshake_frame_error(self, temp_chamber_path, node_seed, shared_seed):
+        """Test _handle_handshake_frame error handling."""
+        from unittest.mock import MagicMock, patch
+        from seigr_toolset_transmissions.frame import STTFrame
+        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_HANDSHAKE
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Create handshake frame
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_HANDSHAKE,
+                session_id=b"test_ses",
+                stream_id=0,
+                sequence=0,
+                payload=b"handshake_payload"
+            )
+            
+            peer_addr = ("127.0.0.1", 9999)
+            
+            # Mock handshake manager to raise error on handle_incoming
+            with patch.object(node.handshake_manager, 'handle_incoming', side_effect=Exception("Handshake error")):
+                # Should catch and log error
+                await node._handle_handshake_frame(frame, peer_addr)
+                # No exception raised - error logged
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_handle_data_frame_no_session(self, temp_chamber_path, node_seed, shared_seed):
+        """Test _handle_data_frame with no session."""
+        from seigr_toolset_transmissions.frame import STTFrame
+        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Create data frame with unknown session
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b"unknown_",
+                stream_id=1,
+                sequence=0,
+                payload=b"data"
+            )
+            
+            peer_addr = ("127.0.0.1", 8888)
+            
+            # Should handle gracefully (log warning, no error)
+            await node._handle_data_frame(frame, peer_addr)
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_handle_data_frame_error(self, temp_chamber_path, node_seed, shared_seed):
+        """Test _handle_data_frame error handling."""
+        from unittest.mock import MagicMock, patch
+        from seigr_toolset_transmissions.frame import STTFrame
+        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Create data frame
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b"test_ses",
+                stream_id=1,
+                sequence=0,
+                payload=b"data"
+            )
+            
+            peer_addr = ("127.0.0.1", 8888)
+            
+            # Mock session manager to raise error
+            with patch.object(node.session_manager, 'get_session', side_effect=Exception("Session error")):
+                # Should catch and log error
+                await node._handle_data_frame(frame, peer_addr)
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_receive_timeout(self, temp_chamber_path, node_seed, shared_seed):
+        """Test receive with timeout."""
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        try:
+            # Try to receive with short timeout
+            received = []
+            async for packet in node.receive():
+                received.append(packet)
+                break  # Stop after first (or timeout)
+            
+            # Will timeout since no data coming
+        finally:
+            await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_node_stop_with_websockets(self, temp_chamber_path, node_seed, shared_seed):
+        """Test stopping node with active WebSocket connections."""
+        from unittest.mock import AsyncMock, MagicMock
+        
+        node = STTNode(
+            chamber_path=temp_chamber_path,
+            node_seed=node_seed,
+            shared_seed=shared_seed
+        )
+        
+        await node.start()
+        
+        # Add mock WebSocket connection
+        mock_ws = MagicMock()
+        mock_ws.close = AsyncMock()
+        node.ws_connections["test_ws"] = mock_ws
+        
+        # Stop should close WebSocket
+        await node.stop()
+        
+        # Verify WebSocket was closed
+        mock_ws.close.assert_called_once()
+        assert len(node.ws_connections) == 0
 
 
 if __name__ == "__main__":

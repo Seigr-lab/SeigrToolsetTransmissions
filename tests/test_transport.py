@@ -120,7 +120,127 @@ class TestUDPTransport:
             await transport2.stop()
     
     @pytest.mark.asyncio
-    async def test_get_local_address(self, stc_wrapper):
+    async def test_udp_send_to_unreachable(self, stc_wrapper):
+        """Test sending to unreachable address."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        await transport.start()
+        
+        try:
+            # Try to send to unreachable port
+            await transport.send(b"test", ("127.0.0.1", 9))
+            # Should not raise error immediately
+        finally:
+            await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_send_raw_error(self, stc_wrapper):
+        """Test send_raw error handling."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        await transport.start()
+        
+        try:
+            # Send to invalid address
+            try:
+                await transport.send_raw(b"data", ("invalid_host", 12345))
+            except Exception:
+                pass  # Expected to fail
+        finally:
+            await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_receive_error_handling(self, stc_wrapper):
+        """Test UDP receive error handling."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        
+        error_occurred = []
+        
+        def error_handler(data, addr):
+            error_occurred.append(True)
+        
+        transport.set_receive_handler(error_handler)
+        
+        await transport.start()
+        
+        # Transport should handle errors gracefully
+        await asyncio.sleep(0.1)
+        
+        await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_double_start(self, stc_wrapper):
+        """Test starting UDP transport twice."""
+        from seigr_toolset_transmissions.utils.exceptions import STTTransportError
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        
+        await transport.start()
+        
+        # Start again - should raise error
+        with pytest.raises(STTTransportError):
+            await transport.start()
+        
+        await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_stop_not_started(self, stc_wrapper):
+        """Test stopping UDP transport that was never started."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        
+        # Should not raise error
+        await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_send_frame_not_started(self, stc_wrapper):
+        """Test sending frame when transport not started."""
+        from seigr_toolset_transmissions.frame import STTFrame
+        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
+        
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b"sess_id_",
+            stream_id=1,
+            sequence=0,
+            payload=b"data"
+        )
+        
+        # Try to send frame without starting
+        try:
+            await transport.send_frame(frame, ("127.0.0.1", 9999))
+        except Exception:
+            pass  # Expected to fail
+    
+    @pytest.mark.asyncio
+    async def test_udp_fragmentation_edge_case(self, stc_wrapper):
+        """Test UDP fragmentation with edge case sizes."""
+        transport1 = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        transport2 = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        
+        await transport1.start()
+        await transport2.start()
+        
+        try:
+            addr2 = transport2.get_address()
+            
+            received = []
+            
+            async def handler(data, addr):
+                received.append(data)
+            
+            transport2.set_receive_handler(handler)
+            
+            # Send message exactly at MTU boundary
+            boundary_message = b"x" * 1400
+            await transport1.send(boundary_message, addr2)
+            
+            await asyncio.sleep(0.2)
+            
+        finally:
+            await transport1.stop()
+            await transport2.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_get_address(self, stc_wrapper):
         """Test getting local address."""
         transport = UDPTransport(
             host="127.0.0.1",

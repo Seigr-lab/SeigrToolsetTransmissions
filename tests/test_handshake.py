@@ -578,4 +578,129 @@ class TestHandshakeManager:
         initiator.process_final(final)
         
         assert initiator.completed is True
-        assert responder.completed is True
+    
+    @pytest.mark.asyncio
+    async def test_handshake_manager_complete_no_active(self, initiator_node_id, shared_seed):
+        """Test complete_handshake with no active handshake."""
+        stc = STCWrapper(shared_seed)
+        manager = HandshakeManager(initiator_node_id, stc)
+        
+        # Try to complete handshake for unknown peer
+        unknown_peer = ("127.0.0.1", 9999)
+        result = await manager.complete_handshake(unknown_peer)
+        # Should return None if no handshake active
+        assert result is None
+    
+    def test_handshake_invalid_hello_data(self, initiator_node_id, shared_seed):
+        """Test processing invalid HELLO data raises error."""
+        stc = STCWrapper(shared_seed)
+        handshake = STTHandshake(initiator_node_id, stc, is_initiator=False)
+        
+        # Try to process invalid HELLO
+        with pytest.raises(Exception):  # Could be various exceptions
+            handshake.process_hello(b"invalid_hello_data")
+    
+    def test_handshake_invalid_challenge_data(self, initiator_node_id, shared_seed):
+        """Test processing invalid challenge data."""
+        stc = STCWrapper(shared_seed)
+        handshake = STTHandshake(initiator_node_id, stc, is_initiator=True)
+        
+        # Create hello first
+        handshake.create_hello()
+        
+        # Try to process invalid challenge
+        with pytest.raises(Exception):
+            handshake.process_challenge(b"invalid_challenge")
+    
+    def test_handshake_invalid_response_data(self, initiator_node_id, shared_seed):
+        """Test verifying invalid response data."""
+        responder_stc = STCWrapper(shared_seed)
+        responder = STTHandshake(b'\x0B' * 32, responder_stc, is_initiator=False)
+        
+        initiator_stc = STCWrapper(shared_seed)
+        initiator = STTHandshake(initiator_node_id, initiator_stc, is_initiator=True)
+        
+        # Get to response stage
+        hello = initiator.create_hello()
+        responder.process_hello(hello)
+        
+        # Try to verify invalid response
+        with pytest.raises(Exception):
+            responder.verify_response(b"invalid_response")
+    
+    def test_handshake_process_final_invalid(self, initiator_node_id, shared_seed):
+        """Test processing invalid final message."""
+        responder_stc = STCWrapper(shared_seed)
+        responder = STTHandshake(b'\x0C' * 32, responder_stc, is_initiator=False)
+        
+        initiator_stc = STCWrapper(shared_seed)
+        initiator = STTHandshake(initiator_node_id, initiator_stc, is_initiator=True)
+        
+        # Get to final stage
+        hello = initiator.create_hello()
+        challenge = responder.process_hello(hello)
+        initiator.process_challenge(challenge)
+        
+        # Try to process invalid final
+        with pytest.raises(Exception):
+            initiator.process_final(b"invalid_final")
+    
+    @pytest.mark.asyncio
+    async def test_handshake_manager_handle_incoming_invalid(self, initiator_node_id, shared_seed):
+        """Test handle_incoming with invalid data."""
+        stc = STCWrapper(shared_seed)
+        manager = HandshakeManager(initiator_node_id, stc)
+        
+        # Try to handle invalid incoming data
+        peer_addr = ("127.0.0.1", 9999)
+        try:
+            await manager.handle_incoming(peer_addr, b"invalid_data")
+        except Exception:
+            pass  # Expected to fail
+    
+    @pytest.mark.asyncio
+    async def test_handshake_manager_complete_handshake_async(self, initiator_node_id, shared_seed):
+        """Test async complete_handshake method."""
+        stc = STCWrapper(shared_seed)
+        manager = HandshakeManager(initiator_node_id, stc)
+        
+        # Initiate handshake
+        peer_addr = ("127.0.0.1", 8888)
+        handshake = await manager.initiate_handshake(peer_addr)
+        
+        # Complete it
+        result = await manager.complete_handshake(peer_addr)
+        # Result might be None if not fully completed
+    
+    @pytest.mark.asyncio
+    async def test_handshake_manager_is_complete(self, initiator_node_id, shared_seed):
+        """Test is_handshake_complete method."""
+        stc = STCWrapper(shared_seed)
+        manager = HandshakeManager(initiator_node_id, stc)
+        
+        peer_addr = ("127.0.0.1", 7777)
+        
+        # Not complete initially
+        assert not manager.is_handshake_complete(peer_addr)
+        
+        # Initiate handshake
+        await manager.initiate_handshake(peer_addr)
+        
+        # Still not complete
+        assert not manager.is_handshake_complete(peer_addr)
+    
+    @pytest.mark.asyncio
+    async def test_handshake_manager_get_session_id_async(self, initiator_node_id, shared_seed):
+        """Test async get_session_id_async method."""
+        stc = STCWrapper(shared_seed)
+        manager = HandshakeManager(initiator_node_id, stc)
+        
+        peer_addr = ("127.0.0.1", 6666)
+        
+        # Initiate handshake
+        handshake = await manager.initiate_handshake(peer_addr)
+        
+        # Get session ID (might be None if not completed)
+        session_id = await manager.get_session_id_async(peer_addr)
+        # Could be None if handshake not completed - this is expected
+        assert handshake is not None

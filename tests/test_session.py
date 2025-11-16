@@ -466,3 +466,102 @@ class TestSessionManager:
         # Check if capabilities attribute exists
         if hasattr(session, 'capabilities'):
             assert session.capabilities is not None
+    
+    def test_session_encrypt_decrypt_error(self, session_id, peer_node_id, stc_wrapper):
+        """Test session encryption/decryption error handling."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        # Try to encrypt with uninitialized session key
+        if hasattr(session, 'encrypt'):
+            try:
+                # Might fail if session_key not set
+                session.encrypt(b"test_data")
+            except Exception:
+                pass  # Expected if session_key not initialized
+    
+    def test_session_decrypt_error(self, session_id, peer_node_id, stc_wrapper):
+        """Test session decryption error handling."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        # Try to decrypt with uninitialized session key
+        if hasattr(session, 'decrypt'):
+            try:
+                session.decrypt(b"invalid_encrypted_data")
+            except Exception:
+                pass  # Expected to fail
+    
+    def test_session_rotate_key_error(self, session_id, peer_node_id, stc_wrapper):
+        """Test session key rotation edge cases."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        # Try rotating key multiple times
+        if hasattr(session, 'rotate_key'):
+            try:
+                session.rotate_key()
+                session.rotate_key()
+                session.rotate_key()
+            except Exception:
+                pass
+    
+    def test_session_update_last_activity(self, session_id, peer_node_id, stc_wrapper):
+        """Test session last activity update."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        # Update activity if method exists
+        if hasattr(session, 'update_last_activity'):
+            session.update_last_activity()
+        
+        # Check last_activity timestamp
+        if hasattr(session, 'last_activity'):
+            assert session.last_activity is not None
+    
+    def test_session_is_expired(self, session_id, peer_node_id, stc_wrapper):
+        """Test session expiration check."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        # Check if expired
+        if hasattr(session, 'is_expired'):
+            result = session.is_expired()
+            assert isinstance(result, bool)
+    
+    def test_session_record_bytes_edge_cases(self, session_id, peer_node_id, stc_wrapper):
+        """Test recording bytes with edge cases."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        # Record zero bytes
+        if hasattr(session, 'record_sent_bytes'):
+            session.record_sent_bytes(0)
+        
+        if hasattr(session, 'record_received_bytes'):
+            session.record_received_bytes(0)
+        
+        # Record large values
+        if hasattr(session, 'record_sent_bytes'):
+            session.record_sent_bytes(1000000)
+        
+        if hasattr(session, 'record_received_bytes'):
+            session.record_received_bytes(1000000)

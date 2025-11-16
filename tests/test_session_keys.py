@@ -118,6 +118,48 @@ class TestSessionKeys:
         
         # All keys should be different
         assert len(set(keys)) == len(keys)
+    
+    def test_derive_session_key_empty_dict(self):
+        """Test deriving key from empty dict."""
+        key = derive_session_key({})
+        assert isinstance(key, bytes)
+        assert len(key) == 32
+    
+    def test_derive_session_key_empty_bytes(self):
+        """Test deriving key from empty bytes."""
+        key = derive_session_key(b"")
+        assert isinstance(key, bytes)
+        assert len(key) == 32
+    
+    def test_rotate_session_key_short_nonce(self):
+        """Test rotation with short nonce."""
+        current_key = secrets.token_bytes(32)
+        short_nonce = b"short"
+        
+        new_key = rotate_session_key(current_key, short_nonce)
+        assert isinstance(new_key, bytes)
+        assert len(new_key) == 32
+        assert new_key != current_key
+    
+    def test_rotate_session_key_long_nonce(self):
+        """Test rotation with long nonce."""
+        current_key = secrets.token_bytes(32)
+        long_nonce = secrets.token_bytes(128)
+        
+        new_key = rotate_session_key(current_key, long_nonce)
+        assert isinstance(new_key, bytes)
+        assert len(new_key) == 32
+        assert new_key != current_key
+    
+    def test_derive_session_key_large_dict(self):
+        """Test deriving key from large handshake dict."""
+        handshake_data = {
+            f'field_{i}': f'value_{i}' for i in range(100)
+        }
+        
+        key = derive_session_key(handshake_data)
+        assert isinstance(key, bytes)
+        assert len(key) == 32
 
 
 if __name__ == "__main__":
