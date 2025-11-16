@@ -298,3 +298,89 @@ class TestSessionManager:
         assert len(sessions) == 10
         assert all(s is not None for s in sessions)
         assert len(manager.list_sessions()) == 10
+    
+    def test_session_metadata(self, session_id, peer_node_id, stc_wrapper):
+        """Test session metadata storage and retrieval."""
+        metadata = {"type": "test", "priority": 1, "custom_data": [1, 2, 3]}
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+            metadata=metadata
+        )
+        
+        assert session.metadata == metadata
+        assert session.metadata["type"] == "test"
+        assert session.metadata["priority"] == 1
+    
+    def test_session_statistics_tracking(self, session_id, peer_node_id, stc_wrapper):
+        """Test session statistics are tracked correctly."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        # Initially zero
+        assert session.frames_sent == 0
+        assert session.frames_received == 0
+        assert session.bytes_sent == 0
+        assert session.bytes_received == 0
+        
+        # Record some activity
+        session.record_frame_sent(100)
+        session.record_frame_sent(200)
+        session.record_frame_received(150)
+        
+        assert session.frames_sent == 2
+        assert session.frames_received == 1
+        assert session.bytes_sent == 300
+        assert session.bytes_received == 150
+    
+    def test_session_activity_updates(self, session_id, peer_node_id, stc_wrapper):
+        """Test session activity timestamp updates."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        initial_activity = session.last_activity
+        
+        # Wait a bit
+        import time
+        time.sleep(0.01)
+        
+        session.update_activity()
+        
+        assert session.last_activity > initial_activity
+    
+    def test_session_id_validation(self, peer_node_id, stc_wrapper):
+        """Test session ID must be 8 bytes."""
+        with pytest.raises(STTSessionError, match="must be 8 bytes"):
+            Session(
+                session_id=b'\x01\x02\x03',  # Too short
+                peer_node_id=peer_node_id,
+                stc_wrapper=stc_wrapper,
+            )
+        
+        with pytest.raises(STTSessionError, match="must be 8 bytes"):
+            Session(
+                session_id=b'\x01' * 16,  # Too long
+                peer_node_id=peer_node_id,
+                stc_wrapper=stc_wrapper,
+            )
+    
+    def test_session_key_version_increment(self, session_id, peer_node_id, stc_wrapper):
+        """Test key version increments on rotation."""
+        session = Session(
+            session_id=session_id,
+            peer_node_id=peer_node_id,
+            stc_wrapper=stc_wrapper,
+        )
+        
+        assert session.key_version == 0
+        session.rotate_keys(stc_wrapper)
+        assert session.key_version == 1
+        session.rotate_keys(stc_wrapper)
+        assert session.key_version == 2

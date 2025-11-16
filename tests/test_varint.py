@@ -90,3 +90,57 @@ class TestVarint:
         
         with pytest.raises(ValueError):
             decode_varint(b'\x80')  # Incomplete varint
+    
+    def test_varint_size_negative_raises(self):
+        """Test varint_size with negative value raises error."""
+        with pytest.raises(ValueError):
+            varint_size(-1)
+    
+    def test_encode_boundary_values(self):
+        """Test encoding at byte boundaries."""
+        # Test values at boundaries of varint byte sizes
+        assert len(encode_varint(0x7F)) == 1  # Max 1-byte
+        assert len(encode_varint(0x80)) == 2  # Min 2-byte
+        assert len(encode_varint(0x3FFF)) == 2  # Max 2-byte
+        assert len(encode_varint(0x4000)) == 3  # Min 3-byte
+    
+    def test_decode_multi_byte_values(self):
+        """Test decoding multi-byte varints."""
+        # 3-byte varint
+        value, size = decode_varint(b'\x80\x80\x01')
+        assert value == 16384
+        assert size == 3
+        
+        # 4-byte varint
+        value, size = decode_varint(b'\x80\x80\x80\x01')
+        assert value == 2097152
+        assert size == 4
+    
+    def test_decode_overflow_protection(self):
+        """Test decoder rejects varints exceeding 64 bits."""
+        # Create a varint that would exceed 64 bits
+        overflow_data = b'\x80' * 10 + b'\x01'
+        with pytest.raises(ValueError, match="exceeds 64 bits"):
+            decode_varint(overflow_data)
+    
+    def test_encode_max_safe_value(self):
+        """Test encoding maximum safe value."""
+        max_val = (1 << 63) - 1  # Max signed 64-bit
+        encoded = encode_varint(max_val)
+        decoded, _ = decode_varint(encoded)
+        assert decoded == max_val
+    
+    def test_decode_with_trailing_data(self):
+        """Test decoding ignores trailing data."""
+        data = b'\x01\xff\xff\xff'
+        value, size = decode_varint(data)
+        assert value == 1
+        assert size == 1  # Only consumed first byte
+    
+    def test_varint_size_matches_encoding(self):
+        """Test varint_size matches actual encoded size."""
+        test_values = [0, 1, 127, 128, 16383, 16384, 1000000]
+        for val in test_values:
+            encoded = encode_varint(val)
+            calculated_size = varint_size(val)
+            assert len(encoded) == calculated_size

@@ -213,3 +213,158 @@ class TestSTTFrame:
         decoded, _ = STTFrame.from_bytes(encoded)
         
         assert decoded.payload == large_payload
+    
+    def test_frame_flags(self):
+        """Test frame with different flag values."""
+        session_id = b'\x05' * 8
+        
+        for flags in [0x00, 0x01, 0x02, 0xFF]:
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=session_id,
+                stream_id=1,
+                sequence=1,
+                flags=flags,
+                payload=b'test'
+            )
+            
+            encoded = frame.to_bytes()
+            decoded, _ = STTFrame.from_bytes(encoded)
+            assert decoded.flags == flags
+    
+    def test_frame_stream_id_variations(self):
+        """Test frames with various stream IDs."""
+        session_id = b'\x06' * 8
+        
+        for stream_id in [0, 1, 100, 65535]:
+            frame = STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=session_id,
+                stream_id=stream_id,
+                sequence=1,
+                payload=b'test'
+            )
+            
+            encoded = frame.to_bytes()
+            decoded, _ = STTFrame.from_bytes(encoded)
+            assert decoded.stream_id == stream_id
+    
+    def test_frame_sequence_wraparound(self):
+        """Test frame with maximum sequence number."""
+        session_id = b'\x07' * 8
+        max_seq = 2**32 - 1
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=session_id,
+            stream_id=1,
+            sequence=max_seq,
+            payload=b'test'
+        )
+        
+        encoded = frame.to_bytes()
+        decoded, _ = STTFrame.from_bytes(encoded)
+        assert decoded.sequence == max_seq
+    
+    def test_frame_encryption_state_tracking(self):
+        """Test frame tracks encryption state."""
+        session_id = b'\x08' * 8
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=session_id,
+            stream_id=1,
+            sequence=1,
+            payload=b'test'
+        )
+        
+        assert frame._is_encrypted is False
+    
+    def test_frame_crypto_metadata_storage(self):
+        """Test frame stores crypto metadata."""
+        session_id = b'\x09' * 8
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=session_id,
+            stream_id=1,
+            sequence=1,
+            payload=b'test',
+            crypto_metadata=b'metadata'
+        )
+        
+        assert frame.crypto_metadata == b'metadata'
+    
+    def test_frame_timestamp_default(self):
+        """Test frame has default timestamp."""
+        session_id = b'\x0a' * 8
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=session_id,
+            stream_id=1,
+            sequence=1,
+            payload=b'test'
+        )
+        
+        assert frame.timestamp > 0
+        assert isinstance(frame.timestamp, int)
+    
+    def test_frame_session_id_validation(self):
+        """Test session ID length validation."""
+        with pytest.raises(STTFrameError, match="Session ID must be"):
+            STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b'\x01' * 4,  # Wrong length
+                stream_id=1,
+                sequence=1,
+                payload=b'test'
+            )
+    
+    def test_frame_sequence_validation(self):
+        """Test sequence number validation."""
+        with pytest.raises(STTFrameError, match="Sequence number must be non-negative"):
+            STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b'\x0b' * 8,
+                stream_id=1,
+                sequence=-1,
+                payload=b'test'
+            )
+    
+    def test_frame_timestamp_validation(self):
+        """Test timestamp validation."""
+        with pytest.raises(STTFrameError, match="Timestamp must be non-negative"):
+            STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b'\x0c' * 8,
+                stream_id=1,
+                sequence=1,
+                timestamp=-1,
+                payload=b'test'
+            )
+    
+    def test_frame_stream_id_validation(self):
+        """Test stream ID validation."""
+        with pytest.raises(STTFrameError, match="Stream ID must be non-negative"):
+            STTFrame(
+                frame_type=STT_FRAME_TYPE_DATA,
+                session_id=b'\x0d' * 8,
+                stream_id=-1,
+                sequence=1,
+                payload=b'test'
+            )
+    
+    def test_frame_payload_bytes_type(self):
+        """Test payload must be bytes."""
+        session_id = b'\x0e' * 8
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=session_id,
+            stream_id=1,
+            sequence=1,
+            payload=b'test'
+        )
+        
+        assert isinstance(frame.payload, bytes)

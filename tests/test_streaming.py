@@ -323,3 +323,52 @@ class TestStreamingIntegration:
         encoded = bob_encoder.encode_chunk(bob_message)
         decoded = alice_decoder.decode_chunk(encoded)
         assert decoded == bob_message
+    
+    def test_encoder_sequence_tracking(self, encoder):
+        """Test encoder tracks sequence numbers."""
+        assert encoder.get_sequence() == 0
+        encoder.encode_chunk(b"test1")
+        assert encoder.get_sequence() == 1
+        encoder.encode_chunk(b"test2")
+        assert encoder.get_sequence() == 2
+    
+    def test_encoder_reset(self, encoder):
+        """Test encoder reset."""
+        encoder.encode_chunk(b"test")
+        assert encoder.get_sequence() > 0
+        encoder.reset()
+        assert encoder.get_sequence() == 0
+    
+    def test_encoder_invalid_data_type(self, encoder):
+        """Test encoder rejects non-bytes data."""
+        with pytest.raises(STTStreamingError, match="Data must be bytes"):
+            encoder.encode_chunk("not bytes")
+    
+    def test_decoder_invalid_data_type(self, decoder):
+        """Test decoder rejects non-bytes data."""
+        with pytest.raises(STTStreamingError, match="Encoded data must be bytes"):
+            decoder.decode_chunk("not bytes")
+    
+    def test_decoder_short_data(self, decoder):
+        """Test decoder rejects too-short data."""
+        with pytest.raises(STTStreamingError, match="Encoded data too short"):
+            decoder.decode_chunk(b"short")
+    
+    def test_decoder_get_received_chunks(self, decoder, encoder):
+        """Test getting list of received chunks."""
+        chunks = [b"chunk1", b"chunk2", b"chunk3"]
+        for chunk in chunks:
+            encoded = encoder.encode_chunk(chunk)
+            decoder.decode_chunk(encoded)
+        
+        received = decoder.get_received_chunks()
+        assert len(received) == len(chunks)
+    
+    def test_decoder_reset(self, decoder, encoder):
+        """Test decoder reset."""
+        encoded = encoder.encode_chunk(b"test")
+        decoder.decode_chunk(encoded)
+        decoder.reset()
+        encoded2 = encoder.encode_chunk(b"test2")
+        decoded = decoder.decode_chunk(encoded2)
+        assert decoded == b"test2"

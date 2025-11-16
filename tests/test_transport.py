@@ -374,3 +374,70 @@ class TestTransportIntegration:
         finally:
             await udp.stop()
             await ws.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_statistics_tracking(self, stc_wrapper):
+        """Test UDP transport tracks statistics."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        await transport.start()
+        
+        try:
+            assert transport.bytes_sent == 0
+            assert transport.bytes_received == 0
+            assert transport.packets_sent == 0
+            assert transport.packets_received == 0
+        finally:
+            await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_max_packet_size(self, stc_wrapper):
+        """Test UDP respects max packet size."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        
+        # Default MTU for IPv4
+        assert transport.config.max_packet_size == 1472
+    
+    @pytest.mark.asyncio
+    async def test_udp_buffer_sizes(self, stc_wrapper):
+        """Test UDP buffer configuration."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        
+        assert transport.config.receive_buffer_size == 65536
+        assert transport.config.send_buffer_size == 65536
+    
+    @pytest.mark.asyncio
+    async def test_udp_random_port_binding(self, stc_wrapper):
+        """Test UDP binds to random port when port=0."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        await transport.start()
+        
+        try:
+            addr = transport.get_address()
+            assert addr[1] > 0  # Should have assigned a port
+        finally:
+            await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_websocket_statistics_tracking(self, stc_wrapper):
+        """Test WebSocket transport tracks statistics."""
+        transport = WebSocketTransport("127.0.0.1", 0, stc_wrapper, is_server=True)
+        await transport.start()
+        
+        try:
+            assert transport.bytes_sent == 0
+            assert transport.bytes_received == 0
+        finally:
+            await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_websocket_ssl_disabled_by_default(self, stc_wrapper):
+        """Test WebSocket SSL is disabled by default."""
+        transport = WebSocketTransport("127.0.0.1", 0, stc_wrapper, is_server=True)
+        
+        # Default should be no SSL (would be configured separately)
+        # This test just ensures initialization works
+        await transport.start()
+        try:
+            assert transport.is_running
+        finally:
+            await transport.stop()

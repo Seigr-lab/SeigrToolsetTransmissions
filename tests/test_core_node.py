@@ -229,5 +229,116 @@ class TestSTTNodeIntegration:
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+    @pytest.mark.asyncio
+    async def test_connect_udp_not_started(self, node_seed, shared_seed, temp_chamber_path):
+        """Test connecting UDP before node is started raises error."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        with pytest.raises(STTException, match="Node not started"):
+            await node.connect_udp("127.0.0.1", 9999)
+    
+    @pytest.mark.asyncio
+    async def test_node_stop_when_not_running(self, node_seed, shared_seed, temp_chamber_path):
+        """Test stopping node when not running."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        # Should not raise error
+        await node.stop()
+        assert not node._running
+    
+    @pytest.mark.asyncio
+    async def test_node_chamber_initialization(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node initializes chamber correctly."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        assert node.chamber is not None
+        assert node.chamber.node_id == node.node_id
+        assert node.chamber.stc_wrapper == node.stc
+    
+    @pytest.mark.asyncio
+    async def test_node_session_manager_initialization(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node initializes session manager."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        assert node.session_manager is not None
+        assert node.session_manager.node_id == node.node_id
+    
+    @pytest.mark.asyncio
+    async def test_node_handshake_manager_initialization(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node initializes handshake manager."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        assert node.handshake_manager is not None
+        assert node.handshake_manager.node_id == node.node_id
+    
+    @pytest.mark.asyncio
+    async def test_node_receive_queue_initialization(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node initializes receive queue."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        assert node._recv_queue is not None
+        assert isinstance(node._recv_queue, asyncio.Queue)
+    
+    @pytest.mark.asyncio
+    async def test_node_host_port_configuration(self, node_seed, shared_seed, temp_chamber_path):
+        """Test node host and port configuration."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            host="192.168.1.1",
+            port=5000,
+            chamber_path=temp_chamber_path
+        )
+        
+        assert node.host == "192.168.1.1"
+        assert node.port == 5000
+    
+    @pytest.mark.asyncio
+    async def test_node_ws_connections_empty(self, node_seed, shared_seed, temp_chamber_path):
+        """Test WebSocket connections dict is empty initially."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        assert len(node.ws_connections) == 0
+    
+    @pytest.mark.asyncio
+    async def test_node_tasks_empty_initially(self, node_seed, shared_seed, temp_chamber_path):
+        """Test tasks list is empty initially."""
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            chamber_path=temp_chamber_path
+        )
+        
+        assert len(node._tasks) == 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

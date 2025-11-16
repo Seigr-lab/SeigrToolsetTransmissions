@@ -330,3 +330,93 @@ class TestSTCWrapper:
         
         assert decrypted1 == payload
         assert decrypted2 == payload
+    
+    def test_derive_session_key_with_dict(self, stc_wrapper):
+        """Test session key derivation with dict context."""
+        handshake_data = {'peer': 'alice', 'nonce': 'abc123'}
+        
+        key = stc_wrapper.derive_session_key(handshake_data)
+        
+        assert isinstance(key, bytes)
+        assert len(key) == 32
+    
+    def test_derive_session_key_deterministic_per_instance(self, seed):
+        """Test session key derivation is deterministic per wrapper instance."""
+        wrapper = STCWrapper(seed)
+        handshake_data = b"handshake_data_12345"
+        
+        key1 = wrapper.derive_session_key(handshake_data)
+        key2 = wrapper.derive_session_key(handshake_data)
+        
+        # Same instance should produce same key for same input
+        assert key1 == key2
+    
+    def test_rotate_session_key_with_int_nonce(self, stc_wrapper):
+        """Test key rotation with integer nonce (version number)."""
+        current_key = b"current_key_32_bytes_minimum!!"
+        rotation_nonce = 5  # Version number
+        
+        rotated_key = stc_wrapper.rotate_session_key(current_key, rotation_nonce)
+        
+        assert isinstance(rotated_key, bytes)
+        assert len(rotated_key) == 32
+        assert rotated_key != current_key
+    
+    def test_rotate_session_key_with_bytes_nonce(self, stc_wrapper):
+        """Test key rotation with bytes nonce."""
+        current_key = b"current_key_32_bytes_minimum!!"
+        rotation_nonce = b"nonce_bytes"
+        
+        rotated_key = stc_wrapper.rotate_session_key(current_key, rotation_nonce)
+        
+        assert isinstance(rotated_key, bytes)
+        assert len(rotated_key) == 32
+        assert rotated_key != current_key
+    
+    def test_stream_context_caching(self, stc_wrapper):
+        """Test stream contexts are cached per wrapper instance."""
+        session_id = b'\x0b' * 8
+        stream_id = 11
+        
+        # Create same stream context twice
+        ctx1 = stc_wrapper.create_stream_context(session_id, stream_id)
+        ctx2 = stc_wrapper.create_stream_context(session_id, stream_id)
+        
+        # Should be same cached object
+        assert ctx1 is ctx2
+    
+    def test_stream_context_isolation_different_streams(self, stc_wrapper):
+        """Test different streams get different contexts."""
+        session_id = b'\x0c' * 8
+        
+        ctx1 = stc_wrapper.create_stream_context(session_id, 1)
+        ctx2 = stc_wrapper.create_stream_context(session_id, 2)
+        
+        # Different streams should have different contexts
+        assert ctx1 is not ctx2
+    
+    def test_generate_node_id_non_empty(self, stc_wrapper):
+        """Test node ID generation produces non-empty result."""
+        identity = b"node_identity_data"
+        
+        node_id = stc_wrapper.generate_node_id(identity)
+        
+        assert isinstance(node_id, bytes)
+        assert len(node_id) > 0
+    
+    def test_wrapper_instance_isolation(self):
+        """Test different wrapper instances have isolated stream caches."""
+        seed1 = b"isolation_one_32_bytes_minimum!"
+        seed2 = b"isolation_two_32_bytes_minimum!"
+        
+        wrapper1 = STCWrapper(seed1)
+        wrapper2 = STCWrapper(seed2)
+        
+        session_id = b'\x0d' * 8
+        stream_id = 13
+        
+        ctx1 = wrapper1.create_stream_context(session_id, stream_id)
+        ctx2 = wrapper2.create_stream_context(session_id, stream_id)
+        
+        # Different wrappers should produce different contexts
+        assert ctx1 is not ctx2

@@ -353,3 +353,104 @@ class TestHandshakeManager:
         
         assert session_id is not None
         assert len(session_id) == 8
+    
+    def test_handshake_error_handling(self, initiator_node_id, stc_wrapper):
+        """Test handshake error conditions."""
+        handshake = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        # Processing invalid data should raise error
+        with pytest.raises(Exception):
+            handshake.process_hello(b"invalid data")
+    
+    def test_handshake_state_tracking(self, initiator_node_id, stc_wrapper):
+        """Test handshake state is tracked correctly."""
+        handshake = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        assert handshake.completed is False
+        assert handshake.session_id is None
+        assert handshake.session_key is None
+        assert handshake.peer_node_id is None
+    
+    def test_handshake_nonce_generation(self, initiator_node_id, stc_wrapper):
+        """Test nonce is generated uniquely."""
+        handshake1 = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        handshake2 = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        handshake1.create_hello()
+        handshake2.create_hello()
+        
+        # Nonces should be different
+        assert handshake1.our_nonce != handshake2.our_nonce
+    
+    def test_handshake_commitment_generation(self, initiator_node_id, stc_wrapper):
+        """Test HELLO commitment is generated."""
+        handshake = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        hello_data = handshake.create_hello()
+        from seigr_toolset_transmissions.utils.serialization import deserialize_stt
+        hello_msg = deserialize_stt(hello_data)
+        
+        assert 'commitment' in hello_msg
+        assert isinstance(hello_msg['commitment'], bytes)
+        assert len(hello_msg['commitment']) > 0
+    
+    def test_handshake_timestamp_in_hello(self, initiator_node_id, stc_wrapper):
+        """Test HELLO includes timestamp."""
+        handshake = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        hello_data = handshake.create_hello()
+        from seigr_toolset_transmissions.utils.serialization import deserialize_stt
+        hello_msg = deserialize_stt(hello_data)
+        
+        assert 'timestamp' in hello_msg
+        assert isinstance(hello_msg['timestamp'], int)
+        assert hello_msg['timestamp'] > 0
+    
+    def test_handshake_challenge_creation(self, initiator_node_id, stc_wrapper):
+        """Test RESPONSE includes challenge."""
+        responder = STTHandshake(b'\x02' * 32, stc_wrapper, is_initiator=False)
+        initiator = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        hello = initiator.create_hello()
+        response = responder.process_hello(hello)
+        
+        from seigr_toolset_transmissions.utils.serialization import deserialize_stt
+        response_msg = deserialize_stt(response)
+        
+        assert 'challenge' in response_msg
+        assert isinstance(response_msg['challenge'], bytes)
+    
+    def test_handshake_session_id_format(self, initiator_node_id, stc_wrapper):
+        """Test session ID is 8 bytes after completion."""
+        responder = STTHandshake(b'\x02' * 32, stc_wrapper, is_initiator=False)
+        initiator = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        hello = initiator.create_hello()
+        response = responder.process_hello(hello)
+        
+        # Responder should have generated session_id
+        assert responder.session_id is not None
+        assert len(responder.session_id) == 8
+    
+    def test_handshake_roles_initiator(self, initiator_node_id, stc_wrapper):
+        """Test initiator role is set correctly."""
+        handshake = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        assert handshake.is_initiator is True
+    
+    def test_handshake_roles_responder(self, stc_wrapper):
+        """Test responder role is set correctly."""
+        handshake = STTHandshake(b'\x03' * 32, stc_wrapper, is_initiator=False)
+        
+        assert handshake.is_initiator is False
+    
+    def test_handshake_peer_node_id_stored(self, initiator_node_id, stc_wrapper):
+        """Test peer node ID is stored during handshake."""
+        responder_id = b'\x04' * 32
+        responder = STTHandshake(responder_id, stc_wrapper, is_initiator=False)
+        initiator = STTHandshake(initiator_node_id, stc_wrapper, is_initiator=True)
+        
+        hello = initiator.create_hello()
+        responder.process_hello(hello)
+        
+        assert responder.peer_node_id == initiator_node_id

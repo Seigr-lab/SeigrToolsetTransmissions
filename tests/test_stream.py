@@ -323,3 +323,80 @@ class TestStreamManager:
         
         # They should have different contexts
         assert stream1.stc_context != stream2.stc_context
+    
+    @pytest.mark.asyncio
+    async def test_stream_flow_control_windows(self):
+        """Test stream flow control window initialization."""
+        wrapper = STCWrapper(b"flow_control_32_bytes_minimum!")
+        stream = STTStream(b'\x01' * 8, 1, wrapper)
+        
+        assert stream.send_window == 65536
+        assert stream.receive_window == 65536
+    
+    @pytest.mark.asyncio
+    async def test_stream_sequence_tracking(self):
+        """Test stream sequence number tracking."""
+        wrapper = STCWrapper(b"sequence_track_32_bytes_minimum")
+        stream = STTStream(b'\x02' * 8, 1, wrapper)
+        
+        assert stream.sequence == 0
+        assert stream.expected_sequence == 0
+        
+        await stream.send(b"test data")
+        assert stream.sequence == 1
+    
+    @pytest.mark.asyncio
+    async def test_stream_buffer_management(self):
+        """Test stream buffering."""
+        wrapper = STCWrapper(b"buffer_manage_32_bytes_minimum!")
+        stream = STTStream(b'\x03' * 8, 1, wrapper)
+        
+        assert stream.receive_buffer_empty()
+        
+        # Simulate receiving data
+        stream.receive_buffer.append(b"data1")
+        assert not stream.receive_buffer_empty()
+    
+    @pytest.mark.asyncio
+    async def test_stream_statistics_increment(self):
+        """Test stream statistics increment properly."""
+        wrapper = STCWrapper(b"stats_increment_32_bytes_minimum")
+        stream = STTStream(b'\x04' * 8, 1, wrapper)
+        
+        initial_sent = stream.bytes_sent
+        initial_msgs = stream.messages_sent
+        
+        await stream.send(b"test message")
+        
+        assert stream.bytes_sent > initial_sent
+        assert stream.messages_sent == initial_msgs + 1
+    
+    @pytest.mark.asyncio
+    async def test_stream_closed_send_raises(self):
+        """Test sending on closed stream raises error."""
+        wrapper = STCWrapper(b"closed_stream_32_bytes_minimum!!")
+        stream = STTStream(b'\x05' * 8, 1, wrapper)
+        
+        await stream.close()
+        
+        with pytest.raises(STTStreamError, match="Stream is closed"):
+            await stream.send(b"data")
+    
+    @pytest.mark.asyncio
+    async def test_stream_closed_receive_raises(self):
+        """Test receiving on closed stream raises error."""
+        wrapper = STCWrapper(b"closed_receive_32_bytes_minimum")
+        stream = STTStream(b'\x06' * 8, 1, wrapper)
+        
+        await stream.close()
+        
+        with pytest.raises(STTStreamError, match="Stream is closed"):
+            await stream.receive()
+    
+    @pytest.mark.asyncio
+    async def test_stream_out_of_order_buffer(self):
+        """Test out-of-order packet buffering."""
+        wrapper = STCWrapper(b"out_of_order_32_bytes_minimum!!")
+        stream = STTStream(b'\x07' * 8, 1, wrapper)
+        
+        assert len(stream.out_of_order_buffer) == 0
