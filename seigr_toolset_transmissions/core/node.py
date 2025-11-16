@@ -73,8 +73,8 @@ class STTNode:
         self.chamber = Chamber(chamber_path, self.node_id, self.stc)
         
         # Initialize managers
-        self.session_manager = SessionManager(self.node_id)
-        self.handshake_manager = HandshakeManager(self.stc, shared_seed, self.node_id)
+        self.session_manager = SessionManager(self.node_id, self.stc)
+        self.handshake_manager = HandshakeManager(self.node_id, self.stc)
         
         # Transports
         self.udp_transport: Optional[UDPTransport] = None
