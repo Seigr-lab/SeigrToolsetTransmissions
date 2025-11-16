@@ -12,10 +12,17 @@ All functions use ephemeral data only - NO personal information.
 # For backwards compatibility, provide STCWrapper
 from .stc_wrapper import STCWrapper
 
-# New modular API (preferred)
-from . import streaming
-from . import session_keys
-from . import node_identity
+# New modular API (optional imports - not required for basic usage)
+try:
+    from . import streaming
+    from . import session_keys
+    from . import node_identity
+    _MODULAR_API_AVAILABLE = True
+except ImportError:
+    _MODULAR_API_AVAILABLE = False
+    streaming = None
+    session_keys = None
+    node_identity = None
 
 __all__ = [
     'STCWrapper',  # Legacy compatibility

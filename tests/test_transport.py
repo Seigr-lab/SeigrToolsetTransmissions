@@ -188,7 +188,7 @@ class TestWebSocketTransport:
         
         try:
             await client.connect()
-            assert client.is_connected()
+            assert client.is_connected
         finally:
             await client.disconnect()
     
@@ -274,9 +274,9 @@ class TestWebSocketTransport:
             
             # Should receive pong
             await asyncio.sleep(0.1)
-            
-            assert client.is_connected()
-            
+
+            assert client.is_connected
+        
         finally:
             await client.disconnect()
     
@@ -297,7 +297,7 @@ class TestWebSocketTransport:
                 clients.append(client)
             
             # All should be connected
-            assert all(c.is_connected() for c in clients)
+            assert all(c.is_connected for c in clients)
             
         finally:
             for client in clients:
@@ -314,14 +314,14 @@ class TestWebSocketTransport:
         
         try:
             await client.connect()
-            assert client.is_connected()
-            
+            assert client.is_connected
+
             # Disconnect
             await client.disconnect()
-            assert not client.is_connected()
-            
+            assert not client.is_connected
+
         finally:
-            if client.is_connected():
+            if client.is_connected:
                 await client.disconnect()
 
 

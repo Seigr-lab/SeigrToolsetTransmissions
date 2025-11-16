@@ -58,8 +58,8 @@ class TestChamber:
         
         chamber.store(key, data)
         
-        # Verify file exists
-        file_path = chamber.chamber_path / f"{key}.stt"
+        # Verify file exists in node-specific storage_path
+        file_path = chamber.storage_path / f"{key}.stt"
         assert file_path.exists()
     
     def test_retrieve_data(self, chamber):
@@ -140,8 +140,8 @@ class TestChamber:
         
         chamber.store(key, plaintext_data)
         
-        # Read raw file content
-        file_path = temp_chamber_dir / f"{key}.stt"
+        # Read raw file content from node-specific storage path
+        file_path = chamber.storage_path / f"{key}.stt"
         with open(file_path, 'rb') as f:
             raw_content = f.read()
         
@@ -159,8 +159,8 @@ class TestChamber:
         
         chamber.store(key, data)
         
-        # Read raw file
-        file_path = chamber.chamber_path / f"{key}.stt"
+        # Read raw file from node-specific storage path
+        file_path = chamber.storage_path / f"{key}.stt"
         with open(file_path, 'rb') as f:
             raw_content = f.read()
         
@@ -235,14 +235,16 @@ class TestChamber:
         assert len(chamber.list_keys()) == 0
     
     def test_get_metadata(self, chamber):
-        """Test getting chamber metadata."""
-        chamber.store("meta_test", {"data": "value"})
+        """Test getting file metadata."""
+        key = "meta_test"
+        chamber.store(key, {"data": "value"})
         
-        metadata = chamber.get_metadata()
+        # Get metadata for specific key
+        metadata = chamber.get_metadata(key)
         
-        assert 'node_id' in metadata
-        assert 'total_keys' in metadata
-        assert metadata['total_keys'] >= 1
+        assert 'key' in metadata
+        assert 'size' in metadata
+        assert metadata['key'] == key
     
     def test_different_stc_wrappers(self, temp_chamber_dir, node_id):
         """Test that different STC wrappers can't decrypt each other's data."""

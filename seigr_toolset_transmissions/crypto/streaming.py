@@ -6,14 +6,18 @@ Each (session_id, stream_id) pair gets its own StreamingContext.
 """
 
 from typing import Dict, Tuple, Union
-import sys
 
 try:
-    from interfaces.api.streaming_context import StreamingContext
+    from seigr_crypto.interfaces.api.streaming_context import StreamingContext
 except ImportError:
-    import site
-    sys.path.extend(site.getsitepackages())
-    from interfaces.api.streaming_context import StreamingContext
+    # Fallback for different installation paths
+    try:
+        from interfaces.api.streaming_context import StreamingContext
+    except ImportError:
+        import sys
+        import site
+        sys.path.extend(site.getsitepackages())
+        from interfaces.api.streaming_context import StreamingContext
 
 from . import context as stc_context
 
