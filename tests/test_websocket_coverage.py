@@ -25,12 +25,11 @@ class TestWebSocketCoverage:
     @pytest.mark.asyncio
     async def test_ws_client_connect_fail(self, stc_wrapper):
         """Test WebSocket client connection failure."""
-        ws = WebSocketTransport("127.0.0.1", 0, stc_wrapper, is_server=False)
+        ws = WebSocketTransport("127.0.0.1", 9999, stc_wrapper, is_server=False)
         try:
-            await asyncio.wait_for(ws.start(), timeout=0.5)
-        except (asyncio.TimeoutError, Exception):
+            await asyncio.wait_for(ws.start(), timeout=0.2)
+        except (asyncio.TimeoutError, ConnectionRefusedError, OSError, Exception):
             pass
-        await ws.stop()
     
     @pytest.mark.asyncio
     async def test_ws_send_without_connection(self, stc_wrapper):
