@@ -458,15 +458,51 @@ class TestSTTFrame:
         
         assert frame.frame_type == STT_FRAME_TYPE_HANDSHAKE
     
-    def test_frame_handshake_type(self):
-        """Test creating handshake frame."""
-        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_HANDSHAKE
+    def test_frame_double_encryption(self, stc_wrapper):
+        """Test that encrypting twice raises error."""
         frame = STTFrame(
-            frame_type=STT_FRAME_TYPE_HANDSHAKE,
-            session_id=b'\x15' * 8,
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b'\x16' * 8,
             stream_id=1,
             sequence=0,
-            payload=b''
+            payload=b'test'
         )
         
-        assert frame.frame_type == STT_FRAME_TYPE_HANDSHAKE
+        # Encrypt once
+        frame.encrypt_payload(stc_wrapper)
+        
+        # Try to encrypt again
+        with pytest.raises(STTFrameError, match="already encrypted"):
+            frame.encrypt_payload(stc_wrapper)
+    
+    def test_frame_decrypt_unencrypted(self, stc_wrapper):
+        """Test decrypting unencrypted frame raises error."""
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b'\x17' * 8,
+            stream_id=1,
+            sequence=0,
+            payload=b'test'
+        )
+        
+        # Try to decrypt without encrypting
+        with pytest.raises(STTFrameError, match="not encrypted"):
+            frame.decrypt_payload(stc_wrapper)
+    
+    def test_frame_large_payload(self, stc_wrapper):
+        """Test frame with large payload."""
+        large_payload = b'x' * 100000  # 100KB
+        
+        frame = STTFrame(
+            frame_type=STT_FRAME_TYPE_DATA,
+            session_id=b'\x18' * 8,
+            stream_id=1,
+            sequence=0,
+            payload=large_payload
+        )
+        
+        # Encrypt and decrypt
+        frame.encrypt_payload(stc_wrapper)
+        frame.decrypt_payload(stc_wrapper)
+        
+        assert frame.payload == large_payload

@@ -204,7 +204,7 @@ class SessionManager:
         """
         for session in self.sessions.values():
             if (session.peer_node_id == peer_node_id and
-                session.is_active()):
+                session.is_active):
                 return session
         return None
     

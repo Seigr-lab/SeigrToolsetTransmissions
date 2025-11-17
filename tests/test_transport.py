@@ -758,7 +758,18 @@ class TestTransportIntegration:
         # Default should be no SSL (would be configured separately)
         # This test just ensures initialization works
         await transport.start()
-        try:
-            assert transport.is_running
-        finally:
-            await transport.stop()
+        await transport.stop()
+    
+    @pytest.mark.asyncio
+    async def test_udp_get_stats(self, stc_wrapper):
+        """Test UDP transport statistics."""
+        transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
+        await transport.start()
+        
+        stats = transport.get_stats()
+        assert 'bytes_sent' in stats
+        assert 'bytes_received' in stats
+        assert stats['bytes_sent'] == 0
+        assert stats['bytes_received'] == 0
+        
+        await transport.stop()

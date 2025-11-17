@@ -562,6 +562,47 @@ class TestSessionManager:
         # Record large values
         if hasattr(session, 'record_sent_bytes'):
             session.record_sent_bytes(1000000)
+    
+    @pytest.mark.asyncio
+    async def test_session_manager_invalid_node_id(self, stc_wrapper):
+        """Test session manager with invalid node ID."""
+        with pytest.raises(STTSessionError, match="32 bytes"):
+            SessionManager(b"short", stc_wrapper)
+    
+    @pytest.mark.asyncio
+    async def test_session_manager_get_session_by_peer(self, stc_wrapper):
+        """Test getting session by peer node ID."""
+        manager = SessionManager(b'\xbb' * 32, stc_wrapper)
+        
+        peer1 = b'\xcc' * 32
+        peer2 = b'\xdd' * 32
+        
+        # Create session for peer1
+        session1 = await manager.create_session(b'\x01' * 8, peer1)
+        
+        # Get session by peer
+        found = await manager.find_session_by_peer(peer1)
+        assert found is session1
+        
+        # Try non-existent peer
+        not_found = await manager.find_session_by_peer(peer2)
+        assert not_found is None
+    
+    @pytest.mark.asyncio
+    async def test_session_manager_stats(self, stc_wrapper):
+        """Test session manager statistics."""
+        manager = SessionManager(b'\xee' * 32, stc_wrapper)
+        
+        # Create some sessions
+        await manager.create_session(b'\x01' * 8, b'\xf1' * 32)
+        await manager.create_session(b'\x02' * 8, b'\xf2' * 32)
+        
+        stats = manager.get_stats()
+        
+        assert stats['total_sessions'] == 2
+        assert 'active_sessions' in stats
+        assert 'sessions' in stats
+        assert len(stats['sessions']) == 2
         
         if hasattr(session, 'record_received_bytes'):
             session.record_received_bytes(1000000)
