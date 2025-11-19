@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "seigr-toolset-transmissions"
-version = "0.1.0"
-description = "Binary encrypted transmission protocol for the Seigr Ecosystem"
+version = "0.2.0a0"
+description = "Self-sovereign P2P streaming protocol with pure STC cryptography (Pre-release Alpha)"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -23,7 +23,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "seigr-toolset-crypto>=0.1.0",
+    "seigr-toolset-crypto>=0.4.0",
 ]
 
 [project.optional-dependencies]

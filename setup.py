@@ -11,10 +11,10 @@ long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 
 setup(
     name="seigr-toolset-transmissions",
-    version="0.1.0",
+    version="0.2.0a0",
     author="Sergi Saldaña-Massó - Seigr Lab",
     author_email="sergism@gmail.com",
-    description="Binary encrypted transmission protocol for the Seigr Ecosystem",
+    description="Self-sovereign P2P streaming protocol with pure STC cryptography (Pre-release Alpha)",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/seigr/seigr-toolset-transmissions",
@@ -33,7 +33,7 @@ setup(
     ],
     python_requires=">=3.9",
     install_requires=[
-        "seigr-toolset-crypto>=0.1.0",
+        "seigr-toolset-crypto>=0.4.0",
     ],
     extras_require={
         "dev": [
