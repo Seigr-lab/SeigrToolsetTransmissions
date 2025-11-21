@@ -31,3 +31,8 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+coverage_rebuild.log
+node_tests_parallel.log
+rebuild_coverage.py
+rebuild_coverage.sh
