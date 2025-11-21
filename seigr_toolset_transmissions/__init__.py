@@ -4,7 +4,7 @@ Seigr Toolset Transmissions (STT)
 Binary, encrypted, application-agnostic transmission protocol for the Seigr Ecosystem.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0a0"
 __author__ = "Sergi Saldaña-Massó - Seigr Lab"
 
 from .core import STTNode, ReceivedPacket

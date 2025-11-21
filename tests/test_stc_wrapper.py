@@ -176,7 +176,7 @@ class TestSTCWrapper:
             session_id, stream_id, payload, metadata
         )
         
-        # Decrypt with wrong metadata - STC v0.4.0 may succeed but produce different data
+        # Decrypt with wrong metadata - seigr-toolset-crypto may succeed but produce different data
         try:
             decrypted = stc_wrapper.decrypt_frame(
                 session_id, stream_id, encrypted, nonce, b"wrong metadata"

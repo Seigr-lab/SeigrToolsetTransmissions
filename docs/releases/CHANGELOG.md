@@ -145,13 +145,13 @@ OVERALL:              86.81%  (2107 statements, 278 missing)
 3. **Frame**: 23 lines missing (rare error paths) - 80% coverage
 4. **Crypto modules**: Some edge cases untested but stable APIs
 
-**None of these affect core functionality. Target for v1.0: 90%+ coverage**
+**None of these affect core functionality.**
 
 ### Dependencies
 
 **Runtime:**
 
-- `seigr-toolset-crypto` (STC) - ONLY cryptographic dependency
+- `seigr-toolset-crypto` >= 0.4.0 (external dependency)
 - Python 3.9+
 
 **Development:**
@@ -160,18 +160,13 @@ OVERALL:              86.81%  (2107 statements, 278 missing)
 - pytest-asyncio >= 0.21
 - pytest-cov >= 4.0
 
-### Next Steps
-
-**v0.3.0**: Production hardening (90%+ coverage target)
-**v0.4.0**: NAT traversal & peer discovery
-**v0.5.0**: DHT & content storage
-**v1.0.0**: Production release
-
 ---
 
 ## [0.1.0] - 2025-11-14
 
-### Implementation Status: **56% Complete** (96/173 tests passing)
+### Initial Release - Phase 1: STC Integration Foundation
+
+#### Implementation Status: **56% Complete** (96/173 tests passing)
 
 ### ✅ Fully Implemented & Working
 
@@ -301,135 +296,7 @@ Frame Layer (complete: 2MB frames)
 Transport Layer (complete impl, failing integration)
 ```
 
-## [0.1.0] - 2025-11-14
-
-### Added - Phase 1: STC Integration Foundation
-
-#### Cryptography
-
-- **STCWrapper**: Complete STC integration wrapper (~320 lines)
-  - Hash operations using STC.hash (PHE)
-  - Node ID generation from identity
-  - Content-addressed storage IDs
-  - Session key derivation using STC.derive_key (CKE)
-  - Session key rotation
-  - Frame encryption/decryption with AEAD-like associated_data
-  - Per-stream isolated contexts to prevent nonce reuse
-  
-#### Native Serialization
-
-- **STT Binary Format**: Self-sovereign TLV-like encoding
-  - No JSON, msgpack, or third-party formats
-  - Type-length-value encoding with 14 data types
-  - Deterministic serialization
-  - Used for all handshake messages and chamber storage
-
-#### Protocol Components
-
-- **STTFrame**: Binary frame protocol with STC encryption
-  - Magic bytes (0x53 0x54) for frame identification
-  - Varint encoding for efficient size representation
-  - Integrated STC encryption with crypto metadata
-  - Optional encryption with decrypt-on-demand
-  
-- **STTHandshake**: Pre-shared seed authentication
-  - Challenge-response protocol using STC.hash
-  - Commitment-based proof of shared seed
-  - Session key derivation from handshake context
-  - No external crypto dependencies (no X25519/Ed25519)
-  
-- **STTSession**: Session management with STC key rotation
-  - STC-based key derivation for session keys
-  - Automatic key rotation with configurable thresholds
-  - Sequence tracking and statistics
-  
-- **Chamber**: STC-encrypted storage
-  - AEAD-like encryption using STC with associated_data
-  - Nonce management for each stored item
-  - Encrypted key and session metadata storage
-  - No hashlib or placeholder encryption
-
-#### Streaming Foundation
-
-- **StreamEncoder/StreamDecoder**: Native STC streaming
-  - Uses STC.encrypt_stream and decrypt_stream
-  - Configurable chunk sizes (64KB default)
-  - Per-chunk encryption with chunk indexing
-  - Statistics tracking
-
-#### Transport Layer
-
-- **UDPTransport**: Connectionless datagram transport
-  - Asyncio-based UDP implementation
-  - Configurable MTU (1472 bytes safe default)
-  - Frame-based communication
-  - NAT traversal ready
-  
-- **WebSocketTransport**: Native RFC 6455 implementation
-  - No websockets library dependency
-  - Client and server roles
-  - Binary frame support
-  - Ping/pong and close handshake
-
-#### Core Runtime
-
-- **STTNode**: Integrated node runtime
-  - UDP transport with frame handling
-  - STC-native handshake processing
-  - Session management
-  - Receive queue for data packets
-  - Statistics and monitoring
-
-### Technical Details
-
-#### Dependencies
-
-- **Runtime**: seigr-toolset-crypto (STC) ONLY
-- **Development**: pytest, pytest-asyncio, pytest-cov, black, flake8, mypy
-- **Removed**: websockets, msgpack, all hashlib usage
-
-#### Architecture
-
-- Pure STC cryptography throughout
-- Native binary serialization (no JSON)
-- Self-sovereign data formats
-- All modules under 500 lines
-- Zero third-party runtime dependencies except STC
-
-### Security
-
-- STC is the ONLY cryptographic provider
-- Pre-shared seed authentication model
-- AEAD-like encryption with associated_data
-- Per-stream context isolation
-- Nonce management to prevent reuse
-- No placeholder encryption remaining
-
-### Breaking Changes from Original Design
-
-- Removed all hashlib usage (now pure STC)
-- Removed JSON/msgpack (now native STT binary)
-- Removed websockets library (now native RFC 6455)
-- Changed from X25519/Ed25519 to pre-shared seed model
-- TCP transport removed in favor of UDP-first design
-
-### Known Limitations
-
-- Handshake requires pre-shared seed (no public key crypto)
-- WebSocket handshake uses hashlib.sha1 for RFC 6455 browser compatibility
-- NAT traversal not yet implemented (UDP foundation ready)
-- DHT and discovery not yet implemented
-- Comprehensive tests pending
-
-### Next Steps (Phase 2+)
-
-- NAT traversal (STUN/TURN-like)
-- DHT for peer discovery
-- Content-addressed storage
-- Comprehensive test suite
-- Performance benchmarks
-- Production deployment guides
-
 ---
 
+[0.2.0-alpha]: https://github.com/seigr/seigr-toolset-transmissions/releases/tag/v0.2.0-alpha
 [0.1.0]: https://github.com/seigr/seigr-toolset-transmissions/releases/tag/v0.1.0

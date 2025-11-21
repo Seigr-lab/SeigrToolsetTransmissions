@@ -4,6 +4,82 @@
 
 This chapter provides practical, step-by-step instructions for setting up STT, running your first program, and building basic applications. By the end, you'll have a working STT installation and understand the fundamentals through hands-on examples.
 
+## Quick Start
+
+### Installation
+
+```bash
+cd "e:\SEIGR DEV\SeigrToolsetTransmissions"
+pip install -e .
+```
+
+### Verify Installation
+
+```bash
+# Run tests
+pytest
+
+# Check version
+python3 -c "import seigr_toolset_transmissions; print(seigr_toolset_transmissions.__version__)"
+```
+
+### Basic Two-Node Example
+
+**Server** (`server.py`):
+
+```python
+import asyncio
+from seigr_toolset_transmissions import STTNode
+
+async def main():
+    node = STTNode(
+        node_seed=b"server_seed_32_bytes_minimum!!!",
+        shared_seed=b"shared_secret_32_bytes_minimum!",
+        port=9000
+    )
+    
+    local_addr = await node.start()
+    print(f"Server on {local_addr}")
+    
+    # Receive data
+    async for packet in node.receive():
+        print(f"Got: {packet.data}")
+    
+    await node.stop()
+
+asyncio.run(main())
+```
+
+**Client** (`client.py`):
+
+```python
+import asyncio
+from seigr_toolset_transmissions import STTNode
+
+async def main():
+    await asyncio.sleep(1)  # Wait for server
+    
+    node = STTNode(
+        node_seed=b"client_seed_32_bytes_minimum!!!",
+        shared_seed=b"shared_secret_32_bytes_minimum!"
+    )
+    
+    await node.start()
+    
+    # Connect to server
+    session = await node.connect_udp("127.0.0.1", 9000)
+    print(f"Connected: {session.session_id.hex()}")
+    
+    # Send data
+    stream = await session.stream_manager.create_stream()
+    await stream.send(b"Hello from client!")
+    
+    await asyncio.sleep(2)
+    await node.stop()
+
+asyncio.run(main())
+```
+
 ## Prerequisites
 
 ### System Requirements

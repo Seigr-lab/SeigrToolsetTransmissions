@@ -201,6 +201,29 @@ data = await stream.receive()
 
 ---
 
+## Documentation
+
+**User Manual**: [`docs/user_manual/`](docs/user_manual/) - Complete guide (15 chapters)
+
+**Core References**:
+
+- [API Reference](docs/api/api_reference.md) - Complete API documentation
+- [Protocol Specification](docs/design/protocol_spec.md) - Protocol details
+- [STC API Reference](docs/api/STC_API_REFERENCE.md) - seigr-toolset-crypto API
+- [Environment Setup](docs/development/ENVIRONMENT_SETUP.md) - Development environment
+
+**Development**:
+
+- [Documentation Updates](docs/development/DOCUMENTATION_UPDATE.md) - Tracking doc changes
+
+**Releases**:
+
+- [CHANGELOG](docs/releases/CHANGELOG.md) - Complete changelog
+- [v0.2.0-alpha](docs/releases/v0.2.0-alpha.md) - Current release
+- [v0.1.0](docs/releases/v0.1.0.md) - Initial release
+
+---
+
 ## Features
 
 - Handshake using STC encrypt/decrypt proof
@@ -257,7 +280,7 @@ ANTI-CAPITALIST SOFTWARE LICENSE (v 1.4)
 ## Links
 
 - [Seigr Toolset Crypto](https://pypi.org/project/seigr-toolset-crypto/)
-- [Protocol Spec](docs/protocol_spec.md)
-- [API Reference](docs/api_reference.md)
+- [Protocol Spec](docs/design/protocol_spec.md)
+- [API Reference](docs/api/api_reference.md)
 
 ---

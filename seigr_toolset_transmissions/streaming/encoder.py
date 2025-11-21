@@ -31,9 +31,9 @@ class StreamEncoder:
         # Track sequence
         self._sequence = 0
     
-    def encode_chunk(self, data: bytes) -> bytes:
+    def encode_chunk(self, chunk: bytes) -> bytes:
         """
-        Encode (encrypt) a data chunk using STC v0.4.0 StreamingContext.
+        Encode (encrypt) a data chunk using seigr-toolset-crypto StreamingContext.
         
         Args:
             data: Chunk data to encrypt (can be empty)

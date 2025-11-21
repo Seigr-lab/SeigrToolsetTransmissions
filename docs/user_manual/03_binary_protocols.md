@@ -11,6 +11,7 @@ STT uses binary protocols rather than text-based protocols. This chapter explain
 Computers store and process everything as binary: sequences of 0s and 1s.
 
 **Example:**
+
 ```
 The letter 'A' in binary: 01000001
 The number 65 in binary:  01000001
@@ -25,6 +26,7 @@ These are the same! Context determines meaning.
 - **Hexadecimal**: A convenient way to write bytes (e.g., 0x41 for 01000001)
 
 **Conversion example:**
+
 ```
 Binary:      01010011 01010100
 Hexadecimal: 0x53 0x54
@@ -40,6 +42,7 @@ These are three ways of representing the same data.
 Examples: HTTP, SMTP, FTP (control channel)
 
 **How they work:**
+
 ```
 Client sends: "GET /index.html HTTP/1.1\r\nHost: example.com\r\n\r\n"
 Server sends: "HTTP/1.1 200 OK\r\nContent-Length: 1234\r\n\r\n<html>..."
@@ -48,11 +51,13 @@ Server sends: "HTTP/1.1 200 OK\r\nContent-Length: 1234\r\n\r\n<html>..."
 Everything is readable text (strings of characters).
 
 **Advantages:**
+
 - Human-readable (you can read it directly)
 - Easy to debug (use telnet or text editors)
 - Simple to implement (string manipulation)
 
 **Disadvantages:**
+
 - Larger size (text is verbose)
 - Slower parsing (need to parse strings)
 - Ambiguous (what if data contains special characters?)
@@ -62,6 +67,7 @@ Everything is readable text (strings of characters).
 Examples: STT, HTTP/2, WebSocket, BitTorrent
 
 **How they work:**
+
 ```
 Client sends: [0x53][0x54][0x01][0x00000001][0x00][0x0A][...]
 ```
@@ -69,11 +75,13 @@ Client sends: [0x53][0x54][0x01][0x00000001][0x00][0x0A][...]
 Data is raw bytes with structured meaning.
 
 **Advantages:**
+
 - Smaller size (compact representation)
 - Faster processing (direct byte manipulation)
 - Precise (no ambiguity, each byte has defined meaning)
 
 **Disadvantages:**
+
 - Not human-readable (need tools to inspect)
 - Harder to debug (can't just read it)
 - Requires precise specification (byte-level detail)
@@ -99,6 +107,7 @@ STT frames have this binary structure:
 **Let's break this down:**
 
 #### Magic Bytes (2 bytes)
+
 ```
 0x53 0x54  (ASCII "ST")
 ```
@@ -106,6 +115,7 @@ STT frames have this binary structure:
 Purpose: Identify this as an STT frame (not random garbage).
 
 #### Type (1 byte)
+
 ```
 0x01 = Handshake frame
 0x02 = Data frame
@@ -117,6 +127,7 @@ Purpose: Identify this as an STT frame (not random garbage).
 Purpose: Tells receiver how to interpret the frame.
 
 #### Session ID (8 bytes)
+
 ```
 Example: 0x01 0x23 0x45 0x67 0x89 0xAB 0xCD 0xEF
 ```
@@ -124,6 +135,7 @@ Example: 0x01 0x23 0x45 0x67 0x89 0xAB 0xCD 0xEF
 Purpose: Identifies which session this frame belongs to.
 
 #### Stream ID (varint)
+
 ```
 Stream 1:    0x01             (1 byte)
 Stream 127:  0x7F             (1 byte)
@@ -136,6 +148,7 @@ Purpose: Identifies which stream within the session.
 **Varint explained**: Small numbers use fewer bytes. This saves space since most applications use low stream IDs.
 
 #### Sequence Number (varint)
+
 ```
 Sequence 0:   0x00
 Sequence 100: 0x64
@@ -145,6 +158,7 @@ Sequence 1000: 0xE8 0x07
 Purpose: Ordering - ensures data arrives in correct order.
 
 #### Flags (1 byte)
+
 ```
 Bit 0: Final frame in stream
 Bit 1: Error condition
@@ -154,6 +168,7 @@ Bit 2-7: Reserved
 Purpose: Special conditions or metadata.
 
 #### Payload
+
 ```
 Encrypted data (variable length)
 ```
@@ -165,6 +180,7 @@ Purpose: Your actual data, encrypted with STC.
 Varint (variable-length integer) saves space:
 
 **Standard integer (always 4 bytes):**
+
 ```
 1:      0x00 0x00 0x00 0x01  (4 bytes)
 127:    0x00 0x00 0x00 0x7F  (4 bytes)
@@ -172,6 +188,7 @@ Varint (variable-length integer) saves space:
 ```
 
 **Varint (uses only bytes needed):**
+
 ```
 1:      0x01             (1 byte)
 127:    0x7F             (1 byte)
@@ -179,11 +196,13 @@ Varint (variable-length integer) saves space:
 ```
 
 **How it works:**
+
 - If the high bit is 0, this is the last byte
 - If the high bit is 1, more bytes follow
 - The other 7 bits contain data
 
 **Example: Encoding 300**
+
 ```
 300 in binary: 100101100
 
@@ -202,31 +221,37 @@ You don't need to understand the encoding details - STT handles this automatical
 STT can serialize these Python types to binary:
 
 **Basic Types:**
+
 - `None` → 0x00
 - `False` → 0x01
 - `True` → 0x02
 
 **Numbers:**
+
 - `int` (signed/unsigned, 8/16/32/64 bit) → 0x10-0x17
 - `float` (32 bit) → 0x20
 - `float` (64 bit) → 0x21
 
 **Bytes and Strings:**
+
 - `bytes` → 0x30 + length + data
 - `str` (UTF-8) → 0x31 + length + UTF-8 bytes
 
 **Collections:**
+
 - `list` → 0x40 + length + items
 - `dict` → 0x41 + length + key-value pairs
 
 ### Example: Encoding a Dict
 
 Python dict:
+
 ```python
 {'name': 'Alice', 'age': 30}
 ```
 
 Binary representation:
+
 ```
 0x41                    # Dict type tag
 0x02                    # 2 items
@@ -237,6 +262,7 @@ Binary representation:
 ```
 
 **Why this format?**
+
 - Compact (no wasted space)
 - Deterministic (same data = same bytes)
 - No parsing ambiguity (exact byte meaning)
@@ -246,6 +272,7 @@ Binary representation:
 STT ensures that serializing the same data always produces the same bytes:
 
 **Dictionary keys are sorted:**
+
 ```python
 {'b': 2, 'a': 1}  →  [always serialized as] → {'a': 1, 'b': 2}
 ```
@@ -264,11 +291,13 @@ When debugging, you'll see hex dumps:
 ```
 
 **How to read this:**
+
 - Left column: Byte offset (position in data)
 - Middle columns: Bytes in hexadecimal
 - Right column: ASCII representation (. = non-printable)
 
 **Example breakdown:**
+
 ```
 53 54 → Magic bytes "ST"
 01    → Type 0x01 (Handshake)
@@ -285,6 +314,7 @@ When debugging, you'll see hex dumps:
 To inspect STT frames, you can:
 
 1. **Use STT's built-in tools:**
+
 ```python
 frame = STTFrame.from_bytes(binary_data)
 print(f"Type: {frame.frame_type}")
@@ -293,6 +323,7 @@ print(f"Stream: {frame.stream_id}")
 ```
 
 2. **Use hexdump utilities:**
+
 ```bash
 # Linux/Mac
 hexdump -C frame.bin
@@ -309,6 +340,7 @@ print(binascii.hexlify(binary_data))
 Let's compare text vs binary for a typical message:
 
 ### Text Protocol (JSON)
+
 ```json
 {
   "type": "data",
@@ -318,9 +350,11 @@ Let's compare text vs binary for a typical message:
   "data": "Hello"
 }
 ```
+
 **Size: ~120 bytes** (with whitespace and quotes)
 
 ### Binary Protocol (STT Frame)
+
 ```
 Magic:    0x53 0x54         (2 bytes)
 Type:     0x02              (1 byte)
@@ -332,6 +366,7 @@ Length:   0x05              (1 byte, varint)
 Data:     "Hello"           (5 bytes)
 Meta:     (varies)          (~16 bytes for crypto)
 ```
+
 **Size: ~36 bytes**
 
 **Savings: 70%** (36 bytes vs 120 bytes)
@@ -365,15 +400,19 @@ Over millions of messages, this adds up significantly.
 ## Common Questions
 
 ### "Can I use JSON instead of binary?"
+
 **No.** STT's binary format is integral to the protocol. You can put JSON inside the encrypted payload, but the frame structure is always binary.
 
 ### "How do I debug if I can't read the bytes?"
+
 Use STT's logging and inspection tools. The library provides methods to decode frames into human-readable representations.
 
 ### "Is binary more secure than text?"
+
 Not inherently. Security comes from encryption, not encoding. Binary just makes it impossible to accidentally leak data in readable form.
 
 ### "What if the binary format changes?"
+
 STT includes version numbers in frames. Different versions can coexist. When the format changes, the version number increments.
 
 ## Summary
@@ -394,6 +433,7 @@ Continue to [Chapter 4: Understanding Encryption](04_understanding_encryption.md
 ---
 
 **Review Questions:**
+
 1. What are the magic bytes in an STT frame and why do they exist?
 2. How does varint encoding save space?
 3. Why is deterministic serialization important?
