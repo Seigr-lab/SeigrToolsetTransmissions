@@ -4,46 +4,7 @@
 
 STT is one of many protocols for network communication. This chapter provides factual comparisons with common alternatives to help you understand when STT is the right choice and when other protocols may be more suitable.
 
-**Important:** STT is currently v0.2.0-alpha with one-to-one sessions. However, it is **designed for the Seigr ecosystem** with planned DHT-based peer discovery (v0.4.0) and content distribution (v0.5.0). Current limitations are temporary as we build incrementally toward many-to-many capabilities.
-
-## STT Development Roadmap
-
-### Current: v0.2.0-alpha (One-to-One)
-
-**What works now:**
-
-- Direct peer-to-peer sessions
-- Manual peer discovery (known IP addresses)
-- STC encryption with pre-shared seeds
-- UDP and WebSocket transports
-- Stream multiplexing within sessions
-
-**Current limitations:**
-
-- No automatic peer discovery (manual IP exchange required)
-- No DHT for content distribution
-- No NAT traversal (direct connectivity required)
-- One-to-one sessions (no server-to-many yet)
-
-### Planned: v0.4.0 (Peer Discovery)
-
-**Coming soon:**
-
-- DHT-based peer discovery (Kademlia + STC.hash)
-- Content-addressed storage
-- Find peers without manual IP exchange
-- NAT traversal techniques
-
-### Planned: v0.5.0 (Content Distribution)
-
-**Future capabilities:**
-
-- Many-to-many content distribution
-- Server streaming to multiple clients
-- Content replication across peers
-- Seigr ecosystem backbone
-
----
+**Important:** STT is designed for the Seigr ecosystem with DHT-based peer discovery, content distribution, and NAT traversal capabilities built-in.
 
 ## STT vs HTTP/HTTPS
 
@@ -264,10 +225,10 @@ BitTorrent is a peer-to-peer file-sharing protocol.
 
 | Aspect | BitTorrent | STT |
 |--------|------------|-----|
-| **Model** | Many-to-many (swarm) | One-to-one (v0.2.0); many-to-many with DHT (v0.4.0+) |
+| **Model** | Many-to-many (swarm) | One-to-one and many-to-many (DHT + server mode) |
 | **Purpose** | File distribution | General binary streaming + content distribution |
-| **Chunking** | File pieces | Frame-based |
-| **Redundancy** | High (many sources) | Content-addressed DHT with multi-peer (planned v0.4.0+) |
+| **Chunking** | File pieces | Frame-based and content chunks |
+| **Redundancy** | High (many sources) | Content-addressed DHT with multi-peer support |
 | **Encryption** | Optional | Always (STC) |
 
 ### When to Use BitTorrent
@@ -282,7 +243,7 @@ BitTorrent is a peer-to-peer file-sharing protocol.
 - Seigr ecosystem applications (designed for this)
 - STC encryption required (content-addressed)
 - Real-time streaming AND content distribution
-- Building on future DHT capabilities (v0.4.0+)
+- DHT-based content distribution with STC.hash
 - Need unified protocol for sessions + distribution
 
 ## Decision Guide
@@ -339,7 +300,7 @@ No public-key infrastructure. Peers must exchange seeds out-of-band before conne
 
 ### No NAT Traversal (Yet)
 
-Current version requires direct connectivity or manual port forwarding. Future versions may add STUN/TURN-like functionality.
+STT includes STUN-like NAT type detection and hole punching coordination through the NATTraversal module.
 
 ### No Forward Secrecy
 

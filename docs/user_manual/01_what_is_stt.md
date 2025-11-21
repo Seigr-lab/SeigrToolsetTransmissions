@@ -55,11 +55,12 @@ Your computer talks directly to your friend's computer. No middleman needed.
 - More resilient (no central point of failure)
 - Distributed (content can be replicated across many peers)
 
-**Current limitations (v0.2.0-alpha):**
+**Features:**
 
-- Manual peer discovery (automatic DHT-based discovery planned for v0.4.0)
-- Direct connections require known IP addresses (NAT traversal planned for v0.3.0)
+- DHT-based peer discovery (Kademlia with STC.hash)
+- NAT traversal with STUN-like functionality
 - Pre-shared seeds for authentication (current design choice)
+- Server mode for accepting multiple incoming connections
 
 ### Binary Protocol
 
@@ -109,8 +110,8 @@ STT is designed for the **Seigr ecosystem** and similar applications:
 
 1. **Distributed Content Networks**
    - Content-addressed storage across many peers
-   - DHT-based content discovery (planned v0.4.0)
-   - Decentralized file distribution
+   - DHT-based content discovery with Kademlia
+   - Decentralized file distribution with chunking
    - No central server required
 
 2. **Secure File Sharing**
@@ -195,7 +196,7 @@ STT may not be suitable for:
 **STT**:
 
 - Designed for Seigr ecosystem (many-to-many capable)
-- DHT-based content distribution (planned v0.4.0)
+- DHT-based content distribution with Kademlia
 - STC encryption built-in
 - Real-time streaming AND file distribution
 - Uses STC hashes (probabilistic)

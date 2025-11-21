@@ -50,19 +50,19 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Alternative rejected:** TLS/AES - doesn't provide STC.hash, deterministic keys harder
 
-### 4. Phased Development Roadmap
+### 4. Incremental Development
 
-**Decision:** Build incrementally - v0.2.0 (one-to-one) → v0.4.0 (DHT) → v0.5.0 (content distribution)
+**Decision:** Build incrementally with continuous feature delivery
 
 **Rationale:**
 
-- Ship working software early (v0.2.0 useful for direct P2P)
-- Validate architecture before adding complexity (DHT, many-to-many)
-- Learn from real usage (adapt design based on feedback)
+- Ship working software early (validate architecture quickly)
+- Adapt design based on real usage and feedback
+- Avoid over-engineering features not yet needed
 
-**Trade-off:** Current v0.2.0-alpha appears limited (one-to-one only) - must explain "future vision"
+**Result:** STT now includes comprehensive features: DHT peer discovery, content distribution, NAT traversal, server mode
 
-**Alternative rejected:** Wait until DHT complete - delays getting feedback, risks building wrong thing
+**Alternative rejected:** Wait until all features complete - delays feedback, risks building wrong thing
 
 ### 5. Binary Protocol (Not Text)
 
@@ -94,7 +94,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Mitigation:** Seed rotation, secure storage (HSM)
 
-**Alternative:** Hybrid (deterministic content keys + ephemeral session keys) - future consideration (v0.7.0)
+**Alternative:** Hybrid (deterministic content keys + ephemeral session keys) - under research
 
 ### Reliability on UDP vs Using TCP
 
@@ -124,23 +124,26 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Consequence:** Must maintain own protocol (more work), less ecosystem tooling
 
-**Alternative:** Build on QUIC - considered for future (v0.3.0 may add QUIC transport)
+**STT v0.2.0+ features:**
 
-### One-to-One Now, Many-to-Many Later
+- **Adaptive Priority**: Priority calculated from content properties (uniqueness, access patterns, network conditions)
+- **Probabilistic Delivery**: Shannon entropy determines delivery probability
+- **Crypto Session Continuity**: Resume sessions across transports/IPs/devices using seed-based identity
+- **Content-Affinity Pooling**: Sessions clustered by STC.hash proximity (Kademlia XOR distance)
 
-**Chosen:** v0.2.0-alpha is one-to-one; DHT/content distribution in v0.4.0+
+### Peer-to-Peer Design
+
+**Chosen:** Peer-to-peer with DHT and content distribution
 
 **Why:**
 
-- Incremental delivery (ship working software early)
-- Validate design (test one-to-one before scaling to many-to-many)
-- Complexity management (DHT is hard - get fundamentals right first)
+- Native support for Seigr ecosystem content addressing
+- Distributed architecture eliminates single points of failure
+- Kademlia DHT for efficient peer and content discovery
 
-**Consequence:** Current version appears limited - documentation must explain roadmap
+**Result:** STT includes comprehensive P2P capabilities: server mode, DHT discovery, content distribution
 
-**Alternative:** Wait for DHT - delays real-world testing, risks building wrong thing
-
-**Result:** Clear roadmap communicated (v0.2.0 → v0.4.0 → v0.5.0)
+**Alternative:** Client-server only - simpler but defeats purpose of decentralized Seigr ecosystem
 
 ## Why Not Existing Protocols?
 
@@ -156,9 +159,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 - Native P2P (symmetric peers)
 - STC integration (content addressing)
-- Seigr-specific (DHT, Kademlia XOR distances)
-
-**Could use HTTP/3 as transport?** Maybe (future consideration for v0.3.0 QUIC transport)
+- Seigr-specific (DHT, Kademlia XOR distances with STC.hash)
 
 ### Why Not WebRTC?
 
@@ -173,17 +174,16 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - Simpler (no media codecs - general binary protocol)
 - Standalone (no browser required)
 - Seigr-specific (STC, content addressing)
+- Integrated NAT traversal (STUN-like functionality included)
 
 **Similarities:** Both P2P, both need NAT traversal
-
-**Result:** STT learns from WebRTC (ICE, STUN/TURN planned for v0.3.0)
 
 ### Why Not BitTorrent Protocol?
 
 **BitTorrent:**
 
 - Designed for file sharing (many-to-many)
-- DHT-based (Kademlia - similar to STT's planned DHT)
+- DHT-based (Kademlia with SHA-1)
 - Proven at scale (millions of users)
 
 **STT advantages:**
@@ -191,6 +191,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - General streaming (not just files)
 - STC encryption (BitTorrent encryption optional, not content-addressed)
 - Real-time capable (not just bulk transfer)
+- STC.hash for content addressing (vs SHA-1)
 
 **Similarities:** Both DHT, both P2P, both content distribution
 
@@ -235,49 +236,22 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Analogy:** STT is like "HTTP for Seigr" - the protocol that makes the ecosystem work.
 
-### Roadmap Alignment
+### Current Capabilities
 
-**Phase 1 (v0.2.0-alpha - CURRENT):**
+**Core Features:**
 
-- ✅ One-to-one sessions
+- ✅ One-to-one and many-to-many sessions
 - ✅ STC encryption
 - ✅ UDP/WebSocket transports
 - ✅ Stream multiplexing
+- ✅ DHT (Kademlia + STC.hash)
+- ✅ Peer and content discovery
+- ✅ Content-addressed storage
+- ✅ Server mode (one-to-many streaming)
+- ✅ NAT traversal (STUN-like)
+- ✅ Content distribution with chunking
 
-**Use case:** Secure direct P2P (file sharing, messaging)
-
-**Phase 2 (v0.3.0):**
-
-- NAT traversal (STUN/TURN/ICE)
-- Connection migration (WiFi → LTE)
-- QUIC transport (optional)
-
-**Use case:** Better connectivity (through firewalls, mobile)
-
-**Phase 3 (v0.4.0):**
-
-- **DHT (Kademlia + STC.hash)**
-- Peer discovery (find content without manual IPs)
-- Content addressing (request by STC.hash)
-
-**Use case:** Discover peers automatically, request content by hash
-
-**Phase 4 (v0.5.0):**
-
-- **Many-to-many content distribution**
-- Server-to-many streaming
-- Content replication (redundancy)
-- **Seigr ecosystem backbone**
-
-**Use case:** Distributed content network, Seigr applications
-
-**Phase 5 (v0.6.0+):**
-
-- Priority streams (QoS)
-- Connection pooling (optimization)
-- Advanced features
-
-**This roadmap is critical** - STT is designed for Phase 4+, but shipped Phase 1 first.
+**Designed for Seigr ecosystem:**  Distributed content network, automated peer discovery, content-addressed storage
 
 ## Lessons from Other Systems
 
@@ -291,23 +265,23 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Applied to STT:**
 
-- Planned DHT (Kademlia + STC.hash)
+- Kademlia DHT with STC.hash (implemented)
 - Content-addressed from start (STC.hash native)
 - Architecture supports many peers (session manager handles multiple)
 
-### From QUIC
+### Session Continuity Approach
 
-**Learned:**
+**STT session continuity differs from connection migration:**
 
-- UDP-based can be reliable (application-level control)
-- Multiplexing avoids head-of-line blocking (streams)
-- Fast connection setup (0-RTT)
-
-**Applied to STT:**
-
-- UDP default (application reliability layer)
-- Stream multiplexing (independent flows)
-- Future: Consider QUIC as transport (v0.3.0)
+- **UDP default with custom reliability** (application-level)
+- **Stream multiplexing** (independent flows)
+- **Session continuity**:
+  - Session identity derived from cryptographic seeds
+  - Can resume across transports (UDP ↔ WebSocket)
+  - Can resume across devices with same seeds
+- **Probabilistic reliability**:
+  - Delivery probability based on Shannon entropy
+  - No manual configuration of reliable/unreliable flags
 
 ### From WebRTC
 
@@ -320,7 +294,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 **Applied to STT:**
 
 - WebSocket transport (firewall-friendly)
-- Planned NAT traversal (v0.3.0)
+- NAT traversal implemented (STUN-like functionality)
 - Future: JavaScript client for browsers
 
 ### From Seigr Requirements
@@ -348,7 +322,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - **True** - this is a known limitation
 - **Mitigation:** Secure seed storage (HSM), rotation
 - **Trade-off:** Deterministic keys needed for content addressing (Seigr ecosystem requirement)
-- **Future:** Key ratcheting (v0.7.0) adds forward secrecy while preserving deterministic content keys
+- **Research:** Key ratcheting could add forward secrecy while preserving deterministic content keys (not scheduled)
 
 ### "Pre-shared seeds don't scale"
 
@@ -359,7 +333,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - **True** - STT not designed for public internet (like HTTP)
 - **Use case:** Private networks, known peers, Seigr ecosystem (pre-authorized)
 - **Alternative:** If need public access, use HTTP/TLS (different use case)
-- **Future:** Optional certificate auth (v0.9.0) for hybrid trust model
+- **Research:** Optional certificate auth for hybrid trust model (not scheduled)
 
 ### "Custom crypto is dangerous"
 
@@ -380,85 +354,71 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 - **Existing protocols** not designed for Seigr ecosystem (no STC, no content addressing)
 - **STT specific** to Seigr needs (DHT + STC + P2P + content distribution)
-- **Could use as transport** - considered (QUIC for v0.3.0)
+- **Novel features** provide QUIC benefits without QUIC complexity
 - **Trade-off:** Custom protocol more work, but optimal for Seigr
 
-## Future Direction
+## Current Status and Research Directions
 
-### Planned Features (v0.3.0 - v1.0)
+### Implemented Features
 
-**v0.3.0 (NAT Traversal):**
+**Core Protocol:**
+- One-to-one and many-to-many sessions
+- STC encryption with deterministic content addressing
+- UDP and WebSocket transports
+- Stream multiplexing
 
-- STUN, TURN, ICE
-- Connection migration
-- QUIC transport
-
-**v0.4.0 (DHT):**
-
+**P2P Capabilities:**
 - Kademlia DHT with STC.hash
-- Peer discovery
-- Content addressing
+- Automatic peer and content discovery
+- Server mode (one-to-many streaming)
+- Content distribution with chunking
+- NAT traversal (STUN-like functionality)
 
-**v0.5.0 (Content Distribution):**
+**Additional Features (v0.2.0+):**
+- Adaptive priority (content property-based)
+- Probabilistic delivery (entropy-based)
+- Session continuity (seed-based resumption)
+- Content-affinity pooling (hash proximity)
 
-- Many-to-many
-- Server-to-many streaming
-- Content replication
+### Research Areas
 
-**v0.6.0 (Optimization):**
+**Potential enhancements under investigation:**
 
-- Priority streams, QoS
-- Connection pooling
-- Performance tuning
+- Key ratcheting for forward secrecy (while preserving deterministic content keys)
+- Post-quantum cryptographic algorithms
+- Hybrid authentication models (seeds + optional certificates)
+- Connection migration for mobile scenarios (may be superseded by session continuity)
 
-**v0.7.0 (Key Ratcheting):**
-
-- Forward secrecy (ratcheting keys)
-- While preserving deterministic content keys
-
-**v0.8.0 (Post-Quantum):**
-
-- Quantum-resistant algorithms
-- Future-proof security
-
-**v0.9.0 (Hybrid Auth):**
-
-- Optional certificates
-- Hybrid trust model (seeds + certs)
-
-**v1.0.0 (Production):**
-
-- Security audit
-- Stable API
-- Production-ready
+These are research directions, not committed roadmap items. Development prioritizes Seigr ecosystem needs.
 
 ### Long-Term Vision
 
-**STT becomes:**
+**Long-term goals:**
 
 - Standard transport for Seigr ecosystem
 - Reference implementation of STC-based networking
-- Proven at scale (millions of nodes)
-- Battle-tested (secure, reliable, performant)
+- Scale to large deployments
+- Security audit and hardening
 
-**Seigr ecosystem becomes:**
+**Seigr ecosystem goals:**
 
-- Decentralized content network (like BitTorrent but STC-based)
-- Privacy-preserving (all encrypted)
-- Resilient (distributed, no single point of failure)
-- Accessible (DHT-based discovery, no manual configuration)
+- Decentralized content network using STC
+- End-to-end encryption
+- Distributed architecture
+- DHT-based discovery
 
-**STT's role:** The protocol that makes it all work.
+**STT's role:** Protocol layer for Seigr ecosystem.
 
 ## Key Takeaways
 
 - **Design for Seigr first:** STT optimized for Seigr ecosystem needs (STC, content addressing, DHT)
 - **Pre-shared seeds:** Simpler trust model than PKI, aligns with privacy goals, enables deterministic keys
 - **STC-only:** Unified cryptography, content addressing native, trade-off vs standard crypto
-- **Phased roadmap:** Ship early (v0.2.0 one-to-one), build toward vision (v0.5.0 many-to-many)
+- **Incremental development:** Continuous feature delivery guided by ecosystem needs
 - **Binary protocol:** Efficiency over convenience (debugging harder but performance better)
 - **Trade-offs explicit:** No forward secrecy (determinism needed), no PKI (simpler trust), custom protocol (Seigr-specific)
-- **Learned from others:** BitTorrent (DHT), QUIC (streams), WebRTC (NAT), applied to Seigr context
-- **Criticisms valid:** Custom crypto risky (will audit), pre-shared seeds don't scale (different use case), reinventing wheel (Seigr-specific needs)
-- **Future clear:** NAT (v0.3.0), DHT (v0.4.0), content distribution (v0.5.0), production (v1.0)
-- **Vision:** STT as Seigr ecosystem backbone - decentralized, encrypted, content-addressed, resilient
+- **Learned from others:** BitTorrent (DHT), QUIC concepts (streams), WebRTC (NAT)
+- **Implementation details:** Content-derived priority, entropy-based reliability, seed-based continuity, hash-affinity pooling
+- **Criticisms valid:** Custom crypto risky (will audit), pre-shared seeds don't scale (different use case), custom protocol (Seigr-specific needs)
+- **Current features:** DHT, NAT traversal, content distribution, server mode, adaptive priority, probabilistic delivery, session continuity, affinity pooling
+- **Goals:** STT as Seigr ecosystem transport - decentralized, encrypted, content-addressed

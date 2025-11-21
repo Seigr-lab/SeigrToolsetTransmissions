@@ -171,18 +171,36 @@ Frame: Stream 2, Seq 2, 1 KB audio
 - Routes to correct stream
 - Reassembles in order (using `sequence_number`)
 
-### Frame Priority
+### Adaptive Priority
 
-**Current v0.2.0-alpha:** Simple round-robin (fair)
-
-**Future (v0.6.0+):** Priority levels
+**STT v0.2.0+ includes adaptive priority** based on content properties:
 
 ```python
-stream_video = session.open_stream(priority=10)  # High priority
-stream_chat = session.open_stream(priority=1)    # Low priority
+from seigr_toolset_transmissions.stream import AdaptivePriorityManager
+
+# Create priority manager with DHT
+priority_mgr = AdaptivePriorityManager(dht=node.dht)
+
+# Stream with adaptive priority
+stream = session.open_stream(
+    stream_id=1,
+    priority_manager=priority_mgr
+)
+
+# Priority calculated automatically from content
+await stream.send(data, session=session)
+# High uniqueness content = higher priority
+# Frequently accessed content = higher priority
+# Congestion = automatic backoff
 ```
 
-**Priority affects send order** (high-priority streams get more frames sent first).
+**Priority factors:**
+- **Content uniqueness**: Rare content (low DHT replication) gets higher priority
+- **Temporal urgency**: Hot content (frequent access) gets higher priority
+- **Network conditions**: Congestion triggers automatic priority reduction
+- **Hash affinity**: Content clustering in Kademlia neighborhoods
+
+**No manual QoS flags needed** - priority emerges from content properties.
 
 ### Flow Control
 
@@ -592,39 +610,56 @@ with open('received_file.bin', 'wb') as f:
             break  # Sender finished
 ```
 
-## Future: Priority and QoS
+## Advanced Stream Types
 
-### Planned v0.6.0: Stream Priorities
+### Probabilistic Delivery Streams
 
-```python
-# Future API (not yet implemented)
-stream_critical = session.open_stream(priority=10, qos='guaranteed')
-stream_besteffort = session.open_stream(priority=1, qos='best_effort')
-```
-
-**Priority scheduling:**
-
-- High-priority streams get more bandwidth
-- Low-priority streams use leftover capacity
-
-**QoS classes:**
-
-- `'guaranteed'`: Never drop frames (retransmit aggressively)
-- `'best_effort'`: Drop frames if congested (lower latency)
-
-### Planned v0.7.0: Unreliable Streams
+**STT v0.2.0+ includes entropy-aware loss tolerance:**
 
 ```python
-# Future API (not yet implemented)
-stream_realtime = session.open_stream(
-    delivery='unreliable',  # No retransmissions
-    ordered=False           # Out-of-order OK
+from seigr_toolset_transmissions.stream import ProbabilisticStream
+
+# Create probabilistic stream
+prob_stream = ProbabilisticStream(
+    session_id=session.session_id,
+    stream_id=2,
+    stc_wrapper=session.stc_wrapper,
+    dht=node.dht
 )
+
+# Send with entropy-based delivery
+delivered = await prob_stream.send_probabilistic(video_data)
+print(f"Delivered {delivered} chunks")
+
+# Get delivery stats
+stats = prob_stream.get_delivery_stats()
+print(f"Delivery rate: {stats['delivery_rate']*100:.1f}%")
 ```
 
-**Use case:** Real-time video (old frames useless, skip them)
+**How it works:**
 
-**Trade-off:** Lower latency, but data loss possible
+1. **Shannon entropy calculation**: Measures information density
+   - High entropy (random data) = must deliver reliably (0.99+ probability)
+   - Low entropy (redundant data) = can tolerate loss (0.70 probability)
+
+2. **DHT replication awareness**: Adjusts based on content availability
+   - Unique content (no replicas) = higher delivery requirement
+   - Replicated content (many copies) = lower delivery requirement
+
+3. **Adaptive retransmission**:
+   ```python
+   # High entropy chunk: max 10 attempts
+   # Low entropy chunk: max 2 attempts
+   # Probabilistic early exit based on content value
+   ```
+
+**Use cases:**
+
+- **Video streaming**: I-frames (keyframes) get reliable delivery, P-frames can be lossy
+- **Sensor networks**: Anomalies delivered reliably, normal readings can be lossy
+- **Log aggregation**: Error traces delivered reliably, debug logs can be lossy
+
+**NOT simply "unreliable"** - delivery guarantee adapts to information content.
 
 ## Visual Summary
 
@@ -715,4 +750,4 @@ Session (Encrypted Channel)
 - Ordering = guaranteed per stream (sequence numbers + reordering)
 - Reliability = automatic retransmission (NACKs + timeouts)
 - Flexible = unidirectional, bidirectional, long-lived, RPC patterns all supported
-- Future = priority scheduling, unreliable streams, QoS classes (v0.6.0+)
+- Additional features (v0.2.0+) = adaptive priority (content-derived), probabilistic delivery (entropy-based)

@@ -143,13 +143,11 @@ In Seigr network:
 - When received, verify: STC.hash(received_data) == 0xABC123...
 ```
 
-**STT will use STC.hash for:**
+**STT uses STC.hash for:**
 
-- DHT node distances (XOR metric)
-- Content discovery (v0.4.0+)
-- Chunk verification
-
-**Note:** In v0.2.0-alpha, STC hashing isn't heavily used yet. It becomes central in DHT phases (v0.4.0+).
+- DHT node distances (XOR metric in Kademlia)
+- Content discovery and addressing
+- Chunk verification in content distribution
 
 ## Encryption Metadata
 

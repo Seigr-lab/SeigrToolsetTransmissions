@@ -25,18 +25,25 @@ await stream.close()
 
 **Use case:** API-style interactions, RPC
 
-## Publish-Subscribe Pattern (Future v0.5.0)
+## Publish-Subscribe Pattern
 
 ```python
-# Current v0.2.0-alpha: One-to-one only
-# Future: Publisher sends to multiple subscribers via DHT
+from seigr_toolset_transmissions.dht import KademliaDHT, PubSubManager
 
-# Publisher (future API)
-stream = session.open_stream()
-await stream.publish(topic='sensor_data', data=reading)
+# Initialize DHT and pub/sub
+dht = KademliaDHT(node_id=my_node_id, port=9337)
+await dht.start()
+pubsub = PubSubManager(dht=dht)
 
-# Subscriber (future API)
-await session.subscribe(topic='sensor_data', callback=handle_data)
+# Publisher
+await pubsub.publish('sensor_data', sensor_reading_bytes)
+
+# Subscriber
+def handle_data(topic: str, data: bytes, publisher: DHTNode):
+    reading = deserialize(data)
+    process_reading(reading)
+
+await pubsub.subscribe('sensor_data', handle_data)
 ```
 
 **Seigr ecosystem:** DHT-based pub/sub for content distribution
@@ -131,25 +138,10 @@ def on_session_closed(session_id, reason):
 node.on_session_closed(on_session_closed)
 ```
 
-## Future: Content Distribution (v0.4.0+)
+## Content Distribution
 
 ```python
-# Seigr ecosystem use case (future API)
-# Store content in DHT
-content_hash = STC.hash(my_data)
-await node.dht.publish(content_hash, my_data)
-
-# Retrieve from DHT (any peer)
-providers = await node.dht.find_providers(content_hash)
-for peer_addr in providers:
-    session = await node.connect(peer_addr, peer_node_id)
-    stream = session.open_stream()
-    data = await stream.receive()
-    if STC.hash(data) == content_hash:
-        break  # Verified!
-```
-
-## Best Practices
+from seigr_toolset_transmissions.dht import KademliaDHT, ContentDistribution\n\n# Initialize DHT and content distribution\ndht = KademliaDHT(node_id=my_node_id, port=9337)\nawait dht.start()\ncontent_dist = ContentDistribution(dht=dht, node_id=my_node_id)\n\n# Publish content\ncontent_id = await content_dist.publish_content(my_data)\n\n# Retrieve from multiple providers\nretrieved_data = await content_dist.retrieve_content(content_id)\nassert retrieved_data == my_data  # Verified with STC.hash\n```\n\n## Best Practices
 
 **DO:**
 
@@ -171,5 +163,6 @@ for peer_addr in providers:
 - Bidirectional: Both peers send/receive concurrently
 - Multiplexing: Use separate streams for independent data flows
 - Robustness: Retry with exponential backoff
-- Future: DHT enables content distribution (v0.4.0+), pub/sub (v0.5.0+)
+- DHT enables peer/content discovery, content distribution, pub/sub patterns
+- Additional features: Adaptive priority, probabilistic delivery, session continuity, affinity pooling
 - STT designed for Seigr ecosystem many-to-many scenarios

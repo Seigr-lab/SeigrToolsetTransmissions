@@ -3,10 +3,14 @@ STT Session management with STC-based key rotation.
 """
 
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
 
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTSessionError
+
+if TYPE_CHECKING:
+    from .continuity import CryptoSessionContinuity
+    from .affinity_pool import ContentAffinityPool
 
 
 class STTSession:
@@ -150,17 +154,21 @@ class STTSession:
 class SessionManager:
     """Manages multiple sessions."""
     
-    def __init__(self, node_id: bytes, stc_wrapper: STCWrapper):
+    def __init__(self, node_id: bytes, stc_wrapper: STCWrapper, continuity_manager: Optional['CryptoSessionContinuity'] = None, affinity_pool: Optional['ContentAffinityPool'] = None):
         """
         Initialize session manager.
         
         Args:
             node_id: This node's identifier
             stc_wrapper: STC wrapper for crypto
+            continuity_manager: Optional crypto session continuity
+            affinity_pool: Optional content-affinity pooling
         """
         self.node_id = node_id
         self.stc_wrapper = stc_wrapper
         self.sessions: Dict[bytes, STTSession] = {}
+        self.continuity_manager = continuity_manager
+        self.affinity_pool = affinity_pool
     
     async def create_session(self, session_id: bytes, peer_node_id: bytes) -> STTSession:
         """Create new session."""

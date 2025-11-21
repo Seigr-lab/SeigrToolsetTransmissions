@@ -37,3 +37,4 @@ node_tests_parallel.log
 rebuild_coverage.py
 rebuild_coverage.sh
 *.txt
+NOVEL_FEATURES_DESIGN.md

@@ -165,17 +165,20 @@ STT detects and retransmits lost packets (automatic).
 
 **Problem:** Peers behind NAT can't directly connect
 
-**Current v0.2.0-alpha solution:**
+**STT v0.2.0-alpha solution:**
+
+- **NAT traversal implemented** (STUN-like functionality)
+- Discover public IP and port via STUN server
+- Hole punching for direct peer connections
+- Fallback to relay if direct connection fails
+
+**Manual alternatives:**
+
 - Port forwarding (manual configuration on router)
 - DMZ host (expose peer directly - insecure)
 - VPN (tunnel through intermediate server)
 
-**Future v0.3.0 solution (planned):**
-- STUN (Session Traversal Utilities for NAT) - discover public IP
-- TURN (Traversal Using Relays around NAT) - relay through server when direct fails
-- ICE (Interactive Connectivity Establishment) - try all methods
-
-**For now:** Ensure at least one peer has public IP or port forwarding configured.
+**Best practice:** Use built-in NAT traversal first, fall back to manual only if needed.
 
 ## WebSocket Deep Dive
 
@@ -315,33 +318,19 @@ HTTP/1.1 200 Connection Established
 - **Redundant** but necessary (STT needs transport independence)
 
 **Consequence:**
+
 - Slightly lower performance (double tracking)
 - Longer recovery from packet loss (TCP timeout + STT timeout)
 
-**Future optimization** (v0.8.0+):
-- Disable STT retransmissions when using TCP transport (trust TCP)
-- "Bare TCP" mode (no redundant reliability)
+**Optimization:**
 
-**Current v0.2.0-alpha:** Both layers do reliability (safe but redundant).
+- Could disable STT retransmissions when using TCP transport (trust TCP)
+- "Bare TCP" mode (no redundant reliability)
+- Current: Both layers do reliability (safe but redundant)
 
 ## Transport Selection Strategy
 
-### Automatic Fallback
-
-**Future feature** (planned v0.3.0):
-
-```python
-# Try UDP first, fallback to WebSocket
-node = STTNode(
-    node_id=b"Alice",
-    transport=['udp', 'websocket'],  # Preference order
-    fallback=True
-)
-
-# STT tries UDP connection
-# If fails (firewall blocked), tries WebSocket
-# Transparent to application
-```
+### Manual Selection
 
 **Current v0.2.0-alpha:** Must choose one transport manually.
 
@@ -371,36 +360,45 @@ session_carol = await node_alice.connect(
 
 **Not yet implemented** - current v0.2.0-alpha: one transport per node.
 
-## Future Transports
+## Session Continuity Across Transports
 
-### Planned v0.3.0: QUIC
+**STT v0.2.0+ includes cryptographic session continuity:**
 
-**QUIC (Quick UDP Internet Connections):**
-- UDP-based like STT
-- Built-in encryption (TLS 1.3)
-- Multiplexing (like HTTP/3)
-- Fast connection setup (~1 RTT)
-
-**Why QUIC?**
-- Best of both worlds (UDP performance + reliability)
-- Standardized (IETF RFC 9000)
-- Growing adoption (HTTP/3 uses QUIC)
-
-**STT over QUIC:**
 ```python
-# Future API (not yet implemented)
-node = STTNode(
-    node_id=b"Alice",
-    transport='quic'  # QUIC transport
+from seigr_toolset_transmissions.session import CryptoSessionContinuity
+
+# Create continuity manager
+continuity = CryptoSessionContinuity(stc_wrapper, resumption_timeout=86400)
+
+# Create resumable session
+session_id, resume_token = continuity.create_resumable_session(
+    peer_node_id=b"peer",
+    node_seed=node.seed,
+    shared_seed=shared_secret
+)
+
+# Initial session on WiFi/UDP
+session = await node.connect(('192.168.1.100', 8000), peer_id)
+
+# ... network change (WiFi → LTE) ...
+
+# Resume on different transport/IP
+resumed = continuity.resume_session(
+    resume_token,
+    new_transport_type='websocket',
+    new_peer_addr=('10.0.0.50', 9000),
+    stc_wrapper=stc
 )
 ```
 
-**Benefits:**
-- Faster than WebSocket (UDP-based)
-- Better than raw UDP (congestion control, loss recovery)
-- Firewall-friendly (uses UDP port 443)
+**Continuity features:**
 
-### Planned v0.6.0: Pluggable Transports
+- **Transport migration**: Resume session when switching UDP → WebSocket (or vice versa)
+- **IP address change**: WiFi → LTE transition without reconnecting
+- **Device migration**: Same seeds = same session across devices
+- **Zero-knowledge proofs**: Verify session identity without revealing seeds
+
+Session identity is based on cryptographic seeds rather than network connection IDs.
 
 **Allow custom transports:**
 

@@ -278,7 +278,7 @@ seed = f.decrypt(encrypted_seed)
 
 - Firewall rules (rate limiting)
 - IP whitelisting (only known peers)
-- **Future:** Proof-of-work for handshake (planned v0.7.0)
+- **Current:** Seed requirement provides authentication
 
 ## Best Practices
 
@@ -318,11 +318,13 @@ sudo ufw deny 8080/udp
 **IP whitelisting in STT:**
 
 ```python
-# Future feature (planned v0.5.0)
-node = STTNode(
-    allowed_peers=['10.0.1.5', '10.0.1.6'],  # Only these IPs
-    deny_by_default=True
-)
+# Manual implementation (application layer)
+allowed_peers = {'10.0.1.5', '10.0.1.6'}
+
+async def handle_connection(peer_addr, peer_id):
+    if peer_addr[0] not in allowed_peers:
+        raise PermissionError("Peer not whitelisted")
+    # Proceed with connection
 ```
 
 ### Defense in Depth
@@ -391,41 +393,57 @@ node = STTNode(
 - May need compensating controls (seed rotation, HSM storage)
 - Alternative: Use STT with TLS (WebSocket over WSS)
 
-## Future Security Enhancements
+## Research Areas
 
-### Planned v0.7.0: Key Rotation
+**Future security research directions:**
 
-**Ratcheting keys within session:**
+### Key Rotation (Ratcheting)
 
-```python
-# Future API
-session = await node.connect(peer_addr, peer_id, enable_ratchet=True)
-# Every N frames, derive new key from previous
-# Provides forward secrecy (compromised key doesn't expose past)
-```
+**Ratcheting keys within session provides forward secrecy:**
 
-### Planned v0.8.0: Post-Quantum
+- Every N frames, derive new key from previous
+- Compromised key doesn't expose past communication
+- Signal/Double Ratchet inspiration
+
+**Challenges:**
+
+- Complexity: Session state management
+- Out-of-order delivery: Need key history
+- Performance: Frequent key derivation overhead
+
+**Status:** Research phase - not implemented
+
+### Post-Quantum Cryptography
 
 **Quantum-resistant algorithms:**
 
 - Replace current STC with post-quantum primitives
-- Kyber (lattice-based) or NTRU
+- NIST finalists: Kyber (lattice-based), Dilithium (signatures)
 - Protects against future quantum computers
 
-### Planned v0.9.0: Mutual Authentication
+**Challenges:**
 
-**Certificate-based auth (optional):**
+- STC.hash is NOT post-quantum (uses SHA-256)
+- Need quantum-resistant hash function
+- Performance: Post-quantum algos are slower
 
-```python
-# Future API
-node = STTNode(
-    shared_seed=seed,
-    cert_file='node_cert.pem',  # Optional certificate
-    verify_peer_cert=True  # Require peer certificate
-)
-```
+**Status:** Awaiting STC post-quantum support
 
-**Hybrid:** Pre-shared seed + certificates (defense in depth)
+### Certificate-Based Authentication
+
+**Hybrid authentication (optional):**
+
+- Pre-shared seed + certificates (defense in depth)
+- Trust On First Use (TOFU) model
+- PKI infrastructure for large deployments
+
+**Challenges:**
+
+- Complexity: Certificate management overhead
+- Centralization: PKI introduces trust anchors
+- Conflicts with self-sovereign philosophy
+
+**Status:** Research phase - may never implement
 
 ## Limitations and Honest Assessment
 
@@ -455,4 +473,4 @@ node = STTNode(
 - **Threat model:** Protects against network attackers, NOT endpoint compromise
 - **Best practices:** HSM/encrypted storage, firewall rules, defense in depth, incident response plan
 - **Limitations:** Not anonymous, not forward-secret, not post-quantum (yet)
-- **Future:** Key rotation (v0.7.0), post-quantum (v0.8.0), certificates (v0.9.0)
+- **Research areas:** Key rotation, post-quantum crypto, certificate auth (not scheduled)

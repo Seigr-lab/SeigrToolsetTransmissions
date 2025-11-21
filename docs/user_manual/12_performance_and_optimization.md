@@ -202,18 +202,45 @@ uvloop.install()
 # Now asyncio.run() uses uvloop (10-50% faster)
 ```
 
-### Connection Pooling (Future v0.6.0)
+### Content-Affinity Session Pooling
 
-**Reuse connections for multiple sessions:**
+**STT v0.2.0+ includes hash-neighborhood clustering:**
 
 ```python
-# Future API (not yet implemented)
-node = STTNode(
-    connection_pool_size=100  # Reuse 100 connections
-)
+from seigr_toolset_transmissions.session import ContentAffinityPool
+
+# Create affinity pool
+pool = ContentAffinityPool(dht=node.dht, max_pool_size=100)
+
+# Add session to pool
+content_hash = stc.hash_data(initial_content)
+pool.add_session(session, content_hash)
+
+# Get session for related content
+related_hash = stc.hash_data(related_content)
+try:
+    session = pool.get_session_for_content(related_hash)
+    # Likely to have related content cached!
+except PoolMissError:
+    # No suitable session, create new one
+    session = await node.connect(peer_addr, peer_id)
+    pool.add_session(session, related_hash)
 ```
 
-**Current v0.2.0-alpha:** One connection per session (overhead for frequent connects)
+**How it works:**
+
+1. **Hash-based clustering**: Sessions grouped by STC.hash prefix (first 4 bytes)
+2. **XOR distance affinity**: Kademlia metric determines content similarity
+3. **Automatic rebalancing**: Sessions migrate between pools as traffic patterns change
+4. **LRU eviction**: Least-recently-used sessions evicted when pool full
+
+**Benefits:**
+
+- **Cache locality**: Related content requests use same session
+- **Load distribution**: Sessions allocated based on content hash distribution
+- **Hash-based clustering**: Content groups by STC.hash proximity
+
+Sessions are pooled by content hash proximity rather than by transport endpoint.
 
 ## Network Optimization
 
@@ -402,6 +429,6 @@ node = STTNode(
 - Latency: Small frames (4 KB), no_delay=True, UDP transport, frequent keep-alives
 - Memory: Limit concurrent streams, reuse buffers
 - CPU: STC encryption dominates (use multiple cores via multiple sessions)
-- Scaling: Event loop (uvloop), connection pooling (future), QoS
+- Scaling: Event loop (uvloop), content-affinity pooling, adaptive priority
 - Monitor: RTT, loss rate, throughput to detect bottlenecks
 - Benchmark: Measure in realistic environment before production

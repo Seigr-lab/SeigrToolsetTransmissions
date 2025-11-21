@@ -658,8 +658,9 @@ Now that you have STT working:
 
 - Multiple concurrent sessions
 - Stream multiplexing (video + audio + chat)
-- Custom transport protocols (future)
-- DHT integration (future v0.4.0)
+- DHT integration for peer/content discovery
+- Adaptive priority and probabilistic streams
+- Crypto session continuity and affinity pooling
 
 **Join the community:**
 

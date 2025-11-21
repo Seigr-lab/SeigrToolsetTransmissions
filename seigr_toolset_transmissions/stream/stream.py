@@ -4,11 +4,14 @@ STT Stream management for multiplexed data streams.
 
 import asyncio
 import time
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, TYPE_CHECKING
 from collections import deque
 
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamError
+
+if TYPE_CHECKING:
+    from .adaptive_priority import AdaptivePriorityManager
 
 
 class STTStream:
@@ -16,7 +19,7 @@ class STTStream:
     Multiplexed stream within an STT session.
     """
     
-    def __init__(self, session_id: bytes, stream_id: int, stc_wrapper: STCWrapper):
+    def __init__(self, session_id: bytes, stream_id: int, stc_wrapper: STCWrapper, priority_manager: Optional['AdaptivePriorityManager'] = None):
         """
         Initialize stream.
         
@@ -24,10 +27,13 @@ class STTStream:
             session_id: Parent session identifier
             stream_id: Unique stream identifier within session
             stc_wrapper: STC wrapper for stream encryption
+            priority_manager: Optional adaptive priority manager
         """
         self.session_id = session_id
         self.stream_id = stream_id
         self.stc_wrapper = stc_wrapper
+        self.priority_manager = priority_manager
+        self.current_priority = 500  # Default mid-range (0-1000)
         
         # Stream state
         self.is_active = True
@@ -64,15 +70,20 @@ class STTStream:
         """Get StreamingContext for this stream (for test compatibility)."""
         return self._stc_context
     
-    async def send(self, data: bytes) -> None:
+    async def send(self, data: bytes, session: Optional['STTSession'] = None) -> None:
         """
         Send data on stream.
         
         Args:
             data: Data to send
+            session: Optional session for priority calculation
         """
         if not self.is_active:
             raise STTStreamError("Stream is closed")
+        
+        # Calculate adaptive priority if manager available
+        if self.priority_manager and session:
+            self.current_priority = self.priority_manager.calculate_priority(data, session)
         
         # Update statistics
         self.bytes_sent += len(data)
@@ -80,7 +91,7 @@ class STTStream:
         self.sequence += 1
         self.last_activity = time.time()
         
-        # In real implementation, this would create frames and send
+        # In real implementation, this would create frames with priority and send
         # For now, just update stats
         await asyncio.sleep(0)  # Yield control
     

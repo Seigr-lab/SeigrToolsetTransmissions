@@ -37,18 +37,17 @@ STT separates network connectivity from logical sessions:
 - **Connection** = Phone line (physical infrastructure)
 - **Session** = Conversation (what you're actually saying)
 
-You can have the phone line connected but no conversation happening, or you could switch phone lines mid-conversation (connection migration - future feature).
+You can have the phone line connected but no conversation happening.
 
 ### Why Separate Them?
 
 **Flexibility:**
 
-- Same session could migrate between connections (UDP → WebSocket)
-- Multiple sessions could share one connection (future optimization)
-- Session survives temporary connection loss (with reconnection)
+- Sessions can resume across transports (UDP → WebSocket)
+- Sessions can be pooled by content hash similarity
+- Sessions can survive temporary connection loss via resumption tokens
 
-**Current v0.2.0-alpha:** One session per connection (simple)  
-**Future:** Connection migration, multiplexing (planned v0.6.0+)
+**v0.2.0-alpha:** Includes session continuity and content-affinity pooling features
 
 ## Connection Types
 
@@ -250,10 +249,10 @@ session_carol = await alice_node.connect(('10.0.1.8', 8081), b"Carol")
 
 **Practical use cases:**
 
-- Client downloading from multiple servers (future content distribution)
-- Server handling multiple clients simultaneously (future server mode)
+- Client downloading from multiple servers (content distribution with DHT)
+- Server handling multiple clients simultaneously (server mode)
 
-**Current limitation:** Must know peer IP addresses (manual discovery). Planned DHT (v0.4.0) removes this.
+**DHT-based discovery:** Use Kademlia DHT to find peers without knowing IPs.
 
 ### Session Identification
 
@@ -311,20 +310,39 @@ else:
 
 ## Connection Management
 
-### Connection Pooling
+### Content-Affinity Session Pooling
 
-**Current v0.2.0-alpha:** One connection per session (simple)
+**STT v0.2.0+ includes hash-neighborhood clustering:**
 
-**Future optimization** (planned v0.6.0):
+```python
+from seigr_toolset_transmissions.session import ContentAffinityPool
 
-- Connection pool (reuse for multiple sessions)
-- Reduces overhead for frequent connects/disconnects
+# Create affinity pool
+pool = ContentAffinityPool(dht=node.dht, max_pool_size=100)
 
-**Why not now?**
+# Add session to pool
+content_hash = stc.hash_data(initial_content)
+pool.add_session(session, content_hash)
 
-- Added complexity
-- Current use cases don't require (one-to-one sessions)
-- Will matter for high-throughput servers (future)
+# Get session for related content
+related_hash = stc.hash_data(related_content)
+try:
+    session = pool.get_session_for_content(related_hash)
+    # Likely to have related content cached!
+except PoolMissError:
+    # No suitable session, create new one
+    session = await node.connect(peer_addr, peer_id)
+    pool.add_session(session, related_hash)
+```
+
+**How it works:**
+
+- Sessions cluster by STC.hash prefix (first 4 bytes)
+- XOR distance (Kademlia metric) determines affinity
+- Related content requests use same session
+- Rebalancing occurs when traffic patterns change
+
+Sessions are pooled by content hash similarity rather than transport endpoint.
 
 ### Keep-Alive Mechanism
 
@@ -519,15 +537,46 @@ async def connect_with_retry(node, peer_address, peer_node_id):
 - Reduces resource usage during extended outages
 - Standard practice in distributed systems
 
-### Connection Migration
+### Cryptographic Session Continuity
 
-**Future feature** (planned v0.6.0+):
+**STT v0.2.0+ includes seed-based resumption:**
 
-- Session continues across connection changes
-- Example: WiFi → LTE handoff on mobile device
-- Requires session resumption tokens (not yet implemented)
+```python
+from seigr_toolset_transmissions.session import CryptoSessionContinuity
 
-**Current v0.2.0-alpha:** Session tied to connection (no migration)
+# Create continuity manager
+continuity = CryptoSessionContinuity(stc_wrapper, resumption_timeout=86400)
+
+# Create resumable session
+session_id, resume_token = continuity.create_resumable_session(
+    peer_node_id=b"peer",
+    node_seed=node.seed,
+    shared_seed=shared_secret
+)
+
+# Initial session on WiFi/UDP
+session = await node.connect(('192.168.1.100', 8000), peer_id)
+
+# ... network change (WiFi → LTE) ...
+
+# Resume on different transport/IP
+resumed = continuity.resume_session(
+    resume_token,
+    new_transport_type='websocket',
+    new_peer_addr=('10.0.0.50', 9000),
+    stc_wrapper=stc
+)
+```
+
+**How it works:**
+
+- Session identity derived from cryptographic seeds
+- Resume across IP changes (WiFi → LTE)
+- Resume across transports (UDP ↔ WebSocket)
+- Resume across devices (same seeds = same session)
+- Zero-knowledge proofs verify identity without revealing seeds
+
+Session identity is based on cryptographic seeds rather than network connection IDs.
 
 ## Performance Tuning
 
@@ -600,51 +649,53 @@ stream = session.open_stream(
 - Real-time chat: 4 KB frames
 - Video streaming: 16-32 KB frames (balance)
 
-## Future: Many-to-Many Sessions
+## Many-to-Many Sessions
 
-### Planned v0.5.0: Server Mode
+### Server Mode
 
 **Server streaming to multiple clients:**
 
 ```python
-# Server (future API - not yet implemented)
-server = STTNode(node_id=b"Server", port=8080, mode='server')
-server.start()
+# Server accepts multiple connections
+server = STTNode(node_seed=server_seed, shared_seed=shared_seed, port=8080)
+await server.start(server_mode=True)  # Enable server mode
 
-# Clients connect
-session_alice = server.accept_session()  # Alice connects
-session_bob = server.accept_session()    # Bob connects
-session_carol = server.accept_session()  # Carol connects
+# Server automatically accepts incoming connections
+# Clients can now connect
 
-# Broadcast to all clients
-for session in [session_alice, session_bob, session_carol]:
-    stream = session.get_stream(stream_id=1)
-    await stream.send(b"Broadcast message")
+# Broadcast to all active sessions
+await server.send_to_all(b"Broadcast message", stream_id=1)
+
+# Or send to specific sessions
+session_ids = [session.session_id for session in server.get_active_sessions()]
+await server.send_to_sessions(session_ids[:2], b"Targeted message")
 ```
 
 **Use case:** Video streaming server to many viewers
 
-### Planned v0.4.0: DHT-Based Discovery
+### DHT-Based Discovery
 
 **Find peers without knowing IP addresses:**
 
 ```python
-# Future API (not yet implemented)
-node = STTNode(node_id=b"Alice", dht_enabled=True)
-node.start()
+from seigr_toolset_transmissions.dht import KademliaDHT, ContentDistribution
+
+# Initialize DHT
+dht = KademliaDHT(node_id=my_node_id, port=9337)
+await dht.start()
 
 # Publish content
-content_hash = STC.hash(my_file_data)
-node.dht.publish(content_hash, my_file_data)
+content_dist = ContentDistribution(dht=dht, node_id=my_node_id)
+content_id = await content_dist.publish_content(my_file_data)
 
 # Find peers serving content
-peers = await node.dht.find_providers(content_hash)
-# Returns: [(ip1, port1), (ip2, port2), ...]
+peers = await dht.find_providers(content_id)
+# Returns: [DHTNode(node_id=..., host='10.0.1.5', port=9337), ...]
 
 # Connect to first available peer
-for peer_addr in peers:
+for peer in peers:
     try:
-        session = await node.connect(peer_addr, peer_node_id=None)  # DHT provides node_id
+        session = await node.connect((peer.host, peer.port), peer.node_id)
         break
     except ConnectionError:
         continue  # Try next peer

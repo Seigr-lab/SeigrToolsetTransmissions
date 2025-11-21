@@ -61,8 +61,6 @@ Before connecting, nodes need to know:
 1. The peer's IP address (like a postal address)
 2. The peer's port number (like an apartment number)
 
-**Current limitation**: STT v0.2.0-alpha requires manual peer discovery - you must know the peer's address beforehand. Future versions may include automatic peer discovery.
-
 ## Sessions: The Connections
 
 ### What is a Session?
@@ -345,22 +343,20 @@ Session abc12345 closed
 Nodes remain running for future connections
 ```
 
-## Future: DHT and Content Distribution
+## DHT and Content Distribution
 
-**Current v0.2.0-alpha** operates as described above: one-to-one sessions with manual peer discovery.
-
-**Planned evolution** (v0.4.0 and beyond) will add:
+**STT includes** DHT-based peer discovery and content distribution using Kademlia:
 
 ### DHT-Based Peer Discovery
 
-Instead of manually knowing IP addresses, peers will:
+Peers can discover each other automatically:
 
 1. Join the DHT network (like joining a giant phonebook)
 2. Publish content using STC.hash addresses
 3. Find peers serving specific content automatically
 4. Connect using the same session/stream architecture
 
-**Example future scenario:**
+**Example scenario:**
 
 ```
 Alice wants file with STC.hash abc123...
@@ -369,12 +365,12 @@ Alice queries DHT: "Who has abc123...?"
 DHT responds: Bob (IP 10.0.1.5) and Carol (IP 10.0.1.8) have it
 
 Alice connects to Bob using standard STT session
-Alice and Bob exchange file over streams (same as current)
+Alice and Bob exchange file over streams
 ```
 
 ### Many-to-Many Content Distribution
 
-Multiple peers will serve the same content:
+Multiple peers can serve the same content:
 
 - Alice downloads chunks from Bob, Carol, and Dave simultaneously
 - Each chunk verified with STC.hash
@@ -383,7 +379,7 @@ Multiple peers will serve the same content:
 
 ### Server-to-Many Streaming
 
-A server will maintain multiple sessions simultaneously:
+A server can maintain multiple sessions simultaneously:
 
 - Server has sessions with Alice, Bob, Carol (hundreds or thousands)
 - Server streams video/data to all clients
