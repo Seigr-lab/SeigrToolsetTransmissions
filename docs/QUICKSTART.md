@@ -1,6 +1,6 @@
 # Quick Start Guide - STT v0.2.0-alpha
 
-**Status**: Pre-release - Production-ready core protocol with 86.81% code coverage
+**Status**: Pre-release - Functional core protocol with 90.03% test coverage
 
 ## Installation
 
@@ -106,18 +106,18 @@ asyncio.run(main())
 ## Key Concepts
 
 **Node Seed**: Initializes your STC context and generates node ID  
-**Shared Seed**: Pre-shared secret for peer authentication (enables probabilistic handshake)  
-**Session**: Encrypted connection to a peer (established via 4-message handshake)  
-**Stream**: Multiplexed channel within a session (99.24% coverage - production ready)  
-**Handshake**: Complete HELLO → RESPONSE → AUTH_PROOF → FINAL flow (87.93% coverage)
+**Shared Seed**: Pre-shared secret for peer authentication (required for handshake - must be distributed out-of-band)  
+**Session**: Encrypted connection to a peer (established via 4-message HELLO/RESPONSE/AUTH_PROOF/FINAL handshake)  
+**Stream**: Multiplexed channel within a session (99.24% coverage - well tested)  
+**Handshake**: 4-message flow using STC encrypt/decrypt for mutual authentication (87.36% coverage)
 
 ## Protocol Features
 
-✅ **Complete Handshake**: Full mutual authentication using STC encrypt/decrypt  
-✅ **Perfect Session Management**: 100% coverage with key rotation  
-✅ **Near-Perfect Streams**: 99.24% coverage with ordering and flow control  
-✅ **Production Transport**: UDP (85.51%) and WebSocket (84.63%) validated  
-✅ **Self-Sovereign**: Pure STC crypto, native binary serialization, no third-party dependencies  
+- 4-message handshake: Full mutual authentication using STC encrypt/decrypt  
+- Session management: 100% test coverage with key rotation support  
+- Stream multiplexing: 99.24% coverage with ordering and flow control  
+- Transport: UDP (89.86%) and WebSocket (84.17%) implementations  
+- Binary serialization: Custom STT format (100% coverage), no third-party dependencies  
 
 ## Next Steps
 
@@ -145,11 +145,14 @@ black seigr_toolset_transmissions/
 mypy seigr_toolset_transmissions/
 ```
 
-## Current Coverage: 86.81%
+## Current Coverage: 90.03%
 
-- session.py: **100%** ✅
-- stream.py: **99.24%** ✅  
-- handshake.py: **87.93%** ✅
-- All core modules: **80%+** ✅
+- session.py: **100%**
+- serialization.py: **100%**
+- session_manager.py: **100%**
+- stream.py: **99.24%**
+- stc_wrapper.py: **98.78%**
+- frame.py: **98.26%**
+- handshake.py: **87.36%**
 
 Happy coding with STT! 🚀

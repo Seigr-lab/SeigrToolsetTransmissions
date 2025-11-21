@@ -1,16 +1,16 @@
 # STT Protocol Specification - v0.2.0-alpha
 
-**Status**: Pre-release - Production-ready core protocol (86.81% code coverage)
+**Status**: Pre-release - Functional core protocol (90.03% test coverage)
 
 ## Overview
 
-Seigr Toolset Transmissions (STT) is a self-sovereign P2P streaming protocol with:
+Seigr Toolset Transmissions (STT) is a peer-to-peer streaming protocol with:
 
-- **Cryptography**: STC (Seigr Toolset Crypto) ONLY - 100% pure STC
-- **Serialization**: Native STT binary format (88.44% coverage)
-- **Transport**: UDP (85.51%) + WebSocket (84.63%) - native RFC 6455
-- **Authentication**: Pre-shared seed model with probabilistic handshake (87.93% coverage)
-- **Architecture**: Layered, format-agnostic, production-tested
+- **Cryptography**: STC (Seigr Toolset Crypto) for all cryptographic operations
+- **Serialization**: Custom STT binary format (100% coverage)
+- **Transport**: UDP (89.86%) + WebSocket (84.17%) - native RFC 6455 implementation
+- **Authentication**: Pre-shared seed model with 4-message handshake (87.36% coverage)
+- **Architecture**: Layered, format-agnostic, tested implementation
 
 ## Protocol Stack
 
@@ -68,16 +68,18 @@ Seigr Toolset Transmissions (STT) is a self-sovereign P2P streaming protocol wit
 
 ## Handshake Protocol
 
-### Seigr-Sovereign Probabilistic Handshake ✅
+### STC-Based 4-Message Handshake
 
-**Status**: **PRODUCTION READY** - 87.93% code coverage, fully tested
+**Status**: Functional - 87.36% test coverage
 
-**Philosophy**: Traditional handshakes use deterministic crypto (TLS, SSH).
-Seigr embraces STC's probabilistic nature as a strength, not a limitation.
+**Design**: STT uses STC's probabilistic cryptography for authentication. Since STC encryption outputs vary between calls (unlike deterministic schemes), the handshake uses encrypt/decrypt operations to prove both peers possess the same pre-shared seed.
 
-**Core Innovation**: Encrypt-decrypt proof instead of key derivation - world's first production-ready probabilistic handshake.
+**Requirements**: 
+- Pre-shared seed must be distributed out-of-band before handshake
+- Both peers must have the same seed to successfully decrypt challenge
+- Session ID is derived deterministically from nonces and node IDs using XOR
 
-**Validation**: Complete 4-message flow tested with comprehensive edge cases and error handling.
+**Test Coverage**: 87.36% (22 missing lines primarily in error handling paths)
 
 ### Flow
 

@@ -1,12 +1,12 @@
 # STT Usage Examples - v0.2.0-alpha
 
-**Status**: Pre-release - Production-ready examples with 86.81% code coverage
+**Status**: Pre-release - Tested examples with 90.03% test coverage
 
 All examples below are tested and validated with:
 
-- ✅ Complete handshake protocol (87.93% coverage)
-- ✅ Perfect session management (100% coverage)
-- ✅ Near-perfect streams (99.24% coverage)
+- Session management (100% coverage)
+- Stream operations (99.24% coverage)
+- Handshake protocol (87.36% coverage)
 
 ## Basic Node Setup
 

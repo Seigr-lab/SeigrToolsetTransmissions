@@ -4,15 +4,15 @@
 [![License](https://img.shields.io/badge/license-ANTI--CAPITALIST-red)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9+-green)](https://python.org)
 
-**Binary encrypted P2P streaming protocol using STC probabilistic cryptography.**
+**Binary P2P streaming protocol using STC (Seigr Toolset Crypto) for cryptographic operations.**
 
 ---
 
 ## What This Is
 
-A P2P streaming protocol that uses Seigr Toolset Crypto (STC) for all cryptographic operations. Because STC is probabilistic (not deterministic like SHA-256), traditional handshake protocols don't work. This implements a handshake using STC encrypt/decrypt for mutual authentication.
+STT is a peer-to-peer streaming protocol that uses Seigr Toolset Crypto (STC) for all cryptographic operations. STC uses probabilistic cryptography rather than deterministic functions like SHA-256. The protocol implements a 4-message handshake (HELLO, RESPONSE, AUTH_PROOF, FINAL) using STC's encrypt/decrypt operations for mutual authentication between peers who share a pre-distributed seed.
 
-**Status**: Pre-release v0.2.0-alpha - **86.81% code coverage** - Production-ready core protocol
+**Status**: Pre-release v0.2.0-alpha - **90.03% test coverage** - Core protocol tested and functional
 
 ## Components
 
@@ -29,32 +29,38 @@ A P2P streaming protocol that uses Seigr Toolset Crypto (STC) for all cryptograp
 
 Application → Stream → Session → Frame → Transport
 
-**Complete Handshake Flow:**
+**Handshake Flow (4 messages):**
 
-1. Initiator generates nonce, sends HELLO
-2. Responder generates nonce, encrypts challenge with STC, sends RESPONSE
-3. Initiator decrypts to verify, creates session_id via XOR, encrypts proof, sends AUTH_PROOF
-4. Responder verifies proof, sends FINAL confirmation
-5. Both have matching session_id - session established ✅
+1. **HELLO**: Initiator generates nonce, creates commitment hash, sends to responder
+2. **RESPONSE**: Responder generates nonce, encrypts challenge (both nonces) with STC, sends to initiator
+3. **AUTH_PROOF**: Initiator decrypts challenge, creates session_id from XOR of (nonce_i, nonce_r, node_id_i, node_id_r), encrypts proof, sends to responder
+4. **FINAL**: Responder verifies proof by decrypting and comparing session_id, sends confirmation
+
+Both peers now have the same session_id and can establish streams. This protocol requires pre-shared seeds - the ability to decrypt the STC-encrypted challenge proves seed possession.
 
 ---
 
 ## Test Coverage
 
-**Overall: 86.81% (278 missing lines from 2107 total)**
+**Overall: 90.03% (210 missing lines from 2107 total statements)**
 
 **Module Coverage:**
 
-- session.py: **100%** ✅
-- stream.py: **99.24%** ✅ (1 line missing)
-- handshake.py: **87.93%** ✅ (21 lines missing)
-- session_manager.py: **87.18%**
-- chamber.py: **86.36%**
-- websocket.py: **84.63%** (67 lines missing)
-- frame.py: **80.00%** (23 lines missing)
-- transport.py: **77.27%** (20 lines missing)
+- session.py: **100%** (96 statements, 0 missing)
+- serialization.py: **100%** (147 statements, 0 missing)
+- session_manager.py: **100%** (78 statements, 0 missing)
+- stream.py: **99.24%** (131 statements, 1 missing)
+- stream_manager.py: **98.61%** (72 statements, 1 missing)
+- stc_wrapper.py: **98.78%** (82 statements, 1 missing)
+- frame.py: **98.26%** (115 statements, 2 missing)
+- decoder.py: **97.87%** (47 statements, 1 missing)
+- chamber.py: **96.97%** (66 statements, 2 missing)
+- udp.py: **89.86%** (138 statements, 14 missing)
+- handshake.py: **87.36%** (174 statements, 22 missing)
+- websocket.py: **84.17%** (436 statements, 69 missing)
+- node.py: **82.95%** (129 statements, 22 missing)
 
-**Production-ready core protocol with comprehensive error handling and edge case coverage.**
+Core protocol components (session, stream, frame, serialization) have high coverage. Lower coverage in node.py and websocket.py is primarily in error handling paths and less common code branches.
 
 ---
 

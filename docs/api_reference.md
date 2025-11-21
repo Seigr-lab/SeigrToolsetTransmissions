@@ -1,28 +1,33 @@
 # STT API Reference - v0.2.0-alpha
 
-**Status**: Pre-release - Production-ready APIs with 86.81% code coverage
+**Status**: Pre-release - Functional APIs with 90.03% test coverage
 
 **Coverage by Component**:
 
-- Session Management: **100%** ✅
-- Stream Operations: **99.24%** ✅
-- Handshake Protocol: **87.93%** ✅
-- Node Runtime: **88.37%** ✅
-- Transport (UDP): **85.51%** ✅
-- Transport (WebSocket): **84.63%** ✅
+- Session Management: **100%**
+- Session Manager: **100%**
+- Serialization: **100%**
+- Stream Operations: **99.24%**
+- Stream Manager: **98.61%**
+- STC Wrapper: **98.78%**
+- Frame Protocol: **98.26%**
+- UDP Transport: **89.86%**
+- Handshake Protocol: **87.36%**
+- WebSocket Transport: **84.17%**
+- Node Runtime: **82.95%**
 
 ## STTNode
 
-Main runtime for STT protocol - **88.37% coverage** - Production Ready
+Main runtime for STT protocol - **82.95% coverage** - Functional Implementation
 
 ```python
 from seigr_toolset_transmissions import STTNode
 
 node = STTNode(
-    node_seed: bytes,      # STC initialization seed (32+ bytes)
-    shared_seed: bytes,    # Pre-shared secret for peers (32+ bytes)
+    node_seed: bytes,      # STC initialization seed (32+ bytes recommended)
+    shared_seed: bytes,    # Pre-shared secret for peers (32+ bytes recommended)
     host: str = "0.0.0.0",
-    port: int = 0,         # UDP port (0 = random)
+    port: int = 0,         # UDP port (0 = random available port)
     chamber_path: Optional[Path] = None
 )
 ```

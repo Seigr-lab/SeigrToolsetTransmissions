@@ -83,13 +83,20 @@ class STTNode:
         # Receive queue
         self._recv_queue: asyncio.Queue[ReceivedPacket] = asyncio.Queue()
         
+        # Server mode
+        self._server_mode = False
+        self._accept_connections = False
+        
         # Running state
         self._running = False
         self._tasks: list[asyncio.Task] = []
     
-    async def start(self) -> Tuple[str, int]:
+    async def start(self, server_mode: bool = False) -> Tuple[str, int]:
         """
         Start the STT node.
+        
+        Args:
+            server_mode: If True, automatically accept incoming connections
         
         Returns:
             Tuple of (local_ip, local_port)
@@ -99,6 +106,8 @@ class STTNode:
             return (self.host, self.port)
         
         self._running = True
+        self._server_mode = server_mode
+        self._accept_connections = server_mode
         
         # Start UDP transport
         self.udp_transport = UDPTransport(
@@ -108,7 +117,8 @@ class STTNode:
         
         logger.info(
             f"STT Node started: {self.node_id.hex()[:16]}... "
-            f"on {local_addr[0]}:{local_addr[1]}"
+            f"on {local_addr[0]}:{local_addr[1]} "
+            f"(server_mode={server_mode})"
         )
         
         return local_addr
@@ -191,6 +201,8 @@ class STTNode:
             )
             session.session_key = session_key
             session.state = STT_SESSION_STATE_ACTIVE
+            session.peer_addr = peer_addr  # Track peer address
+            session.transport_type = 'udp'
             
             logger.info(f"UDP session established with {peer_addr}")
             
@@ -246,12 +258,19 @@ class STTNode:
             handshake = self.handshake_manager.get_handshake(peer_key)
             
             if not handshake:
-                # New handshake as server
+                # New handshake - check if we accept connections
+                if not self._accept_connections:
+                    logger.warning(f"Rejecting connection from {peer_key} (server mode disabled)")
+                    return
+                
+                # Accept handshake as server
                 handshake = self.handshake_manager.create_handshake(peer_key)
                 response = handshake.handle_hello(frame.payload)
                 
                 # Send response
                 await self.udp_transport.send_raw(response, peer_addr)
+                
+                logger.info(f"Accepted incoming connection from {peer_key}")
             else:
                 # Complete handshake
                 session_key, peer_node_id = handshake.handle_response(frame.payload)
@@ -265,6 +284,8 @@ class STTNode:
                 )
                 session.session_key = session_key
                 session.state = STT_SESSION_STATE_ACTIVE
+                session.peer_addr = peer_addr  # Track peer address
+                session.transport_type = 'udp'
                 
                 logger.info(f"Session established with {peer_key}")
         
@@ -330,7 +351,151 @@ class STTNode:
         return {
             'node_id': self.node_id.hex(),
             'running': self._running,
+            'server_mode': self._server_mode,
+            'accepting_connections': self._accept_connections,
             'udp_transport': udp_stats,
             'websocket_connections': len(self.ws_connections),
             'sessions': self.session_manager.get_stats(),
         }
+    
+    # Server mode methods
+    
+    def enable_accept_connections(self):
+        """Enable accepting incoming connections (server mode)."""
+        self._accept_connections = True
+        logger.info("Now accepting incoming connections")
+    
+    def disable_accept_connections(self):
+        """Disable accepting incoming connections."""
+        self._accept_connections = False
+        logger.info("No longer accepting incoming connections")
+    
+    async def enable_peer_discovery(self, announce_interval: float = 5.0):
+        """
+        Enable local network peer discovery.
+        
+        Args:
+            announce_interval: Seconds between announcements
+        """
+        if not self.udp_transport:
+            raise STTException("Node not started")
+        
+        def on_peer_discovered(peer_ip: str, peer_port: int, peer_node_id: bytes):
+            """Callback when peer is discovered."""
+            logger.info(
+                f"Discovered peer: {peer_ip}:{peer_port} "
+                f"node_id={peer_node_id.hex()[:16]}..."
+            )
+            # Auto-connect if in server mode
+            if self._server_mode:
+                asyncio.create_task(self.connect_udp(peer_ip, peer_port))
+        
+        await self.udp_transport.enable_discovery(
+            self.node_id,
+            announce_interval,
+            on_peer_discovered
+        )
+    
+    async def disable_peer_discovery(self):
+        """Disable peer discovery."""
+        if self.udp_transport:
+            await self.udp_transport.disable_discovery()
+    
+    async def discover_local_peers(self, timeout: float = 2.0):
+        """
+        Discover peers on local network.
+        
+        Args:
+            timeout: Seconds to wait for responses
+            
+        Returns:
+            List of (ip, port, node_id) tuples
+        """
+        if not self.udp_transport:
+            raise STTException("Node not started")
+        
+        return await self.udp_transport.discover_peers(timeout)
+    
+    # One-to-many streaming methods
+    
+    async def send_to_all(self, data: bytes, stream_id: int = 0):
+        """
+        Send data to all active sessions (broadcast).
+        
+        Args:
+            data: Data to broadcast
+            stream_id: Stream ID to use
+        """
+        sessions = self.session_manager.get_all_sessions()
+        
+        if not sessions:
+            logger.warning("No active sessions for broadcast")
+            return
+        
+        logger.info(f"Broadcasting {len(data)} bytes to {len(sessions)} sessions")
+        
+        # Send to all sessions in parallel
+        tasks = []
+        for session in sessions:
+            tasks.append(self._send_to_session(session, data, stream_id))
+        
+        await asyncio.gather(*tasks, return_exceptions=True)
+    
+    async def send_to_sessions(self, session_ids: list[bytes], data: bytes, stream_id: int = 0):
+        """
+        Send data to specific sessions (multicast).
+        
+        Args:
+            session_ids: List of session IDs to send to
+            data: Data to send
+            stream_id: Stream ID to use
+        """
+        if not session_ids:
+            logger.warning("No session IDs specified for multicast")
+            return
+        
+        logger.info(f"Multicasting {len(data)} bytes to {len(session_ids)} sessions")
+        
+        tasks = []
+        for session_id in session_ids:
+            session = self.session_manager.get_session(session_id)
+            if session:
+                tasks.append(self._send_to_session(session, data, stream_id))
+            else:
+                logger.warning(f"Session not found: {session_id.hex()}")
+        
+        await asyncio.gather(*tasks, return_exceptions=True)
+    
+    async def _send_to_session(self, session: STTSession, data: bytes, stream_id: int):
+        """
+        Send data to a single session.
+        
+        Args:
+            session: Session to send to
+            data: Data to send
+            stream_id: Stream ID
+        """
+        try:
+            # Create frame
+            frame = STTFrame(
+                session_id=session.session_id,
+                stream_id=stream_id,
+                payload=data,
+                frame_type=STT_FRAME_TYPE_DATA
+            )
+            
+            # Encrypt if session has key
+            if session.session_key:
+                frame.encrypt_payload(self.stc, session.session_key)
+            
+            # Send frame
+            # Note: Need to track peer address for each session
+            # For now, this is a stub - need to add peer_addr to session
+            if self.udp_transport and hasattr(session, 'peer_addr'):
+                await self.udp_transport.send_frame(frame, session.peer_addr)
+                session.record_frame_sent(len(data))
+            else:
+                logger.warning(f"Cannot send to session {session.session_id.hex()}: no transport address")
+        
+        except Exception as e:
+            logger.error(f"Failed to send to session {session.session_id.hex()}: {e}")

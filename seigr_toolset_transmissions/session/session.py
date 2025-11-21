@@ -38,6 +38,10 @@ class STTSession:
         self.created_at = time.time()
         self.last_activity = time.time()
         
+        # Peer transport address (for sending)
+        self.peer_addr: Optional[tuple] = None  # (ip, port)
+        self.transport_type: Optional[str] = None  # 'udp' or 'websocket'
+        
         # Statistics
         self.bytes_sent = 0
         self.bytes_received = 0

@@ -4,24 +4,24 @@
 
 STT is a self-sovereign P2P streaming protocol with native STC cryptography, binary serialization, UDP/WebSocket transport, and no third-party runtime dependencies.
 
-## Current Status: **Pre-Release v0.2.0-alpha** - **86.81% Coverage** 🚀
+## Current Status: **Pre-Release v0.2.0-alpha** - **90.03% Coverage**
 
-**Production-Ready Core Protocol**
+**Tested and Functional Core Protocol**
 
-### Breakthrough Achievement 🎭
+### Technical Achievement
 
-**World's First Production-Ready Probabilistic Handshake Protocol**
+**Probabilistic Handshake Implementation**
 
-- Traditional handshakes (TLS, SSH) require deterministic crypto
-- STC is probabilistic by design
-- **Seigr solution**: Complete encrypt/decrypt proof-of-possession protocol ✅
-- **Pure sovereignty**: XOR-based session IDs, zero SHA-256/hashlib ✅
-- **87.93% coverage**: Full validation and testing ✅
-- Session established via mutual STC decryption verification
+- STC uses probabilistic cryptography (outputs vary for same input)
+- Traditional handshakes (TLS, SSH) rely on deterministic operations
+- STT implements a 4-message handshake using STC encrypt/decrypt operations
+- Session ID generated via XOR of nonces and node IDs (deterministic from shared values)
+- 87.36% test coverage validates the handshake implementation
+- Requires pre-shared seed distribution (out-of-band trust establishment)
 
 ## Phase 1: ✅ **COMPLETE** - Pre-Release Ready
 
-**Achievement**: Full STC integration with 86.81% code coverage
+**Achievement**: Full STC integration with 90.03% test coverage
 
 ### Architecture
 
@@ -39,26 +39,30 @@ Transport Layer (UDP + native WebSocket)
 
 ### Implementation Status by Component
 
-**✅ Production-Ready Core:**
+**✅ Fully Tested Core:**
 
-- **STT Binary Format**: Self-sovereign serialization (88.44% coverage)
-- **Varint Encoding**: Variable-length integers (100% coverage)
-- **STTFrame**: Binary frames with 2MB limit (80% coverage)
-- **STTHandshake**: **COMPLETE** probabilistic protocol (87.93% coverage)
+- **STT Binary Format**: Self-contained serialization (100% coverage)
 - **STTSession**: Full lifecycle + statistics (100% coverage)
 - **STTStream**: Complete send/receive with ordering (99.24% coverage)
-- **Chamber**: Encrypted storage (86.36% coverage)
-- **STCWrapper**: Crypto operations (80.49% coverage)
-- **StreamEncoder/Decoder**: STC streaming (85.11% / 96.15% coverage)
-- **UDPTransport**: Production-ready (85.51% coverage)
-- **WebSocketTransport**: Native RFC 6455 (84.63% coverage)
-- **STTNode**: Integrated runtime (88.37% coverage)
+- **SessionManager**: Session lifecycle management (100% coverage)
+- **Varint Encoding**: Variable-length integers (100% coverage)
+- **Serialization**: Binary encoding/decoding (100% coverage)
+- **StreamManager**: Stream lifecycle (98.61% coverage)
+- **STCWrapper**: Crypto operations (98.78% coverage)
+- **STTFrame**: Binary frames with 2MB limit (98.26% coverage)
+- **Decoder**: Streaming decoder (97.87% coverage)
+- **Chamber**: Encrypted storage (96.97% coverage)
+- **Encoder**: Streaming encoder (100% coverage)
+- **UDPTransport**: Datagram transport (89.86% coverage)
+- **STTHandshake**: 4-message protocol (87.36% coverage)
+- **WebSocketTransport**: RFC 6455 implementation (84.17% coverage)
+- **STTNode**: Integrated runtime (82.95% coverage)
 
-**Minor Gaps (Acceptable for Pre-Release):**
+**Remaining Gaps:**
 
-- Some transport error paths (acceptable)
-- Some crypto module edge cases (stable APIs)
-- Frame parsing rare errors (non-critical)
+- Node.py: 22 missing lines (82.95% coverage) - primarily in UDP session establishment and server-side handshake handling
+- WebSocket: 69 missing lines (84.17% coverage) - some error paths and edge cases
+- Handshake: 22 missing lines (87.36% coverage) - some error handling branches
 
 ### Technology Stack
 
