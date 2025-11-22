@@ -52,7 +52,7 @@ class ProbabilisticStream(STTStream):
         stream_id: int,
         stc_wrapper: 'STCWrapper',
         dht: Optional['KademliaDHT'] = None,
-        chunk_size: int = 16384
+        segment_size: int = 16384
     ):
         """
         Initialize probabilistic stream.
@@ -62,26 +62,26 @@ class ProbabilisticStream(STTStream):
             stream_id: Stream ID
             stc_wrapper: STC wrapper for crypto
             dht: Optional DHT for replication queries
-            chunk_size: Chunk size for entropy calculation (16KB default)
+            segment_size: Segment size for entropy calculation (16KB default)
         """
         super().__init__(session_id, stream_id, stc_wrapper)
         
         self.dht = dht
-        self.chunk_size = chunk_size
+        self.segment_size = segment_size
         self.mode = 'probabilistic'
         
         # Delivery tracking
-        self.delivered_chunks: set = set()
-        self.chunk_metadata: dict[int, ChunkMetadata] = {}
+        self.delivered_segments: set = set()
+        self.segment_metadata: dict[int, SegmentMetadata] = {}
         
         # Statistics
-        self.total_chunks = 0
+        self.total_segments = 0
         self.successful_deliveries = 0
         self.probabilistic_exits = 0
         
         logger.info(
             f"ProbabilisticStream created: session={session_id.hex()[:8]}, "
-            f"stream={stream_id}, chunk_size={chunk_size}"
+            f"stream={stream_id}, segment_size={segment_size}"
         )
     
     def calculate_delivery_probability(self, chunk: bytes) -> float:
@@ -114,8 +114,8 @@ class ProbabilisticStream(STTStream):
         
         # Adjust for DHT replication (if available)
         if self.dht:
-            chunk_hash = self.stc_wrapper.hash_data(chunk)
-            replication = len(self.dht.providers.get(chunk_hash, set()))
+            segment_hash = self.stc_wrapper.hash_data(chunk)
+            replication = len(self.dht.providers.get(segment_hash, set()))
             
             # More copies = lower delivery requirement
             if replication > 10:
@@ -142,19 +142,19 @@ class ProbabilisticStream(STTStream):
             raise STTStreamError("Stream is closed")
         
         # Split into chunks
-        chunks = self._chunk_data(data)
-        self.total_chunks += len(chunks)
+        segments = self._segment_data(data)
+        self.total_segments += len(segments)
         
         delivered_count = 0
         
-        for chunk_idx, chunk in enumerate(chunks):
+        for segment_idx, segment in enumerate(chunks):
             # Calculate delivery parameters
             entropy = shannon_entropy(chunk)
             delivery_prob = self.calculate_delivery_probability(chunk)
             
             # Get replication count
-            chunk_hash = self.stc_wrapper.hash_data(chunk)
-            replication = len(self.dht.providers.get(chunk_hash, set())) if self.dht else 0
+            segment_hash = self.stc_wrapper.hash_data(chunk)
+            replication = len(self.dht.providers.get(segment_hash, set())) if self.dht else 0
             
             # Calculate max attempts based on probability
             # P(delivered after N attempts) = 1 - (1-p)^N
@@ -166,24 +166,24 @@ class ProbabilisticStream(STTStream):
             max_attempts = min(max(max_attempts, 1), 10)  # Clamp to [1, 10]
             
             # Initialize metadata
-            metadata = ChunkMetadata(
-                chunk_idx=chunk_idx,
+            metadata = SegmentMetadata(
+                segment_idx=segment_idx,
                 entropy=entropy,
                 delivery_prob=delivery_prob,
                 replication=replication,
                 attempts=0,
                 delivered=False
             )
-            self.chunk_metadata[chunk_idx] = metadata
+            self.segment_metadata[segment_idx] = metadata
             
             # Attempt delivery with adaptive retry
             for attempt in range(max_attempts):
                 metadata.attempts += 1
                 
-                success = await self._try_send_chunk(chunk, chunk_idx)
+                success = await self._try_send_segment(chunk, segment_idx)
                 
                 if success:
-                    self.delivered_chunks.add(chunk_idx)
+                    self.delivered_segments.add(segment_idx)
                     metadata.delivered = True
                     delivered_count += 1
                     self.successful_deliveries += 1
@@ -193,7 +193,7 @@ class ProbabilisticStream(STTStream):
                 # Random decision: continue retrying or accept loss
                 if random.random() > delivery_prob:
                     logger.debug(
-                        f"Probabilistic exit: chunk {chunk_idx}, "
+                        f"Probabilistic exit: segment {segment_idx}, "
                         f"entropy={entropy:.3f}, prob={delivery_prob:.3f}, "
                         f"replication={replication}, attempts={attempt + 1}"
                     )
@@ -210,21 +210,21 @@ class ProbabilisticStream(STTStream):
         self.last_activity = time.time()
         
         logger.info(
-            f"Probabilistic send complete: {delivered_count}/{len(chunks)} chunks, "
+            f"Probabilistic send complete: {delivered_count}/{len(segments)} chunks, "
             f"{len(data)} bytes"
         )
         
         return delivered_count
     
-    async def _try_send_chunk(self, chunk: bytes, chunk_idx: int) -> bool:
+    async def _try_send_segment(self, chunk: bytes, segment_idx: int) -> bool:
         """
-        Attempt to send chunk (stub for integration).
+        Attempt to send segment (stub for integration).
         
         In real implementation, this would send through transport layer.
         
         Args:
-            chunk: Chunk data
-            chunk_idx: Chunk index
+            chunk: Segment data
+            segment_idx: Segment index
             
         Returns:
             True if send succeeded
@@ -236,7 +236,7 @@ class ProbabilisticStream(STTStream):
         # Simulate 50% packet loss for testing
         return random.random() > 0.5
     
-    def _chunk_data(self, data: bytes) -> List[bytes]:
+    def _segment_data(self, data: bytes) -> List[bytes]:
         """
         Split data into chunks.
         
@@ -246,13 +246,13 @@ class ProbabilisticStream(STTStream):
         Returns:
             List of chunks
         """
-        chunks = []
+        segments = []
         offset = 0
         
         while offset < len(data):
-            chunk = data[offset:offset + self.chunk_size]
-            chunks.append(chunk)
-            offset += self.chunk_size
+            segment = data[offset:offset + self.segment_size]
+            segments.append(chunk)
+            offset += self.segment_size
         
         return chunks
     
@@ -263,35 +263,35 @@ class ProbabilisticStream(STTStream):
         Returns:
             Statistics dictionary
         """
-        total_attempts = sum(m.attempts for m in self.chunk_metadata.values())
+        total_attempts = sum(m.attempts for m in self.segment_metadata.values())
         
         return {
-            'total_chunks': self.total_chunks,
-            'delivered_chunks': len(self.delivered_chunks),
+            'total_segments': self.total_segments,
+            'delivered_segments': len(self.delivered_segments),
             'successful_deliveries': self.successful_deliveries,
             'probabilistic_exits': self.probabilistic_exits,
-            'delivery_rate': len(self.delivered_chunks) / max(self.total_chunks, 1),
+            'delivery_rate': len(self.delivered_segments) / max(self.total_segments, 1),
             'total_attempts': total_attempts,
-            'avg_attempts_per_chunk': total_attempts / max(self.total_chunks, 1),
+            'avg_attempts_per_segment': total_attempts / max(self.total_segments, 1),
         }
     
-    def get_chunk_report(self) -> List[dict]:
+    def get_segment_report(self) -> List[dict]:
         """
-        Get per-chunk delivery report.
+        Get per-segment delivery report.
         
         Returns:
-            List of chunk metadata dictionaries
+            List of segment metadata dictionaries
         """
         return [
             {
-                'chunk_idx': m.chunk_idx,
+                'segment_idx': m.segment_idx,
                 'entropy': m.entropy,
                 'delivery_prob': m.delivery_prob,
                 'replication': m.replication,
                 'attempts': m.attempts,
                 'delivered': m.delivered,
             }
-            for m in sorted(self.chunk_metadata.values(), key=lambda x: x.chunk_idx)
+            for m in sorted(self.segment_metadata.values(), key=lambda x: x.segment_idx)
         ]
 
 
