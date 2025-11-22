@@ -604,5 +604,8 @@ class TestSessionManager:
         assert 'sessions' in stats
         assert len(stats['sessions']) == 2
         
+        # Get one session to test stats tracking
+        session_id = list(manager.sessions.keys())[0]
+        session = manager.sessions[session_id]
         if hasattr(session, 'record_received_bytes'):
             session.record_received_bytes(1000000)

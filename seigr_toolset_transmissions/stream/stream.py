@@ -76,10 +76,6 @@ class STTStream:
         if not self.is_active:
             raise STTStreamError("Stream is closed")
         
-        # Calculate adaptive priority if manager available
-        if self.priority_manager and session:
-            self.current_priority = self.priority_manager.calculate_priority(data, session)
-        
         # Update statistics
         self.bytes_sent += len(data)
         self.messages_sent += 1
