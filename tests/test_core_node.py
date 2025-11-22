@@ -887,13 +887,17 @@ class TestSTTNodeIntegration:
         await node.start()
         
         try:
-            # Try to receive with short timeout
+            # Try to receive with short timeout (should timeout since no data)
             received = []
-            async for packet in node.receive():
+            gen = node.receive()
+            try:
+                packet = await asyncio.wait_for(gen.__anext__(), timeout=0.1)
                 received.append(packet)
-                break  # Stop after first (or timeout)
+            except asyncio.TimeoutError:
+                pass  # Expected - no data available
             
-            # Will timeout since no data coming
+            # Should have no packets (timed out)
+            assert len(received) == 0
         finally:
             await node.stop()
     

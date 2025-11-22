@@ -370,52 +370,6 @@ class STTNode:
         self._accept_connections = False
         logger.info("No longer accepting incoming connections")
     
-    async def enable_peer_discovery(self, announce_interval: float = 5.0):
-        """
-        Enable local network peer discovery.
-        
-        Args:
-            announce_interval: Seconds between announcements
-        """
-        if not self.udp_transport:
-            raise STTException("Node not started")
-        
-        def on_peer_discovered(peer_ip: str, peer_port: int, peer_node_id: bytes):
-            """Callback when peer is discovered."""
-            logger.info(
-                f"Discovered peer: {peer_ip}:{peer_port} "
-                f"node_id={peer_node_id.hex()[:16]}..."
-            )
-            # Auto-connect if in server mode
-            if self._server_mode:
-                asyncio.create_task(self.connect_udp(peer_ip, peer_port))
-        
-        await self.udp_transport.enable_discovery(
-            self.node_id,
-            announce_interval,
-            on_peer_discovered
-        )
-    
-    async def disable_peer_discovery(self):
-        """Disable peer discovery."""
-        if self.udp_transport:
-            await self.udp_transport.disable_discovery()
-    
-    async def discover_local_peers(self, timeout: float = 2.0):
-        """
-        Discover peers on local network.
-        
-        Args:
-            timeout: Seconds to wait for responses
-            
-        Returns:
-            List of (ip, port, node_id) tuples
-        """
-        if not self.udp_transport:
-            raise STTException("Node not started")
-        
-        return await self.udp_transport.discover_peers(timeout)
-    
     # One-to-many streaming methods
     
     async def send_to_all(self, data: bytes, stream_id: int = 0):

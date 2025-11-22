@@ -27,8 +27,14 @@ class EndpointManager:
     - Receive routing (from any, from specific)
     """
     
-    def __init__(self):
-        """Initialize endpoint manager."""
+    def __init__(self, transport_send_callback=None):
+        """
+        Initialize endpoint manager.
+        
+        Args:
+            transport_send_callback: Optional callback for actual transport send
+                                    Signature: async def(endpoint_id: bytes, data: bytes) -> None
+        """
         # Endpoint registry (endpoint_id -> metadata)
         self._endpoints: Dict[bytes, dict] = {}
         
@@ -40,6 +46,9 @@ class EndpointManager:
         
         # Lock for thread safety
         self._lock = asyncio.Lock()
+        
+        # Transport layer callback
+        self._transport_send = transport_send_callback
     
     async def add_endpoint(
         self,
@@ -113,8 +122,9 @@ class EndpointManager:
             if endpoint_id not in self._endpoints:
                 raise STTEndpointError(f"Endpoint not found: {endpoint_id.hex()[:16]}...")
             
-            # TODO: Actual transport layer send
-            # await self.transport.send(endpoint_id, data)
+            # Send via transport layer callback if available
+            if self._transport_send:
+                await self._transport_send(endpoint_id, data)
             
             # Update stats
             self._endpoints[endpoint_id]['bytes_sent'] += len(data)

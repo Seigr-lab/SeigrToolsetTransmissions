@@ -294,13 +294,67 @@ class BinaryStorage:
         """Load storage index from disk."""
         index_path = self.storage_path / 'index.bin'
         if not index_path.exists():
+            # Build index from filesystem
+            self._rebuild_index_from_disk()
             return
         
-        # TODO: Implement index persistence
-        # For now, rebuild from filesystem
-        pass
+        try:
+            # Load persisted index
+            import pickle
+            with open(index_path, 'rb') as f:
+                self._index = pickle.load(f)
+            
+            # Calculate current size
+            self._current_size = sum(meta['size'] for meta in self._index.values())
+        except Exception as e:
+            # If load fails, rebuild from filesystem
+            import logging
+            logging.warning(f"Failed to load index, rebuilding: {e}")
+            self._rebuild_index_from_disk()
     
     def _save_index(self) -> None:
         """Save storage index to disk."""
-        # TODO: Implement index persistence
-        pass
+        index_path = self.storage_path / 'index.bin'
+        try:
+            import pickle
+            with open(index_path, 'wb') as f:
+                pickle.dump(self._index, f)
+        except Exception as e:
+            import logging
+            logging.error(f"Failed to save index: {e}")
+    
+    def _rebuild_index_from_disk(self) -> None:
+        """Rebuild index by scanning filesystem."""
+        self._index = {}
+        self._current_size = 0
+        
+        # Scan shard directories
+        for shard_dir in self.storage_path.glob('*'):
+            if not shard_dir.is_dir():
+                continue
+            
+            # Scan files in shard
+            for file_path in shard_dir.glob('*'):
+                if not file_path.is_file():
+                    continue
+                
+                try:
+                    # Get address from filename
+                    address = bytes.fromhex(file_path.name)
+                    
+                    # Get file stats
+                    stat = file_path.stat()
+                    encrypted_size = stat.st_size
+                    
+                    # Add to index (we don't know original size, will be verified on read)
+                    self._index[address] = {
+                        'size': encrypted_size,  # Approximate
+                        'encrypted_size': encrypted_size,
+                        'timestamp': stat.st_mtime,
+                        'access_time': stat.st_atime
+                    }
+                    self._current_size += encrypted_size
+                    
+                except Exception:
+                    # Skip invalid files
+                    continue

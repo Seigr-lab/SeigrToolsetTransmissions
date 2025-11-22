@@ -37,9 +37,8 @@ class UDPTransport:
     UDP transport for STT frames.
     
     Provides unreliable datagram delivery suitable for:
-    - NAT traversal with hole punching
     - Low-latency streaming
-    - Broadcast/multicast discovery
+    - Connectionless packet delivery
     """
     
     def __init__(
@@ -119,9 +118,6 @@ class UDPTransport:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, self.config.receive_buffer_size)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, self.config.send_buffer_size)
             
-            # Enable broadcast
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            
             # Get local address
             self.local_addr = sock.getsockname()
             
@@ -141,15 +137,6 @@ class UDPTransport:
             return
         
         self.running = False
-        
-        # Stop discovery
-        if self._discovery_task:
-            self._discovery_task.cancel()
-            try:
-                await self._discovery_task
-            except asyncio.CancelledError:
-                pass
-            self._discovery_task = None
         
         if self.transport:
             self.transport.close()

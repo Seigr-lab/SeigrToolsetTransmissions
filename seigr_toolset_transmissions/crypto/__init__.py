@@ -4,7 +4,7 @@ Cryptographic operations using Seigr Toolset Crypto (STC).
 Modular crypto functions - each dedicated to one purpose:
 - streaming: StreamingContext creation for per-stream encryption
 - session_keys: Session key derivation and rotation
-- node_identity: Node ID generation for DHT
+- node_identity: Node ID generation
 
 All functions use ephemeral data only - NO personal information.
 """

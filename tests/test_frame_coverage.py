@@ -313,21 +313,17 @@ class TestFrameCoverage:
         from seigr_toolset_transmissions.utils.exceptions import STTFrameError
         import struct
         
-        # Create frame data that will cause struct.unpack to fail
-        # Need enough bytes to pass length check but corrupt header data
+        # Test that insufficient bytes for header parsing raises error
+        # Header size is 30 bytes (1+1+8+8+8+4 for format '!BB8sQQI')
         magic = b'ST'
-        # Encode length that suggests header+metadata+payload exists
         from seigr_toolset_transmissions.utils.varint import encode_varint
-        length_bytes = encode_varint(50)  # Say we have 50 bytes total
+        # Claim we have 30 bytes but only provide 25 after the length
+        length_bytes = encode_varint(30)
         
-        # Create 14 bytes of valid-looking data, then pad
-        # but make the actual header unpacking fail
-        corrupt_header = b'\xFF' * 14  # 14 bytes for header
-        corrupt_metadata = b'\x00' * 36  # Pad to reach 50 bytes total
+        # Provide only 25 bytes when 30 are needed for header
+        corrupt_data = magic + length_bytes + (b'\xFF' * 25)
         
-        corrupt_data = magic + length_bytes + corrupt_header + corrupt_metadata
-        
-        # This should trigger struct.error when unpacking header
+        # This should raise STTFrameError for insufficient data
         with pytest.raises(STTFrameError):
             STTFrame.from_bytes(corrupt_data, None)
 
