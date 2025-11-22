@@ -259,3 +259,203 @@ async def test_custom_frames(stc_wrapper):
     
     assert len(frames_handled) == 1
     assert frames_handled[0] == b"user-defined protocol data"
+
+
+@pytest.mark.asyncio
+async def test_storage_deduplication(tmp_path, stc_wrapper):
+    """Test storage automatic deduplication."""
+    storage = BinaryStorage(
+        storage_path=tmp_path / "dedup_storage",
+        stc_wrapper=stc_wrapper
+    )
+    
+    # Same data stored twice should return same address
+    data = b"duplicate data test"
+    
+    addr1 = await storage.put(data)
+    addr2 = await storage.put(data)
+    
+    assert addr1 == addr2, "Same data should deduplicate to same address"
+    
+    # Should only have one copy
+    addresses = await storage.list_addresses()
+    assert addresses.count(addr1) == 1
+
+
+@pytest.mark.asyncio
+async def test_storage_exists_check(tmp_path, stc_wrapper):
+    """Test storage exists check."""
+    storage = BinaryStorage(
+        storage_path=tmp_path / "exists_storage",
+        stc_wrapper=stc_wrapper
+    )
+    
+    data = b"existence test"
+    addr = await storage.put(data)
+    
+    assert await storage.exists(addr), "Stored data should exist"
+    
+    fake_addr = "0" * 64
+    assert not await storage.exists(fake_addr), "Non-existent address should return False"
+
+
+@pytest.mark.asyncio
+async def test_storage_get_nonexistent(tmp_path, stc_wrapper):
+    """Test getting non-existent data from storage."""
+    from seigr_toolset_transmissions.utils.exceptions import STTStorageError
+    
+    storage = BinaryStorage(
+        storage_path=tmp_path / "get_fail_storage",
+        stc_wrapper=stc_wrapper
+    )
+    
+    fake_addr = b"0" * 32  # 32 bytes for hash address
+    
+    # Should raise exception for non-existent address
+    try:
+        result = await storage.get(fake_addr)
+        assert False, "Should have raised STTStorageError"
+    except STTStorageError:
+        pass  # Expected
+
+
+@pytest.mark.asyncio
+async def test_endpoint_remove(tmp_path):
+    """Test endpoint removal."""
+    manager = EndpointManager()
+    
+    endpoint = b"test_endpoint"
+    await manager.add_endpoint(endpoint, ("addr", 8000), {})
+    
+    endpoints = manager.get_endpoints()
+    assert endpoint in endpoints
+    
+    await manager.remove_endpoint(endpoint)
+    
+    endpoints = manager.get_endpoints()
+    assert endpoint not in endpoints
+
+
+@pytest.mark.asyncio
+async def test_endpoint_send_to(tmp_path):
+    """Test endpoint send_to method."""
+    manager = EndpointManager()
+    
+    endpoint = b"send_endpoint"
+    await manager.add_endpoint(endpoint, ("addr", 8001), {})
+    
+    # Send data to endpoint
+    # Note: send_to is a placeholder - transport layer actually sends
+    await manager.send_to(endpoint, b"test message")
+    
+    # Check endpoint exists and stats updated
+    info = manager.get_endpoint_info(endpoint)
+    assert info is not None
+
+
+@pytest.mark.asyncio
+async def test_endpoint_receive_timeout(tmp_path):
+    """Test endpoint receive timeout."""
+    manager = EndpointManager()
+    
+    endpoint = b"timeout_endpoint"
+    await manager.add_endpoint(endpoint, ("addr", 8002), {})
+    
+    # Try to receive with short timeout (should raise exception)
+    from seigr_toolset_transmissions.utils.exceptions import STTEndpointError
+    try:
+        result = await manager.receive_from(endpoint, timeout=0.1)
+        assert False, "Should have raised STTEndpointError"
+    except STTEndpointError:
+        pass  # Expected
+
+
+@pytest.mark.asyncio
+async def test_events_decorator():
+    """Test event decorator syntax."""
+    emitter = EventEmitter()
+    
+    events_received = []
+    
+    @emitter.on('test_event')
+    async def handler(data):
+        events_received.append(data)
+    
+    # Emit - should receive
+    await emitter.emit('test_event', 'data1')
+    assert len(events_received) == 1
+
+
+@pytest.mark.asyncio
+async def test_encoder_segment_size(stc_wrapper):
+    """Test encoder with custom segment size."""
+    session_id = b"seg_size"
+    stream_id = 5
+    
+    # Small segment size
+    encoder = BinaryStreamEncoder(
+        stc_wrapper, session_id, stream_id, 
+        mode='bounded', segment_size=100
+    )
+    
+    data = b"x" * 500  # Should create multiple segments
+    
+    segments = []
+    async for segment in encoder.send(data):
+        segments.append(segment)
+    
+    assert len(segments) > 1, "Large data with small segment size should create multiple segments"
+
+
+@pytest.mark.asyncio
+async def test_storage_remove_multiple(tmp_path, stc_wrapper):
+    """Test removing multiple items from storage."""
+    storage = BinaryStorage(
+        storage_path=tmp_path / "remove_storage",
+        stc_wrapper=stc_wrapper
+    )
+    
+    # Store some data
+    addr1 = await storage.put(b"data1")
+    addr2 = await storage.put(b"data2")
+    addr3 = await storage.put(b"data3")
+    
+    addresses = await storage.list_addresses()
+    assert len(addresses) == 3
+    
+    # Remove items one by one
+    await storage.remove(addr1)
+    await storage.remove(addr2)
+    
+    addresses = await storage.list_addresses()
+    assert len(addresses) == 1
+    assert addr3 in addresses
+
+
+@pytest.mark.asyncio
+async def test_endpoint_metadata(tmp_path):
+    """Test endpoint metadata storage and retrieval."""
+    manager = EndpointManager()
+    
+    endpoint = b"metadata_endpoint"
+    metadata = {"priority": 10, "region": "us-west", "custom": "value"}
+    
+    await manager.add_endpoint(endpoint, ("addr", 8003), metadata)
+    
+    info = manager.get_endpoint_info(endpoint)
+    assert info is not None
+    assert info['metadata'] == metadata
+    assert info['metadata']['priority'] == 10
+
+
+@pytest.mark.asyncio
+async def test_endpoint_existence(tmp_path):
+    """Test endpoint existence check."""
+    manager = EndpointManager()
+    
+    endpoint = b"exists_endpoint"
+    await manager.add_endpoint(endpoint, ("addr", 8004), {})
+    
+    endpoints = manager.get_endpoints()
+    assert endpoint in endpoints, "Added endpoint should exist"
+    assert b"nonexistent" not in endpoints, "Non-existent endpoint should not be in list"
