@@ -4,6 +4,8 @@
 
 This appendix provides the complete binary specification for STT frames - the low-level wire format.
 
+**Agnostic Design:** Frame format makes ZERO assumptions about payload content. DATA frames carry encrypted bytes - STT doesn't parse, inspect, or care what those bytes represent (video, files, sensor readings, custom protocols). Only YOU define payload semantics. Custom frame types (0x80-0xFF) let you extend the protocol for ANY binary data format.
+
 ## Frame Structure
 
 All STT frames follow this structure:

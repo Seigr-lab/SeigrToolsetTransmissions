@@ -4,6 +4,8 @@
 
 Before two peers can communicate securely, they must perform a **handshake** - a sequence of messages that establishes trust and creates a shared session. This chapter explains STT's 4-message handshake in detail.
 
+**Agnostic Design:** The handshake authenticates peers and establishes encrypted sessions for ANY data exchange. Whether you're streaming video, transferring files, running custom protocols, or storing sensor data - the handshake process is identical. STT doesn't know or care what data will flow through the session.
+
 ## Why Do We Need a Handshake?
 
 ### The Problem

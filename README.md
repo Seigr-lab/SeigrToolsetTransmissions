@@ -13,6 +13,7 @@ STT is a **secure binary transport protocol** using STC (Seigr Toolset Crypto) f
 ## What This Is (and Isn't)
 
 **STT IS:**
+
 - Pure binary transport (send/receive opaque bytes)
 - Agnostic streaming (live streams, bounded streams, infinite streams)
 - Multi-endpoint routing (user defines what endpoints mean)
@@ -20,6 +21,7 @@ STT is a **secure binary transport protocol** using STC (Seigr Toolset Crypto) f
 - Extensible framing (custom frame types 0x80-0xFF)
 
 **STT IS NOT:**
+
 - A file transfer protocol (no file semantics)
 - A content management system (no content types)
 - Application-specific (you define what data means)
@@ -41,6 +43,7 @@ STT is a **secure binary transport protocol** using STC (Seigr Toolset Crypto) f
 STT provides low-level primitives with NO semantic assumptions:
 
 **BinaryStreamEncoder/Decoder:**
+
 - Live streaming (infinite): `mode='live'` - continuous data flow, never ends
 - Bounded streaming (finite): `mode='bounded'` - known completion, call `end()`
 - Async iterators: `async for segment in encoder.send(bytes)`
@@ -48,22 +51,26 @@ STT provides low-level primitives with NO semantic assumptions:
 - Flow control: Credit-based backpressure
 
 **BinaryStorage:**
+
 - Hash-addressed byte buckets: `put(bytes) -> address`
 - STC-encrypted storage: Secure at rest
 - Deduplication: Same bytes = same address (SHA3-256)
 - NO file semantics: Just bytes in, bytes out
 
 **EndpointManager:**
+
 - Multi-endpoint routing: `send_to()`, `send_to_many()`, `receive_any()`
 - User-defined endpoints: You decide what they represent
 - Per-endpoint queues: Independent receive streams
 
 **EventEmitter:**
+
 - User-defined events: Register custom event handlers
 - Async dispatch: `@emitter.on('custom_event')`
 - Built-in events: `bytes_received`, `endpoint_connected`, etc.
 
 **FrameDispatcher:**
+
 - Custom frame types: 0x80-0xFF reserved for user protocols
 - Handler registration: `register_custom_handler(type, handler)`
 - Zero assumptions about payload meaning

@@ -4,6 +4,8 @@
 
 Complete reference for all STTNode configuration parameters and their effects.
 
+**Agnostic Design:** Configuration is use-case agnostic. Frame sizes, timeouts, buffer sizes - these parameters tune transport performance, NOT data semantics. Whether you're streaming 4K video or transferring genome sequences, you use the SAME configuration options. STT doesn't have "video mode" or "file transfer mode" - YOU choose parameters based on your latency/throughput requirements.
+
 ## STTNode Parameters
 
 ### Basic Configuration

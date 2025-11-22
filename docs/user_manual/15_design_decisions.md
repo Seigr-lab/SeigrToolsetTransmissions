@@ -6,7 +6,24 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 ## Core Design Principles
 
-### 1. Seigr Ecosystem First
+### 1. Agnostic Binary Transport (Zero Assumptions)
+
+**Decision:** STT makes ZERO assumptions about data semantics
+
+**Rationale:**
+
+- Maximum flexibility (same primitives for video, sensors, files, protocols)
+- No built-in content types or file semantics (user defines ALL meaning)
+- Future-proof (works for use cases not yet invented)
+- Composable primitives (BinaryStreamEncoder, BinaryStorage, EndpointManager, EventEmitter, FrameDispatcher)
+
+**Trade-off:** More work for developers (must define schemas, codecs, metadata) but infinite flexibility
+
+**Alternative rejected:** Built-in file transfer, messaging, media streaming - limits use cases to what we anticipated
+
+**Result:** Same STT node can simultaneously run video streaming, sensor networks, file sharing, custom protocols
+
+### 2. Seigr Ecosystem First
 
 **Decision:** Build STT specifically for Seigr ecosystem needs
 
@@ -21,7 +38,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Alternative rejected:** Use existing protocols (HTTP, BitTorrent) - don't integrate STC natively
 
-### 2. Pre-Shared Seeds (Not PKI)
+### 3. Pre-Shared Seeds (Not PKI)
 
 **Decision:** Require pre-shared seeds for authentication (no public key cryptography)
 
@@ -36,7 +53,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Alternative rejected:** TLS-style PKI - adds complexity, CAs centralized, ephemeral keys incompatible with deterministic content addressing
 
-### 3. STC Instead of Standard Crypto
+### 4. STC Instead of Standard Crypto
 
 **Decision:** Use STC (Seigr Temporal Cryptography) exclusively
 
@@ -50,7 +67,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Alternative rejected:** TLS/AES - doesn't provide STC.hash, deterministic keys harder
 
-### 4. Incremental Development
+### 5. Incremental Development
 
 **Decision:** Build incrementally with continuous feature delivery
 
@@ -64,7 +81,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Alternative rejected:** Wait until all features complete - delays feedback, risks building wrong thing
 
-### 5. Binary Protocol (Not Text)
+### 6. Binary Protocol (Not Text)
 
 **Decision:** Custom binary framing (not HTTP-like text)
 
@@ -362,12 +379,14 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 ### Implemented Features
 
 **Core Protocol:**
+
 - One-to-one and many-to-many sessions
 - STC encryption with deterministic content addressing
 - UDP and WebSocket transports
 - Stream multiplexing
 
 **P2P Capabilities:**
+
 - Kademlia DHT with STC.hash
 - Automatic peer and content discovery
 - Server mode (one-to-many streaming)
@@ -375,6 +394,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - NAT traversal (STUN-like functionality)
 
 **Additional Features (v0.2.0+):**
+
 - Adaptive priority (content property-based)
 - Probabilistic delivery (entropy-based)
 - Session continuity (seed-based resumption)

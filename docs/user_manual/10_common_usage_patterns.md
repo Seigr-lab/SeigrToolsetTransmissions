@@ -4,7 +4,130 @@
 
 This chapter presents practical patterns for using STT in real-world applications, with working code examples.
 
-## Request-Response Pattern
+**Note:** STT provides TWO API levels:
+
+1. **Agnostic Primitives** (BinaryStreamEncoder/Decoder, BinaryStorage, etc.) - Pure binary transport, zero assumptions
+2. **Session/Stream API** (STTNode, STTSession, STTStream) - Higher-level connection management
+
+Most applications should use agnostic primitives for data handling, session/stream API for connection management.
+
+---
+
+## Agnostic Primitives Patterns
+
+### Pattern 1: Live Video Streaming (Agnostic)
+
+```python
+import asyncio
+from seigr_toolset_transmissions import StreamEncoder, StreamDecoder, STCWrapper
+
+async def stream_video():
+    stc = STCWrapper(b"seed_32_bytes_minimum_required!!")
+    encoder = StreamEncoder(stc, session_id, stream_id, mode='live')
+    decoder = StreamDecoder(stc, session_id, stream_id)
+    
+    # YOUR video encoder (H.264, VP9, etc.)
+    while True:
+        video_frame_bytes = your_h264_encoder.encode(camera.capture())
+        
+        # STT just streams bytes (doesn't know it's video)
+        async for seq, encrypted_segment in encoder.send(video_frame_bytes):
+            await transport.send_to_peer(encrypted_segment)
+            decoder.receive_segment(encrypted_segment, seq)
+        
+        # Receiver: STT gave you bytes, YOU decode video
+        decrypted_bytes = await decoder.receive_all()
+        raw_frame = your_h264_decoder.decode(decrypted_bytes)
+        display(raw_frame)
+```
+
+**Key:** STT transports bytes. YOU define codec, frame rate, resolution.
+
+### Pattern 2: IoT Sensor Storage (Hash-Addressed)
+
+```python
+import asyncio
+import json
+from seigr_toolset_transmissions import BinaryStorage, STCWrapper
+
+async def store_sensor_readings():
+    stc = STCWrapper(b"seed_32_bytes_minimum_required!!")
+    storage = BinaryStorage(stc)
+    
+    # YOUR data format (JSON, protobuf, custom binary)
+    sensor_data = {"temp": 25.3, "humidity": 60, "time": 1234567890}
+    sensor_bytes = json.dumps(sensor_data).encode()
+    
+    # Store (STT doesn't know it's sensor data)
+    hash_addr = await storage.store(sensor_bytes)
+    
+    # YOU maintain index: hash -> metadata
+    your_index["sensor_01"][1234567890] = hash_addr
+    
+    # Retrieve later
+    retrieved_bytes = await storage.retrieve(hash_addr)
+    sensor_data = json.loads(retrieved_bytes.decode())
+```
+
+**Key:** STT stores bytes by hash. YOU maintain metadata, indexes, schemas.
+
+### Pattern 3: Multi-Endpoint Fanout (Routing)
+
+```python
+import asyncio
+from seigr_toolset_transmissions import EndpointManager, StreamEncoder, STCWrapper
+
+async def broadcast_to_viewers():
+    endpoint_mgr = EndpointManager()
+    encoder = StreamEncoder(stc, session_id, stream_id, mode='live')
+    
+    # Encode frame (YOUR codec)
+    frame_bytes = your_encoder.encode(frame)
+    
+    async for seq, encrypted_segment in encoder.send(frame_bytes):
+        # Route to multiple endpoints (viewers)
+        await endpoint_mgr.route_to_endpoint("viewer_alice", encrypted_segment)
+        await endpoint_mgr.route_to_endpoint("viewer_bob", encrypted_segment)
+        await endpoint_mgr.route_to_endpoint("viewer_charlie", encrypted_segment)
+    
+    # STT routed bytes. YOU defined endpoint names and routing logic.
+```
+
+**Key:** STT routes to named endpoints. YOU define naming scheme.
+
+### Pattern 4: Custom Binary Protocol (Frame Dispatcher)
+
+```python
+import asyncio
+from seigr_toolset_transmissions import FrameDispatcher
+
+# Define YOUR frame types (0x80-0xFF reserved for users)
+FRAME_MY_HANDSHAKE = 0x80
+FRAME_MY_DATA = 0x81
+FRAME_MY_ACK = 0x82
+
+dispatcher = FrameDispatcher()
+
+# Register YOUR handlers
+async def handle_my_handshake(payload: bytes):
+    # YOUR protocol: parse payload YOUR way
+    version = int.from_bytes(payload[:4], 'big')
+    peer_name = payload[4:].decode('utf-8')
+    print(f"Handshake from {peer_name}, protocol v{version}")
+
+dispatcher.register_handler(FRAME_MY_HANDSHAKE, handle_my_handshake)
+
+# When frames arrive, STT calls your handlers
+await dispatcher.dispatch(frame_type, frame_payload)
+```
+
+**Key:** STT provides frame routing. YOU define protocol semantics.
+
+---
+
+## Session/Stream API Patterns
+
+### Request-Response Pattern
 
 ```python
 # Server

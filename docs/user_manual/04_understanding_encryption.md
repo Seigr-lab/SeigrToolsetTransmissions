@@ -4,6 +4,8 @@
 
 STT uses **STC (Seigr Temporal Cryptography)** exclusively for all encryption. This chapter explains what STC is, how it works at a conceptual level, and how STT uses it - without requiring cryptography expertise.
 
+**Agnostic Note:** STC encrypts bytes. It doesn't care if those bytes are video, sensor data, files, or protocol messages. STT + STC = secure binary transport with zero semantic assumptions.
+
 **Key takeaway:** STC is a custom cryptographic system using pre-shared seeds. It's different from standard systems like TLS/SSL, and you don't need to understand its internals to use STT effectively.
 
 ## What is STC?

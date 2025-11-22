@@ -6,6 +6,8 @@ STT operates on top of a **transport layer** that moves frames between peers. Th
 
 **Transport layer** = The "postal service" that delivers STT frames between network endpoints.
 
+**Agnostic Design:** UDP and WebSocket transport encrypted bytes - NOTHING more. STT doesn't care if those bytes represent video streams, sensor readings, file transfers, or custom protocol messages. Transport choice depends on network constraints (firewalls, NAT), not data semantics.
+
 ## Transport Options
 
 ### Overview

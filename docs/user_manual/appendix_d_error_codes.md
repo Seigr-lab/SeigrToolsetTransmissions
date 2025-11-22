@@ -4,6 +4,8 @@
 
 Complete listing of all STT error codes, causes, and recovery actions.
 
+**Agnostic Design:** Error codes are transport-level ONLY. Errors describe protocol failures (handshake timeout, stream closed, frame corruption), never data-level issues. STT will NEVER raise "InvalidVideoCodecError" or "CorruptedFileError" - those are application-layer concerns. If you receive corrupted application data, STT delivered valid encrypted bytes - YOUR code validates data semantics.
+
 ## Error Code Format
 
 STT errors follow hierarchy:

@@ -20,6 +20,18 @@ A programming pattern where operations don't block - code continues executing wh
 **AUTH_PROOF**  
 The third message in STT's handshake protocol, where the initiator proves they successfully decrypted the responder's challenge.
 
+**Agnostic Primitives**  
+STT's core building blocks that make ZERO assumptions about data semantics: BinaryStreamEncoder/Decoder (streaming), BinaryStorage (hash-addressed byte buckets), EndpointManager (routing), EventEmitter (user-defined events), FrameDispatcher (custom frame types).
+
+**BinaryStorage**  
+Hash-addressed encrypted byte buckets (SHA3-256). Stores ANY binary data without knowing what it represents. Same bytes = same hash = deduplication.
+
+**BinaryStreamEncoder**  
+Async generator yielding encrypted byte segments. Live mode (infinite streams) or bounded mode (known size). Agnostic - works for video, sensors, files, anything binary.
+
+**BinaryStreamDecoder**  
+Async iterator receiving encrypted segments, handling out-of-order delivery. Returns decrypted bytes. YOU interpret what they mean.
+
 ---
 
 ### B
@@ -46,8 +58,8 @@ STT's encrypted storage system for keys and session metadata, secured with STC.
 **Challenge**  
 In the handshake, the encrypted payload sent by the responder that the initiator must decrypt to prove possession of the shared seed.
 
-**Chunk**  
-A portion of data split for transmission. Large data is divided into chunks that fit within frame size limits.
+**Segment**  
+A portion of binary data optimized for network transmission (MTU optimization). Large byte streams are divided into segments. NOT semantic chunks - just transport-level byte divisions. STT doesn't know what the bytes represent.
 
 **Ciphertext**  
 Encrypted data. The output of encryption operations.
@@ -91,10 +103,16 @@ STC's encryption component. Used by STT for frame encryption.
 The process of converting plaintext to ciphertext to protect confidentiality.
 
 **Endpoint**  
-A network address (IP + port) where a node can be reached.
+A network address (IP + port) where a node can be reached. In agnostic primitives, an endpoint is a user-defined routing destination - YOU assign meaning to endpoint names.
+
+**EndpointManager**  
+Agnostic primitive for multi-endpoint routing. Routes bytes to named endpoints with per-endpoint queues. STT doesn't know WHY you're routing (load balancing, replication, fanout) - YOU define routing logic.
 
 **Ephemeral**  
 Short-lived, temporary. Ephemeral keys are generated for a single session and discarded after use.
+
+**EventEmitter**  
+Agnostic primitive for user-defined event system. YOU define ALL event types. STT has zero built-in event semantics - just provides dispatch mechanism.
 
 ---
 
@@ -112,8 +130,11 @@ Mechanisms to prevent sender from overwhelming receiver. STT implements credit-b
 **Frame**  
 The basic unit of data transmission in STT. Contains header, encrypted payload, and crypto metadata.
 
+**Frame Dispatcher**  
+Agnostic primitive for handling custom frame types 0x80-0xFF. YOU define frame semantics and register handlers. STT just routes frames to your code.
+
 **Frame Type**  
-A byte indicating the purpose of a frame: HANDSHAKE (0x01), DATA (0x02), CONTROL (0x03), etc.
+A byte indicating the purpose of a frame: HANDSHAKE (0x01), DATA (0x02), CONTROL (0x03), etc. Types 0x80-0xFF reserved for user-defined custom protocols.
 
 ---
 
@@ -133,7 +154,10 @@ The process of establishing a session between two peers. STT uses a 4-message ha
 A frame type (0x01) used during the handshake process.
 
 **Hash**  
-A one-way function that produces a fixed-size output from any input. STC uses PHE for hashing.
+A one-way function that produces a fixed-size output from any input. STC uses PHE for hashing. STT uses SHA3-256 for hash-based addressing (BinaryStorage).
+
+**Hash-Based Addressing**  
+Storing data by its hash (content-addressable). BinaryStorage uses SHA3-256 - same bytes always hash to same address, enabling automatic deduplication. Agnostic - works for ANY binary data.
 
 **Header**  
 The fixed portion at the start of a frame containing metadata: magic bytes, type, session ID, stream ID, sequence, flags.

@@ -4,6 +4,8 @@
 
 Robust STT applications handle errors gracefully. This chapter covers error types, recovery strategies, and best practices.
 
+**Agnostic Design:** STT errors are transport-level (connection failed, session timeout, frame corruption). Errors NEVER assume data semantics - a `StreamClosedError` is the same whether the stream carried video, files, or sensor data. Application-level errors (invalid video codec, corrupted file) are YOUR responsibility.
+
 ## Error Hierarchy
 
 ```

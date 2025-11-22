@@ -23,7 +23,58 @@ pytest
 python3 -c "import seigr_toolset_transmissions; print(seigr_toolset_transmissions.__version__)"
 ```
 
-### Basic Two-Node Example
+### Quick Examples: Agnostic Primitives
+
+**Example 1: Binary Streaming (Agnostic - could be video, sensors, anything)**
+
+```python
+import asyncio
+from seigr_toolset_transmissions import StreamEncoder, StreamDecoder, STCWrapper
+
+async def main():
+    stc = STCWrapper(b"seed_32_bytes_minimum_required!!")
+    session_id = b"session1"
+    stream_id = 1
+    
+    # Encode arbitrary bytes (STT doesn't know what they represent)
+    encoder = StreamEncoder(stc, session_id, stream_id, mode='live')
+    decoder = StreamDecoder(stc, session_id, stream_id)
+    
+    # Send bytes (could be video frames, sensor data, anything)
+    data = b"Your data here - STT just sees bytes"
+    async for seq, encrypted_segment in encoder.send(data):
+        decoder.receive_segment(encrypted_segment, seq)
+    
+    # Receive decrypted bytes
+    decrypted = await decoder.receive_all()
+    print(f"Got {len(decrypted)} bytes - YOU decide what they mean")
+
+asyncio.run(main())
+```
+
+**Example 2: Hash-Addressed Storage (Agnostic byte buckets)**
+
+```python
+import asyncio
+from seigr_toolset_transmissions import BinaryStorage, STCWrapper
+
+async def main():
+    stc = STCWrapper(b"seed_32_bytes_minimum_required!!")
+    storage = BinaryStorage(stc)
+    
+    # Store ANY binary data (images, documents, sensor logs, etc.)
+    data = b"Arbitrary binary content"
+    hash_address = await storage.store(data)
+    print(f"Stored at: {hash_address}")
+    
+    # Retrieve by hash
+    retrieved = await storage.retrieve(hash_address)
+    assert retrieved == data
+
+asyncio.run(main())
+```
+
+### Basic Two-Node Example (Session/Stream API)
 
 **Server** (`server.py`):
 

@@ -4,6 +4,8 @@
 
 This chapter explains how to tune STT for maximum performance in various scenarios.
 
+**Agnostic Design:** Performance tuning (frame sizes, buffer management, concurrency) applies to ALL use cases. Whether you're optimizing for live video streaming, bulk file transfers, or IoT sensor networks - the same STT tuning parameters apply. STT doesn't optimize based on data type - YOU choose parameters based on your performance requirements (latency vs throughput).
+
 ## Benchmarking Baseline
 
 **Typical performance (localhost, UDP):**

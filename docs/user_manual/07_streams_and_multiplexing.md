@@ -4,6 +4,8 @@
 
 **Streams** allow multiple independent data flows within a single STT session. This chapter explains how STT multiplexes streams, guarantees ordering, handles flow control, and enables efficient concurrent communication.
 
+**Agnostic Design:** Streams carry bytes. Whether stream 1 is video and stream 2 is audio, or stream 1 is sensor data and stream 2 is control commands, STT doesn't know or care. YOU assign meaning to stream IDs.
+
 **Key insight:** One session can carry many streams simultaneously - like multiple phone conversations on the same phone line using different "channels."
 
 ## What Are Streams?
@@ -195,6 +197,7 @@ await stream.send(data, session=session)
 ```
 
 **Priority factors:**
+
 - **Content uniqueness**: Rare content (low DHT replication) gets higher priority
 - **Temporal urgency**: Hot content (frequent access) gets higher priority
 - **Network conditions**: Congestion triggers automatic priority reduction
@@ -647,6 +650,7 @@ print(f"Delivery rate: {stats['delivery_rate']*100:.1f}%")
    - Replicated content (many copies) = lower delivery requirement
 
 3. **Adaptive retransmission**:
+
    ```python
    # High entropy chunk: max 10 attempts
    # Low entropy chunk: max 2 attempts

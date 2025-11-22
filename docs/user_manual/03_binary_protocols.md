@@ -4,6 +4,8 @@
 
 STT uses binary protocols rather than text-based protocols. This chapter explains what that means, why it matters, and how to work with binary data.
 
+**Agnostic Design:** STT's binary protocol makes NO assumptions about what the bytes represent. Whether you're sending video frames, sensor readings, files, or custom protocol messages, STT just sees encrypted binary data. YOU define the semantics.
+
 ## What is Binary Data?
 
 ### At the Computer Level

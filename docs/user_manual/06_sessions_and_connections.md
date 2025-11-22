@@ -4,6 +4,8 @@
 
 This chapter explores **sessions** and **connections** in STT - how peers establish communication channels, maintain them, and handle errors. You'll learn the full lifecycle from connection establishment to graceful shutdown.
 
+**Agnostic Note:** Sessions transport encrypted bytes. STT doesn't care if you're streaming video, sending files, or running custom protocols. The session just provides a secure, multiplexed byte channel. YOU define what flows through it.
+
 **Key concepts:**
 
 - **Connection**: Network-level link (UDP socket or WebSocket)

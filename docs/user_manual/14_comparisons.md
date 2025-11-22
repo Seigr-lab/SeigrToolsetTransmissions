@@ -4,6 +4,8 @@
 
 STT is one of many protocols for network communication. This chapter provides factual comparisons with common alternatives to help you understand when STT is the right choice and when other protocols may be more suitable.
 
+**STT's Unique Position:** Agnostic binary transport with zero assumptions. Unlike HTTP (assumes documents/requests), WebRTC (assumes media), or BitTorrent (assumes files), STT works for ANY binary use case. YOU define semantics.
+
 **Important:** STT is designed for the Seigr ecosystem with DHT-based peer discovery, content distribution, and NAT traversal capabilities built-in.
 
 ## STT vs HTTP/HTTPS

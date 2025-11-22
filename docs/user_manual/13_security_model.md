@@ -12,6 +12,7 @@ This chapter analyzes STT's security properties, threat model, and best practice
 ✅ **Integrity:** Authentication tags detect tampering (modified frames rejected)  
 ✅ **Authentication:** Only peers with correct seed can establish sessions  
 ✅ **Replay Protection:** Nonces prevent replaying old handshake messages  
+✅ **Agnostic Security:** Encryption works on ANY binary data (video, sensors, files, protocols)  
 
 ### What STT Does NOT Provide
 
