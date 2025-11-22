@@ -9,14 +9,24 @@ This manual explains Seigr Toolset Transmissions (STT) in plain language. It is 
 
 ## What is STT?
 
-STT (Seigr Toolset Transmissions) is a protocol - a set of rules that computers follow to communicate with each other over a network. Think of it like the rules for having a conversation: you take turns speaking, you confirm you understood each other, and you have a way to end the conversation gracefully.
+STT (Seigr Toolset Transmissions) is a **binary transport protocol** with **agnostic primitives**. It moves encrypted bytes between peers without interpreting what they mean.
 
-STT is specifically designed for:
+Think of STT as a secure delivery service for bytes:
 
-- **Peer-to-peer communication**: Two computers talk directly to each other without a central server
-- **Binary data streaming**: Sending any type of data (files, video, audio, messages) efficiently
-- **Strong encryption**: All data is encrypted using STC (Seigr Toolset Crypto)
-- **Multiple streams**: Send different types of data simultaneously over one connection
+- **You** decide what to send (video, sensor data, files, messages, custom protocols)
+- **STT** handles secure transport, storage, and routing
+- **Zero assumptions** about data semantics
+
+STT provides building blocks:
+
+- **BinaryStreamEncoder/Decoder**: Stream bytes (live or bounded modes)
+- **BinaryStorage**: Hash-addressed encrypted byte buckets
+- **EndpointManager**: Route bytes to multiple destinations
+- **EventEmitter**: User-defined event system
+- **FrameDispatcher**: Custom frame types for your protocols
+- **STTSession/Node**: P2P connections with STC encryption
+
+**YOU compose primitives** into video streaming, sensor networks, file sharing, messaging, or anything else that moves bytes.
 
 ## Who Should Read This
 
@@ -44,11 +54,15 @@ If you're looking for specific information, use the chapter links below.
 ### Part I: Foundations
 
 - [Chapter 1: What is STT?](01_what_is_stt.md)
+  - **NEW**: Agnostic design philosophy
+  - **NEW**: Eight core primitives explained
   - What problem does STT solve?
   - Who uses STT and why?
-  - Real-world analogies
+  - Real-world examples (video, sensors, storage, messaging)
 
 - [Chapter 2: Core Concepts Explained](02_core_concepts.md)
+  - **NEW**: Agnostic primitives (BinaryStreamEncoder/Decoder, BinaryStorage, EndpointManager, EventEmitter, FrameDispatcher)
+  - **NEW**: Composition patterns (live streaming, hash-addressed storage, multi-endpoint routing, custom protocols)
   - Nodes, peers, and networks
   - Sessions and connections
   - Streams and multiplexing
@@ -141,8 +155,17 @@ If you're looking for specific information, use the chapter links below.
 
 ### Part V: Reference
 
+- [Design: Agnostic Design Philosophy](../design/agnostic_design_philosophy.md)
+  - **NEW**: Complete agnostic design documentation
+  - Zero assumptions principle
+  - Eight primitives in depth
+  - Design patterns (live streaming, storage, routing, custom protocols)
+  - Anti-patterns (what NOT to do)
+  - Terminology guide (agnostic language)
+
 - [Appendix A: Glossary](appendix_a_glossary.md)
   - All technical terms defined
+  - **NEW**: Agnostic terminology (bytes, segments, hash-based addressing)
 
 - [Appendix B: Frame Format Reference](appendix_b_frame_format.md)
   - Detailed binary format specification

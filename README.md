@@ -4,15 +4,71 @@
 [![License](https://img.shields.io/badge/license-ANTI--CAPITALIST-red)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9+-green)](https://python.org)
 
-**Binary P2P streaming protocol using STC (Seigr Toolset Crypto) for cryptographic operations.**
+**Agnostic binary transport protocol - NOT a file transfer system.**
+
+STT is a **secure binary transport protocol** using STC (Seigr Toolset Crypto) for encryption. It makes **ZERO assumptions** about what you're sending - could be video, sensor data, protocol messages, or anything else. You define the semantics, STT just moves encrypted bytes securely.
 
 ---
 
-## What This Is
+## What This Is (and Isn't)
 
-STT is a peer-to-peer streaming protocol that uses Seigr Toolset Crypto (STC) for all cryptographic operations. STC uses probabilistic cryptography rather than deterministic functions like SHA-256. The protocol implements a 4-message handshake (HELLO, RESPONSE, AUTH_PROOF, FINAL) using STC's encrypt/decrypt operations for mutual authentication between peers who share a pre-distributed seed.
+**STT IS:**
+- Pure binary transport (send/receive opaque bytes)
+- Agnostic streaming (live streams, bounded streams, infinite streams)
+- Multi-endpoint routing (user defines what endpoints mean)
+- STC-encrypted storage (hash-addressed byte buckets)
+- Extensible framing (custom frame types 0x80-0xFF)
 
-**Status**: Pre-release v0.2.0-alpha - **90.03% test coverage** - Core protocol tested and functional
+**STT IS NOT:**
+- A file transfer protocol (no file semantics)
+- A content management system (no content types)
+- Application-specific (you define what data means)
+
+**Philosophy:** STT = Secure Binary Transport Protocol. Period. What you send is your business.
+
+---
+
+## Status
+
+**Pre-release v0.2.0-alpha** - Core agnostic primitives implemented and tested
+
+**Test Coverage: 90.03%** (210 missing lines from 2107 total statements)
+
+---
+
+## Agnostic Primitives (New in v0.2.0-alpha)
+
+STT provides low-level primitives with NO semantic assumptions:
+
+**BinaryStreamEncoder/Decoder:**
+- Live streaming (infinite): `mode='live'` - continuous data flow, never ends
+- Bounded streaming (finite): `mode='bounded'` - known completion, call `end()`
+- Async iterators: `async for segment in encoder.send(bytes)`
+- Out-of-order handling: Automatic segment reordering
+- Flow control: Credit-based backpressure
+
+**BinaryStorage:**
+- Hash-addressed byte buckets: `put(bytes) -> address`
+- STC-encrypted storage: Secure at rest
+- Deduplication: Same bytes = same address (SHA3-256)
+- NO file semantics: Just bytes in, bytes out
+
+**EndpointManager:**
+- Multi-endpoint routing: `send_to()`, `send_to_many()`, `receive_any()`
+- User-defined endpoints: You decide what they represent
+- Per-endpoint queues: Independent receive streams
+
+**EventEmitter:**
+- User-defined events: Register custom event handlers
+- Async dispatch: `@emitter.on('custom_event')`
+- Built-in events: `bytes_received`, `endpoint_connected`, etc.
+
+**FrameDispatcher:**
+- Custom frame types: 0x80-0xFF reserved for user protocols
+- Handler registration: `register_custom_handler(type, handler)`
+- Zero assumptions about payload meaning
+
+---
 
 ## Components
 

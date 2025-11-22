@@ -28,9 +28,9 @@ logger = get_logger(__name__)
 
 
 @dataclass
-class ChunkMetadata:
-    """Metadata for probabilistic chunk delivery."""
-    chunk_idx: int
+class SegmentMetadata:
+    """Metadata for probabilistic segment delivery (agnostic binary data)."""
+    segment_idx: int
     entropy: float
     delivery_prob: float
     replication: int

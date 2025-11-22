@@ -16,6 +16,268 @@
 - WebSocket Transport: **84.17%**
 - Node Runtime: **82.95%**
 
+---
+
+## Agnostic Primitives (Phase 0 - NEW)
+
+**Philosophy**: Zero semantic assumptions. STT transports/stores/routes bytes. YOU define meaning.
+
+### BinaryStreamEncoder
+
+**Async generator yielding encrypted byte segments.**
+
+```python
+from seigr_toolset_transmissions.streaming import BinaryStreamEncoder
+
+encoder = BinaryStreamEncoder(
+    data_source: Union[bytes, AsyncIterable[bytes]],
+    stc_context: StreamingContext,
+    mode: Literal["live", "bounded"] = "bounded",
+    segment_size: int = 1400
+)
+
+async for encrypted_segment in encoder:
+    # Yields tuple: (sequence_num, encrypted_bytes)
+    # STT doesn't know what the bytes represent
+    await your_transport(encrypted_segment)
+```
+
+**Parameters:**
+
+- `data_source`: Bytes or async generator (YOUR data: video, sensors, files, anything)
+- `stc_context`: STC encryption context from `STCWrapper.create_stream_context()`
+- `mode`: `"live"` (unknown size, real-time) or `"bounded"` (known size, batch)
+- `segment_size`: MTU optimization (NOT semantic chunking)
+
+**What it does:**
+
+- Splits bytes into segments (MTU-optimized)
+- Encrypts with STC
+- Yields (sequence_num, encrypted_bytes) tuples
+
+**What it does NOT:**
+
+- Parse your data format
+- Assume data type (video? sensors? doesn't care)
+- Know about H.264, JSON, protobuf, etc.
+
+---
+
+### BinaryStreamDecoder
+
+**Async iterator handling out-of-order encrypted segments.**
+
+```python
+from seigr_toolset_transmissions.streaming import BinaryStreamDecoder
+
+decoder = BinaryStreamDecoder(stc_context: StreamingContext)
+
+# Receive segments (possibly out-of-order from network)
+decoder.receive_segment(encrypted_bytes, sequence_num)
+
+# Get complete decrypted bytes (handles reordering)
+decrypted = await decoder.receive_all()
+
+# YOU interpret the bytes
+your_data = your_deserializer(decrypted)
+```
+
+**Methods:**
+
+**`receive_segment(encrypted_bytes: bytes, sequence: int)`**  
+Buffer encrypted segment (handles out-of-order)
+
+**`async receive_all() -> bytes`**  
+Wait for all segments, decrypt, return complete bytes
+
+**What it does:**
+
+- Buffer out-of-order segments
+- Reorder by sequence number
+- Decrypt with STC
+- Return complete byte stream
+
+**What it does NOT:**
+
+- Know what bytes represent
+- Deserialize application data
+- Validate schemas
+
+---
+
+### BinaryStorage
+
+**Hash-addressed encrypted byte buckets (content-addressable storage).**
+
+```python
+from seigr_toolset_transmissions.storage import BinaryStorage
+
+storage = BinaryStorage(stc_wrapper: STCWrapper, storage_dir: Path = Path(".storage"))
+
+# Store arbitrary bytes (images, documents, sensor logs, anything)
+hash_address = await storage.store(arbitrary_bytes)
+# Returns SHA3-256 hash (deterministic, same bytes = same hash)
+
+# Retrieve by hash
+retrieved = await storage.retrieve(hash_address)
+
+# Deduplication: same content = same hash = same storage
+```
+
+**Methods:**
+
+**`async store(data: bytes) -> str`**  
+Store encrypted bytes, return SHA3-256 hash address
+
+**`async retrieve(hash_address: str) -> bytes`**  
+Retrieve decrypted bytes by hash
+
+**`async exists(hash_address: str) -> bool`**  
+Check if hash exists
+
+**What it does:**
+
+- Hash with SHA3-256 (deterministic addressing)
+- Encrypt with STC before storing
+- Deduplicate automatically
+- Store in filesystem (configurable directory)
+
+**What it does NOT:**
+
+- Know what's stored (image? document? doesn't care)
+- Validate file types
+- Maintain metadata (YOU add if needed)
+- Organize into folders
+
+---
+
+### EndpointManager
+
+**Multi-endpoint routing with per-endpoint queues.**
+
+```python
+from seigr_toolset_transmissions.routing import EndpointManager
+
+endpoint_mgr = EndpointManager()
+
+# Route bytes to endpoints (peers, services, destinations)
+await endpoint_mgr.route_to_endpoint("video_sink", frame_bytes)
+await endpoint_mgr.route_to_endpoint("telemetry", sensor_bytes)
+
+# Each endpoint has independent queue
+data = await endpoint_mgr.receive_from_endpoint("video_sink")
+```
+
+**Methods:**
+
+**`async route_to_endpoint(endpoint_id: str, data: bytes)`**  
+Send bytes to specific endpoint queue
+
+**`async receive_from_endpoint(endpoint_id: str) -> bytes`**  
+Receive bytes from endpoint queue
+
+**`list_endpoints() -> List[str]`**  
+Get all endpoint IDs
+
+**What it does:**
+
+- Maintain per-endpoint queues
+- Route bytes to destinations
+- Handle concurrent endpoints
+
+**What it does NOT:**
+
+- Know why routing (load balancing? replication? doesn't matter)
+- Interpret endpoint names (YOU choose scheme)
+- Validate data
+
+---
+
+### EventEmitter
+
+**User-defined event system (YOU define event types).**
+
+```python
+from seigr_toolset_transmissions.events import EventEmitter
+
+emitter = EventEmitter()
+
+# Define YOUR event types (STT has no built-in events)
+emitter.on("temperature_alert", handle_temp)
+emitter.on("frame_received", handle_frame)
+emitter.on("peer_connected", handle_peer)
+
+# Emit YOUR events
+await emitter.emit("temperature_alert", {"temp": 95.3, "sensor": "cpu"})
+```
+
+**Methods:**
+
+**`on(event_type: str, handler: Callable)`**  
+Register handler for event type (YOU define types)
+
+**`off(event_type: str, handler: Callable)`**  
+Unregister handler
+
+**`async emit(event_type: str, data: Any)`**  
+Emit event to all handlers
+
+**What it does:**
+
+- Dispatch to registered handlers
+- Support async handlers
+- Allow multiple handlers per type
+
+**What it does NOT:**
+
+- Define event types (YOU define)
+- Validate payloads
+- Enforce schemas
+
+---
+
+### FrameDispatcher
+
+**Custom frame types 0x80-0xFF (YOUR binary protocol).**
+
+```python
+from seigr_toolset_transmissions.frames import FrameDispatcher
+
+dispatcher = FrameDispatcher()
+
+# Register YOUR custom frame handlers
+dispatcher.register_handler(0x80, handle_custom_handshake)
+dispatcher.register_handler(0x81, handle_custom_data)
+dispatcher.register_handler(0xFF, handle_custom_control)
+
+# STT calls handlers when those frame types arrive
+await dispatcher.dispatch(frame_type, frame_payload)
+```
+
+**Methods:**
+
+**`register_handler(frame_type: int, handler: Callable)`**  
+Register handler for custom frame type (0x80-0xFF only)
+
+**`async dispatch(frame_type: int, payload: bytes)`**  
+Dispatch frame to registered handler
+
+**What it does:**
+
+- Route frames to type-specific handlers
+- Support custom types 0x80-0xFF (STT reserves 0x01-0x7F)
+- Call your handlers with payloads
+
+**What it does NOT:**
+
+- Define frame semantics (YOU define what 0x80 means)
+- Parse payloads (YOU parse format)
+- Validate protocols
+
+---
+
+## Core Session/Stream Components
+
 ## STTNode
 
 Main runtime for STT protocol - **82.95% coverage** - Functional Implementation

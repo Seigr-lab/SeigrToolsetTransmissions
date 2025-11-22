@@ -2,6 +2,9 @@
 Seigr Toolset Transmissions (STT)
 
 Binary, encrypted, application-agnostic transmission protocol for the Seigr Ecosystem.
+
+Philosophy: Zero semantic assumptions. STT transports/stores/routes bytes.
+YOU define what they mean.
 """
 
 __version__ = "0.2.0a0"
@@ -10,28 +13,41 @@ __author__ = "Sergi Saldaña-Massó - Seigr Lab"
 from .core import STTNode, ReceivedPacket
 from .session import STTSession, SessionManager
 from .stream import STTStream, StreamManager
-from .frame import STTFrame
+from .frame import STTFrame, FrameDispatcher
 from .handshake import HandshakeManager, STTHandshake
 from .chamber import Chamber
 from .crypto import STCWrapper
 
+# Agnostic Primitives (Phase 0)
+from .streaming import StreamEncoder, StreamDecoder
+from .storage import BinaryStorage
+from .endpoints import EndpointManager
+from .events import EventEmitter, STTEvents
+
 __all__ = [
-    # Core
+    # Core Runtime
     'STTNode',
     'ReceivedPacket',
-    # Session
+    # Session/Stream Management
     'STTSession',
     'SessionManager',
-    # Stream
     'STTStream',
     'StreamManager',
-    # Frame
+    # Frame Protocol
     'STTFrame',
+    'FrameDispatcher',
     # Handshake
     'HandshakeManager',
     'STTHandshake',
-    # Chamber
+    # Storage
     'Chamber',
     # Crypto
     'STCWrapper',
+    # Agnostic Primitives
+    'StreamEncoder',          # Binary stream encoder (live/bounded)
+    'StreamDecoder',          # Binary stream decoder (out-of-order handling)
+    'BinaryStorage',          # Hash-addressed encrypted byte buckets
+    'EndpointManager',        # Multi-endpoint routing
+    'EventEmitter',           # User-defined event system
+    'STTEvents',              # Event registry
 ]

@@ -1,11 +1,17 @@
 """
 STT Frame structure and encoding/decoding with STC encryption.
+
+AGNOSTIC DESIGN:
+- Frame types 0x00-0x7F: STT protocol frames (control, data, etc.)
+- Frame types 0x80-0xFF: User-defined custom frames (NO assumptions)
+- User registers custom handlers via FrameDispatcher
+- STT never interprets custom frame payloads
 """
 
 import struct
 import time
 from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Callable, Dict
 
 from ..utils.constants import (
     STT_MAGIC,
@@ -22,6 +28,13 @@ from ..utils.varint import encode_varint, decode_varint
 
 if TYPE_CHECKING:
     from ..crypto.stc_wrapper import STCWrapper
+
+
+# Frame type ranges
+FRAME_TYPE_STT_MIN = 0x00
+FRAME_TYPE_STT_MAX = 0x7F
+FRAME_TYPE_CUSTOM_MIN = 0x80
+FRAME_TYPE_CUSTOM_MAX = 0xFF
 
 
 @dataclass
@@ -332,7 +345,7 @@ class STTFrame:
         Factory method to create a new frame.
         
         Args:
-            frame_type: Frame type constant
+            frame_type: Frame type constant (0x00-0xFF)
             session_id: Session identifier (8 bytes)
             sequence: Sequence number
             stream_id: Stream identifier
@@ -355,3 +368,134 @@ class STTFrame:
             stream_id=stream_id,
             payload=payload,
         )
+    
+    def is_custom_frame(self) -> bool:
+        """Check if frame is user-defined custom type."""
+        return FRAME_TYPE_CUSTOM_MIN <= self.frame_type <= FRAME_TYPE_CUSTOM_MAX
+    
+    def is_stt_frame(self) -> bool:
+        """Check if frame is STT protocol type."""
+        return FRAME_TYPE_STT_MIN <= self.frame_type <= FRAME_TYPE_STT_MAX
+
+
+class FrameDispatcher:
+    """
+    Dispatch frames to handlers based on frame type.
+    
+    Allows user to register custom frame handlers for types 0x80-0xFF.
+    STT never interprets custom frame payloads - user defines semantics.
+    """
+    
+    def __init__(self):
+        """Initialize frame dispatcher."""
+        # Custom frame handlers (frame_type -> async handler)
+        self._custom_handlers: Dict[int, Callable] = {}
+        
+        # STT protocol handlers (internal use)
+        self._stt_handlers: Dict[int, Callable] = {}
+    
+    def register_custom_handler(
+        self,
+        frame_type: int,
+        handler: Callable[['STTFrame'], None]
+    ) -> None:
+        """
+        Register handler for custom frame type.
+        
+        Args:
+            frame_type: Frame type (0x80-0xFF)
+            handler: Async callable to process frame
+        
+        Example:
+            # User defines custom frame type
+            FRAME_TYPE_MY_PROTOCOL = 0x80
+            
+            async def handle_my_frame(frame: STTFrame):
+                # User interprets payload
+                my_data = parse_my_protocol(frame.payload)
+                process(my_data)
+            
+            dispatcher.register_custom_handler(
+                FRAME_TYPE_MY_PROTOCOL,
+                handle_my_frame
+            )
+        """
+        if not (FRAME_TYPE_CUSTOM_MIN <= frame_type <= FRAME_TYPE_CUSTOM_MAX):
+            raise STTFrameError(
+                f"Custom frame type must be 0x{FRAME_TYPE_CUSTOM_MIN:02X}-"
+                f"0x{FRAME_TYPE_CUSTOM_MAX:02X}, got 0x{frame_type:02X}"
+            )
+        
+        self._custom_handlers[frame_type] = handler
+    
+    def _register_stt_handler(
+        self,
+        frame_type: int,
+        handler: Callable[['STTFrame'], None]
+    ) -> None:
+        """
+        Register internal STT protocol handler.
+        
+        Args:
+            frame_type: STT frame type (0x00-0x7F)
+            handler: Async callable to process frame
+        """
+        if not (FRAME_TYPE_STT_MIN <= frame_type <= FRAME_TYPE_STT_MAX):
+            raise STTFrameError(
+                f"STT frame type must be 0x{FRAME_TYPE_STT_MIN:02X}-"
+                f"0x{FRAME_TYPE_STT_MAX:02X}, got 0x{frame_type:02X}"
+            )
+        
+        self._stt_handlers[frame_type] = handler
+    
+    async def dispatch(self, frame: 'STTFrame') -> None:
+        """
+        Dispatch frame to registered handler.
+        
+        Args:
+            frame: Frame to dispatch
+        
+        Raises:
+            STTFrameError: If no handler registered for frame type
+        """
+        if frame.is_custom_frame():
+            # User-defined frame
+            if frame.frame_type in self._custom_handlers:
+                handler = self._custom_handlers[frame.frame_type]
+                await handler(frame)
+            else:
+                raise STTFrameError(
+                    f"No handler registered for custom frame type 0x{frame.frame_type:02X}"
+                )
+        else:
+            # STT protocol frame
+            if frame.frame_type in self._stt_handlers:
+                handler = self._stt_handlers[frame.frame_type]
+                await handler(frame)
+            else:
+                raise STTFrameError(
+                    f"No handler registered for STT frame type 0x{frame.frame_type:02X}"
+                )
+    
+    def unregister_custom_handler(self, frame_type: int) -> None:
+        """
+        Unregister custom frame handler.
+        
+        Args:
+            frame_type: Custom frame type to unregister
+        """
+        if frame_type in self._custom_handlers:
+            del self._custom_handlers[frame_type]
+    
+    def get_registered_types(self) -> Dict[str, list]:
+        """
+        Get all registered frame types.
+        
+        Returns:
+            Dict with 'stt' and 'custom' lists of frame types
+        """
+        return {
+            'stt': list(self._stt_handlers.keys()),
+            'custom': list(self._custom_handlers.keys())
+        }
+

@@ -1,6 +1,19 @@
-"""Streaming encoder/decoder using STC's native streaming support."""
+"""
+Agnostic streaming primitives - Binary stream encoding/decoding.
 
-from .encoder import StreamEncoder
-from .decoder import StreamDecoder
+NO assumptions about data semantics. Live or bounded modes.
+"""
 
-__all__ = ['StreamEncoder', 'StreamDecoder']
+from .encoder import BinaryStreamEncoder
+from .decoder import BinaryStreamDecoder
+
+# Aliases for compatibility
+StreamEncoder = BinaryStreamEncoder
+StreamDecoder = BinaryStreamDecoder
+
+__all__ = [
+    'BinaryStreamEncoder',
+    'BinaryStreamDecoder',
+    'StreamEncoder',  # Alias
+    'StreamDecoder',  # Alias
+]

@@ -81,3 +81,18 @@ class STTSerializationError(STTException):
 class STTStreamingError(STTException):
     """Raised when streaming operations fail."""
     pass
+
+
+class STTStorageError(STTException):
+    """Raised when storage operations fail."""
+    pass
+
+
+class STTEndpointError(STTException):
+    """Raised when endpoint operations fail."""
+    pass
+
+
+class STTEventError(STTException):
+    """Raised when event system operations fail."""
+    pass

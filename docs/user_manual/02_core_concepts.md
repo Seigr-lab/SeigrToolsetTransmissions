@@ -2,7 +2,238 @@
 
 ## Introduction
 
-This chapter explains the fundamental building blocks of STT in plain language. By the end, you'll understand nodes, sessions, streams, and how they work together.
+This chapter explains the fundamental building blocks of STT in plain language. By the end, you'll understand how **agnostic primitives** compose into complete applications.
+
+**Remember**: STT provides primitives. YOU define semantics.
+
+## Agnostic Primitives: The Building Blocks
+
+Before diving into sessions and streams, understand STT's **agnostic design philosophy**:
+
+### The Agnostic Principle
+
+**STT does NOT interpret your data.** It provides primitives that work for ANY binary data:
+
+- **BinaryStreamEncoder**: Yields encrypted byte segments (doesn't know if it's video, sensor data, or messages)
+- **BinaryStreamDecoder**: Receives encrypted segments, handles out-of-order delivery (doesn't care what the bytes represent)
+- **BinaryStorage**: Hash-addressed encrypted byte buckets (no assumptions about content)
+- **EndpointManager**: Routes bytes to different endpoints (doesn't know why you're routing)
+- **EventEmitter**: Dispatches user-defined events (YOU choose event types)
+- **FrameDispatcher**: Handles custom frame types 0x80-0xFF (YOUR protocol on top of STT)
+
+**YOU define semantics. STT provides transport/storage/routing.**
+
+### Primitive 1: BinaryStreamEncoder
+
+**Purpose**: Convert arbitrary byte streams into encrypted segments
+
+**Modes:**
+
+- **Live Mode**: Stream data as it arrives (unknown total size) - for real-time video, sensors, live events
+- **Bounded Mode**: Stream known-size data in batches - for files, static datasets
+
+```python
+# Live streaming (video frames, sensor readings, real-time data)
+encoder = BinaryStreamEncoder(
+    data_source=your_byte_generator,
+    stc_context=streaming_context,
+    mode="live"
+)
+
+async for encrypted_segment in encoder:
+    # Yields encrypted bytes, STT doesn't know what they represent
+    await send_to_peer(encrypted_segment)
+```
+
+**What encoder does:**
+
+- Splits bytes into MTU-optimized segments (NOT semantic chunks)
+- Encrypts each segment with STC
+- Yields segments as async generator
+
+**What encoder does NOT do:**
+
+- Parse your data format (doesn't know about H.264, JSON, protobuf, etc.)
+- Assume data type (could be video, sensors, files, anything)
+- Care about application semantics
+
+### Primitive 2: BinaryStreamDecoder
+
+**Purpose**: Receive encrypted segments, handle out-of-order delivery, decrypt bytes
+
+```python
+decoder = BinaryStreamDecoder(stc_context=streaming_context)
+
+# Receive segments (possibly out-of-order)
+decoder.receive_segment(encrypted_segment, sequence_number)
+
+# Get all bytes when ready (decoder handles reordering)
+decrypted_bytes = await decoder.receive_all()
+
+# YOU interpret the bytes (video frame? sensor reading? message?)
+your_application_data = your_deserializer(decrypted_bytes)
+```
+
+**What decoder does:**
+
+- Buffer out-of-order segments
+- Reorder by sequence number
+- Decrypt with STC
+- Return complete byte stream
+
+**What decoder does NOT do:**
+
+- Know what the bytes mean
+- Deserialize application data
+- Validate against schemas
+
+### Primitive 3: BinaryStorage
+
+**Purpose**: Hash-addressed encrypted byte buckets (content-addressable storage)
+
+```python
+storage = BinaryStorage(stc_wrapper)
+
+# Store arbitrary bytes (could be images, documents, sensor logs, anything)
+hash_address = await storage.store(arbitrary_bytes)
+# Returns SHA3-256 hash (deterministic, same bytes = same hash)
+
+# Retrieve by hash
+retrieved_bytes = await storage.retrieve(hash_address)
+
+# Deduplication: storing same bytes twice returns same hash, uses same storage
+```
+
+**What storage does:**
+
+- Hash bytes with SHA3-256 (deterministic, content-based addressing)
+- Encrypt with STC before storing
+- Deduplicate (same content = same hash = same storage location)
+- Retrieve by hash address
+
+**What storage does NOT do:**
+
+- Know what's stored (image? document? sensor data? doesn't care)
+- Validate file types
+- Organize into folders/directories
+- Maintain metadata (YOU add metadata if needed)
+
+### Primitive 4: EndpointManager
+
+**Purpose**: Route bytes to different endpoints (multi-peer, multi-destination)
+
+```python
+endpoint_mgr = EndpointManager()
+
+# Route data to specific endpoint (could be peer, service, destination)
+await endpoint_mgr.route_to_endpoint("video_sink", video_frame_bytes)
+await endpoint_mgr.route_to_endpoint("telemetry_sink", sensor_bytes)
+
+# Each endpoint has independent queue
+```
+
+**What endpoint manager does:**
+
+- Maintain per-endpoint queues
+- Route bytes to correct destination
+- Handle multiple concurrent endpoints
+
+**What endpoint manager does NOT do:**
+
+- Know why you're routing (load balancing? replication? fanout? doesn't matter)
+- Interpret endpoint names (YOU choose naming scheme)
+- Validate data going to endpoints
+
+### Primitive 5: EventEmitter
+
+**Purpose**: User-defined event system (YOU define event types)
+
+```python
+emitter = EventEmitter()
+
+# Define YOUR event types (STT has no built-in event semantics)
+emitter.on("temperature_threshold_exceeded", handle_temp_alert)
+emitter.on("video_frame_received", handle_frame)
+emitter.on("peer_connected", handle_new_peer)
+
+# Emit YOUR events
+await emitter.emit("temperature_threshold_exceeded", {"temp": 95.3, "sensor": "cpu"})
+```
+
+**What event emitter does:**
+
+- Dispatch events to registered handlers
+- Support async handlers
+- Allow multiple handlers per event type
+
+**What event emitter does NOT do:**
+
+- Define event types (YOU define them)
+- Validate event payloads
+- Enforce event schemas
+
+### Primitive 6: FrameDispatcher
+
+**Purpose**: Handle custom frame types 0x80-0xFF (YOUR binary protocol)
+
+```python
+dispatcher = FrameDispatcher()
+
+# Register handlers for YOUR frame types
+dispatcher.register_handler(0x80, handle_custom_handshake)
+dispatcher.register_handler(0x81, handle_custom_data)
+dispatcher.register_handler(0xFF, handle_custom_control)
+
+# STT calls your handlers when those frame types arrive
+```
+
+**What frame dispatcher does:**
+
+- Route frames to type-specific handlers
+- Support custom frame types 0x80-0xFF (STT reserves 0x01-0x7F)
+- Call your handlers with frame payloads
+
+**What frame dispatcher does NOT do:**
+
+- Define frame semantics (YOU define what 0x80 means)
+- Parse frame payloads (YOU parse your format)
+- Validate custom protocols
+
+### The Composition Pattern
+
+**All primitives compose together:**
+
+```python
+# Example: Live video streaming to multiple peers with storage
+
+# 1. Encode video frames (YOU encode with YOUR codec)
+video_bytes = your_h264_encoder.encode(raw_frame)
+
+# 2. Stream via BinaryStreamEncoder (live mode)
+encoder = BinaryStreamEncoder(video_bytes, stc_ctx, mode="live")
+async for segment in encoder:
+    
+    # 3. Store segments for later retrieval (hash-addressed)
+    hash_addr = await storage.store(segment)
+    
+    # 4. Route to multiple endpoints (live viewers)
+    await endpoint_mgr.route_to_endpoint("viewer_alice", segment)
+    await endpoint_mgr.route_to_endpoint("viewer_bob", segment)
+    
+    # 5. Emit custom event (YOUR event type)
+    await emitter.emit("frame_sent", {"hash": hash_addr, "viewers": 2})
+
+# STT just moved bytes. YOU defined: video format, routing logic, events, storage strategy
+```
+
+**Key Insight**: Same primitives work for completely different applications:
+
+- **Video streaming**: BinaryStreamEncoder (live) + EndpointManager (fanout to viewers)
+- **Sensor network**: BinaryStorage (hash-addressed readings) + EventEmitter (threshold alerts)
+- **P2P messaging**: Custom frames (0x80 = chat message) + EndpointManager (peer routing)
+- **File transfer**: BinaryStreamEncoder (bounded) + BinaryStorage (deduplication)
+
+**Zero assumptions. Maximum flexibility.**
 
 ## Nodes: The Participants
 
