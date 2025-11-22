@@ -10,7 +10,6 @@ from ..utils.exceptions import STTSessionError
 
 if TYPE_CHECKING:
     from .continuity import CryptoSessionContinuity
-    from .affinity_pool import ContentAffinityPool
 
 
 class STTSession:

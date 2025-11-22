@@ -10,16 +10,13 @@ from collections import deque
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamError
 
-if TYPE_CHECKING:
-    from .adaptive_priority import AdaptivePriorityManager
-
 
 class STTStream:
     """
     Multiplexed stream within an STT session.
     """
     
-    def __init__(self, session_id: bytes, stream_id: int, stc_wrapper: STCWrapper, priority_manager: Optional['AdaptivePriorityManager'] = None):
+    def __init__(self, session_id: bytes, stream_id: int, stc_wrapper: STCWrapper):
         """
         Initialize stream.
         
@@ -27,12 +24,10 @@ class STTStream:
             session_id: Parent session identifier
             stream_id: Unique stream identifier within session
             stc_wrapper: STC wrapper for stream encryption
-            priority_manager: Optional adaptive priority manager
         """
         self.session_id = session_id
         self.stream_id = stream_id
         self.stc_wrapper = stc_wrapper
-        self.priority_manager = priority_manager
         self.current_priority = 500  # Default mid-range (0-1000)
         
         # Stream state
