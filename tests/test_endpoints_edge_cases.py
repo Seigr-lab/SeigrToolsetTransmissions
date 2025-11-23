@@ -187,3 +187,134 @@ class TestEndpointManagerEdgeCases:
         # Verify all removed
         remaining = manager.get_endpoints()
         assert len(remaining) == 0
+
+
+class TestEndpointManagerAdvanced:
+    """Additional tests for 100% coverage of endpoints/manager.py."""
+    
+    @pytest.mark.asyncio
+    async def test_send_to_with_transport_callback(self):
+        """Test send_to() with transport layer callback (line 127)."""
+        sent_data = []
+        
+        async def mock_transport_send(endpoint_id, data):
+            sent_data.append((endpoint_id, data))
+        
+        manager = EndpointManager(transport_send_callback=mock_transport_send)
+        endpoint_id = b'endpoint_with_callback'
+        
+        await manager.add_endpoint(endpoint_id, ('192.168.1.1', 8080))
+        await manager.send_to(endpoint_id, b'test_data')
+        
+        # Should have called transport callback
+        assert len(sent_data) == 1
+        assert sent_data[0] == (endpoint_id, b'test_data')
+    
+    @pytest.mark.asyncio
+    async def test_receive_from_timeout(self):
+        """Test receive_from() timeout raises STTEndpointError (lines 196-204)."""
+        manager = EndpointManager()
+        endpoint_id = b'endpoint_timeout'
+        
+        await manager.add_endpoint(endpoint_id, ('192.168.1.1', 8080))
+        
+        # Try to receive with timeout - should raise STTEndpointError
+        with pytest.raises(STTEndpointError, match="Receive timeout"):
+            await manager.receive_from(endpoint_id, timeout=0.01)
+    
+    @pytest.mark.asyncio
+    async def test_receive_from_updates_stats(self):
+        """Test receive_from() updates endpoint stats (lines 199-202)."""
+        manager = EndpointManager()
+        endpoint_id = b'endpoint_stats'
+        
+        await manager.add_endpoint(endpoint_id, ('192.168.1.1', 8080))
+        
+        # Enqueue data
+        test_data = b'test_message'
+        await manager._enqueue_received(endpoint_id, test_data)
+        
+        # Receive data
+        received = await manager.receive_from(endpoint_id)
+        
+        # Check stats updated
+        info = manager.get_endpoint_info(endpoint_id)
+        assert info['bytes_received'] == len(test_data)
+        assert received == test_data
+    
+    @pytest.mark.asyncio
+    async def test_receive_any_timeout(self):
+        """Test receive_any() timeout raises STTEndpointError (lines 226-243)."""
+        manager = EndpointManager()
+        
+        # Try to receive with no data - should timeout
+        with pytest.raises(STTEndpointError, match="Receive timeout"):
+            await manager.receive_any(timeout=0.01)
+    
+    @pytest.mark.asyncio
+    async def test_receive_any_with_data(self):
+        """Test receive_any() receives and updates stats (lines 230-241)."""
+        manager = EndpointManager()
+        endpoint_id = b'endpoint_any'
+        
+        await manager.add_endpoint(endpoint_id, ('192.168.1.1', 8080))
+        
+        # Enqueue data
+        test_data = b'broadcast_data'
+        await manager._enqueue_received(endpoint_id, test_data)
+        
+        # Receive from any
+        data, source_id = await manager.receive_any()
+        
+        assert data == test_data
+        assert source_id == endpoint_id
+        
+        # Check stats updated
+        info = manager.get_endpoint_info(endpoint_id)
+        assert info['bytes_received'] == len(test_data)
+    
+    @pytest.mark.asyncio
+    async def test_enqueue_received_both_queues(self):
+        """Test _enqueue_received() adds to both queues (lines 252-256)."""
+        manager = EndpointManager()
+        endpoint_id = b'endpoint_dual_queue'
+        
+        await manager.add_endpoint(endpoint_id, ('192.168.1.1', 8080))
+        
+        test_data = b'dual_queue_data'
+        await manager._enqueue_received(endpoint_id, test_data)
+        
+        # Should be in endpoint-specific queue
+        data_specific = await manager.receive_from(endpoint_id)
+        assert data_specific == test_data
+        
+        # Re-enqueue for global queue test
+        await manager._enqueue_received(endpoint_id, test_data)
+        
+        # Should also be in global queue
+        data_global, source = await manager.receive_any()
+        assert data_global == test_data
+        assert source == endpoint_id
+    
+    @pytest.mark.asyncio
+    async def test_get_stats(self):
+        """Test get_stats() calculates totals (lines 286-289)."""
+        manager = EndpointManager()
+        
+        # Register multiple endpoints
+        ep1 = b'endpoint1'
+        ep2 = b'endpoint2'
+        
+        await manager.add_endpoint(ep1, ('192.168.1.1', 8080))
+        await manager.add_endpoint(ep2, ('192.168.1.2', 8080))
+        
+        # Send data to update stats
+        await manager.send_to(ep1, b'data1')
+        await manager.send_to(ep2, b'data22')
+        
+        # Get stats
+        stats = manager.get_stats()
+        
+        assert stats['total_endpoints'] == 2
+        assert stats['total_bytes_sent'] == 5 + 6  # len('data1') + len('data22')
+        assert stats['total_bytes_received'] == 0  # No receives yet

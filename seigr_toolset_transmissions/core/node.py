@@ -377,7 +377,7 @@ class STTNode:
             data: Data to broadcast
             stream_id: Stream ID to use
         """
-        sessions = self.session_manager.get_all_sessions()
+        sessions = self.session_manager.get_active_sessions()
         
         if not sessions:
             logger.warning("No active sessions for broadcast")
