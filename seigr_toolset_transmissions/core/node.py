@@ -172,15 +172,13 @@ class STTNode:
             raise STTException("Node not started")
         
         try:
-            # Initiate handshake
+            # Initiate handshake (async method returns handshake object)
             peer_addr = (peer_host, peer_port)
             handshake = await self.handshake_manager.initiate_handshake(peer_addr)
             
-            # Get HELLO bytes
-            hello_bytes = handshake.hello
-            
-            # Send HELLO via UDP
-            await self.udp_transport.send_raw(hello_bytes, peer_addr)
+            # Create and send HELLO
+            hello_data = handshake.create_hello()
+            await self.udp_transport.send_raw(hello_data, peer_addr)
             
             # Wait for response (simplified - should use proper async waiting)
             await asyncio.sleep(0.1)
@@ -247,47 +245,46 @@ class STTNode:
         peer_addr: Tuple[str, int]
     ) -> None:
         """
-        Handle handshake frame.
+        Handle handshake frame (HELLO or RESPONSE).
         
         Args:
-            frame: Handshake frame
+            frame: Handshake frame containing HELLO or RESPONSE
             peer_addr: Peer address
         """
         try:
-            peer_key = f"{peer_addr[0]}:{peer_addr[1]}"
-            handshake = self.handshake_manager.get_handshake(peer_key)
+            # Check if we accept connections for incoming HELLOs
+            handshake = self.handshake_manager.active_handshakes.get(peer_addr)
             
-            if not handshake:
-                # New handshake - check if we accept connections
-                if not self._accept_connections:
-                    logger.warning(f"Rejecting connection from {peer_key} (server mode disabled)")
-                    return
-                
-                # Accept handshake as server
-                handshake = self.handshake_manager.create_handshake(peer_key)
-                response = handshake.handle_hello(frame.payload)
-                
-                # Send response
-                await self.udp_transport.send_raw(response, peer_addr)
-                
-                logger.info(f"Accepted incoming connection from {peer_key}")
-            else:
-                # Complete handshake
-                session_key, peer_node_id = handshake.handle_response(frame.payload)
-                
+            if not handshake and not self._accept_connections:
+                logger.warning(f"Rejecting connection from {peer_addr} (server mode disabled)")
+                return
+            
+            # Use handle_incoming to process HELLO or RESPONSE
+            response_data = await self.handshake_manager.handle_incoming(peer_addr, frame.payload)
+            
+            # Send response if we got one (this is a RESPONSE to their HELLO)
+            if response_data:
+                await self.udp_transport.send_raw(response_data, peer_addr)
+                logger.info(f"Sent handshake response to {peer_addr}")
+            
+            # Check if handshake completed
+            handshake = self.handshake_manager.active_handshakes.get(peer_addr)
+            if handshake and handshake.completed:
                 # Create session
-                session_id = secrets.token_bytes(8)
+                session_id = handshake.get_session_id()
+                peer_node_id = handshake.peer_node_id
+                
                 session = await self.session_manager.create_session(
                     session_id=session_id,
                     peer_node_id=peer_node_id,
                     capabilities=0,
                 )
-                session.session_key = session_key
+                session.session_key = handshake.session_key
                 session.state = STT_SESSION_STATE_ACTIVE
-                session.peer_addr = peer_addr  # Track peer address
+                session.peer_addr = peer_addr
                 session.transport_type = 'udp'
                 
-                logger.info(f"Session established with {peer_key}")
+                logger.info(f"Session established with {peer_addr}")
         
         except Exception as e:
             logger.error(f"Handshake error: {e}")

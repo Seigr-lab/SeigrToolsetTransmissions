@@ -34,6 +34,7 @@ node = STTNode(
 ```
 
 **Characteristics:**
+
 - **Connectionless**: No handshake (send packets directly)
 - **Stateless**: No connection tracking in kernel
 - **Unreliable**: Packets can be lost, reordered, duplicated
@@ -42,12 +43,14 @@ node = STTNode(
 **STT handles reliability** on top of UDP (retransmissions, ordering).
 
 **When to use UDP:**
+
 - ✅ Direct connectivity (both peers have reachable IP addresses)
 - ✅ Low latency critical (real-time streaming, gaming)
 - ✅ No restrictive firewalls (corporate environments may block)
 - ✅ You control both endpoints (can configure ports)
 
 **When NOT to use UDP:**
+
 - ❌ Through NAT without port forwarding
 - ❌ Corporate firewalls (often block non-standard UDP)
 - ❌ Public internet where only HTTP/HTTPS works
@@ -65,23 +68,27 @@ node = STTNode(
 ```
 
 **Characteristics:**
+
 - **Connection-oriented**: TCP handshake + WebSocket upgrade
 - **Reliable**: TCP retransmissions (redundant with STT retransmissions)
 - **Firewall-friendly**: Uses HTTP ports (80/443)
 - **Proxy support**: Works through HTTP proxies
 
 **Overhead:**
+
 - TCP header: ~20 bytes
 - WebSocket frame: ~2-14 bytes (depends on payload size)
 - **Total:** ~30-50ms extra latency vs UDP (connection setup + TCP overhead)
 
 **When to use WebSocket:**
+
 - ✅ Through corporate firewalls (HTTP allowed)
 - ✅ NAT traversal with TURN server (WebSocket over HTTP)
 - ✅ Browser compatibility (future JavaScript client)
 - ✅ Proxied environments (HTTP proxy support)
 
 **When NOT to use WebSocket:**
+
 - ❌ Low latency critical (TCP + HTTP overhead significant)
 - ❌ Direct connectivity available (UDP simpler and faster)
 
@@ -108,6 +115,7 @@ node = STTNode(
 ```
 
 **MTU (Maximum Transmission Unit):**
+
 - Ethernet: 1500 bytes
 - IPv4 overhead: 20 bytes
 - UDP overhead: 8 bytes
@@ -127,18 +135,21 @@ node = STTNode(
 ```
 
 **Firewall rules** (example using `ufw` on Linux):
+
 ```bash
 # Allow incoming UDP on port 8080
 sudo ufw allow 8080/udp
 ```
 
 **Port forwarding** (if behind NAT):
+
 - Router config: Forward external_port → internal_ip:8080/UDP
 - STT node listens on internal_ip:8080
 
 ### Performance Tuning
 
 **Socket buffer sizes:**
+
 ```python
 node = STTNode(
     node_id=b"Alice",
@@ -149,11 +160,13 @@ node = STTNode(
 ```
 
 **Why larger buffers?**
+
 - Handle bursts (sudden influx of packets)
 - Reduce packet loss (more time for application to read)
 - Critical for high-bandwidth transfers
 
 **OS-level tuning** (Linux):
+
 ```bash
 # Increase max socket buffer size
 sudo sysctl -w net.core.rmem_max=8388608
@@ -205,6 +218,7 @@ Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=
 ```
 
 **Latency impact:**
+
 - TCP handshake: ~1 RTT (round-trip time)
 - HTTP upgrade: ~1 RTT
 - **Total setup:** ~2 RTT (~20-100ms depending on network)
@@ -250,10 +264,12 @@ node = STTNode(
 ```
 
 **Double encryption:**
+
 - TLS encrypts WebSocket frames (transport layer)
 - STC encrypts STT payloads (application layer)
 
 **Why both?**
+
 - TLS: Satisfies network policies (enterprises often require TLS)
 - STC: End-to-end encryption (even if TLS terminated at proxy)
 
@@ -275,6 +291,7 @@ node = STTNode(
 ```
 
 **CONNECT method:**
+
 ```
 Client → Proxy:
 CONNECT peer.example.com:8080 HTTP/1.1
@@ -305,6 +322,7 @@ HTTP/1.1 200 Connection Established
 | **Browser Support** | No (future with WebRTC data channels) | Yes (native WebSocket API) |
 
 **Recommendation:**
+
 - **UDP first** if direct connectivity (faster)
 - **WebSocket fallback** if firewalls/NAT (connectivity)
 
@@ -315,6 +333,7 @@ HTTP/1.1 200 Connection Established
 **STT also provides reliability** (retransmissions, ordering)
 
 **Double work?** Yes, partially:
+
 - TCP retransmits lost packets
 - STT also detects/retransmits lost frames
 - **Redundant** but necessary (STT needs transport independence)
@@ -422,6 +441,7 @@ node = STTNode(
 ```
 
 **Use cases:**
+
 - Bluetooth transport (local wireless)
 - Serial/UART (embedded systems)
 - Shared memory (same-machine IPC)
@@ -443,6 +463,7 @@ print(f"Packet loss rate: {stats.loss_rate * 100:.2f}%")
 ```
 
 **Useful for:**
+
 - Diagnosing network issues
 - Monitoring performance
 - Detecting congestion
@@ -452,20 +473,24 @@ print(f"Packet loss rate: {stats.loss_rate * 100:.2f}%")
 **Use Wireshark** to inspect traffic:
 
 **UDP:**
+
 ```
 Filter: udp.port == 8080
 ```
 
 **WebSocket:**
+
 ```
 Filter: websocket
 ```
 
 **What you'll see:**
+
 - UDP: Encrypted STT frames (binary blobs)
 - WebSocket: Encrypted STT frames inside WebSocket frames
 
 **Cannot decrypt** (STC encrypted) - but can see:
+
 - Packet timing
 - Frame sizes
 - Connection patterns
@@ -479,12 +504,14 @@ Filter: websocket
 **Problem:** High packet loss (>5%)
 
 **Diagnosis:**
+
 ```python
 stats = node.get_transport_stats()
 print(f"Loss rate: {stats.loss_rate * 100:.2f}%")
 ```
 
 **Solutions:**
+
 1. **Check network quality** (WiFi interference, cable issues)
 2. **Increase socket buffers** (`recv_buffer_size`, `send_buffer_size`)
 3. **Reduce send rate** (slow down application)
@@ -495,6 +522,7 @@ print(f"Loss rate: {stats.loss_rate * 100:.2f}%")
 **Problem:** Connection times out (no response)
 
 **Diagnosis:**
+
 ```bash
 # Test UDP reachability
 nc -u -v peer_ip 8080
@@ -504,6 +532,7 @@ curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" http://peer_ip:8080/
 ```
 
 **Solutions:**
+
 1. **Configure firewall rules** (allow port)
 2. **Port forwarding** (if behind NAT)
 3. **Switch to WebSocket** (use HTTP port 80/443)
@@ -514,10 +543,12 @@ curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" http://peer_ip:8080/
 **Problem:** Large frames fail to send
 
 **Symptoms:**
+
 - Works for small data
 - Fails for large data (>1400 bytes)
 
 **Diagnosis:**
+
 ```bash
 # Test path MTU
 ping -M do -s 1472 peer_ip  # Linux
@@ -525,10 +556,13 @@ ping -D -s 1472 peer_ip     # macOS
 ```
 
 **Solutions:**
+
 1. **Reduce max_frame_size** (avoid fragmentation)
+
    ```python
    stream = session.open_stream(max_frame_size=1400)
    ```
+
 2. **Path MTU discovery** (automatic in future versions)
 3. **Switch to WebSocket** (TCP handles fragmentation)
 
@@ -537,6 +571,7 @@ ping -D -s 1472 peer_ip     # macOS
 **Problem:** WebSocket upgrade fails
 
 **Diagnosis:**
+
 ```python
 import websockets
 
@@ -550,6 +585,7 @@ asyncio.run(test_websocket())
 ```
 
 **Solutions:**
+
 1. **Check TLS configuration** (if using WSS)
 2. **Verify proxy settings** (correct proxy URL)
 3. **Test basic HTTP connectivity** (curl http://peer_ip:8080)
@@ -559,12 +595,14 @@ asyncio.run(test_websocket())
 ### Transport Selection
 
 ✅ **DO:**
+
 - Use UDP for direct peer-to-peer (lowest latency)
 - Use WebSocket through firewalls (connectivity)
 - Test both transports in your environment
 - Configure fallback (when available)
 
 ❌ **DON'T:**
+
 - Assume UDP always works (firewalls block)
 - Use WebSocket unnecessarily (extra overhead)
 - Ignore MTU limits (causes fragmentation/loss)
@@ -572,12 +610,14 @@ asyncio.run(test_websocket())
 ### Configuration
 
 ✅ **DO:**
+
 - Increase socket buffers for high-bandwidth (GB/s)
 - Use TLS for WebSocket in hostile networks (defense in depth)
 - Monitor transport stats (detect issues early)
 - Configure timeouts appropriately (network conditions)
 
 ❌ **DON'T:**
+
 - Use tiny buffers (causes packet loss)
 - Double-encrypt if not needed (WSS + STC - CPU cost)
 - Ignore loss rate (>5% indicates problem)
@@ -586,12 +626,14 @@ asyncio.run(test_websocket())
 ### Network Optimization
 
 ✅ **DO:**
+
 - Prioritize UDP packets (QoS on router/switch)
 - Use wired connections for reliability (avoid WiFi)
 - Monitor bandwidth usage (avoid congestion)
 - Test under realistic network conditions
 
 ❌ **DON'T:**
+
 - Saturate link (leave headroom - congestion control)
 - Assume LAN performance on WAN (latency differs)
 - Ignore jitter (variability in latency - affects real-time)
@@ -663,6 +705,7 @@ asyncio.run(test_websocket())
 - **Chapter 12**: Performance and Optimization (tuning transport parameters)
 
 **Key Takeaways:**
+
 - UDP = default, fastest, direct connectivity required
 - WebSocket = fallback, firewall-friendly, higher latency
 - Both provide same STT features (transport is interchangeable)

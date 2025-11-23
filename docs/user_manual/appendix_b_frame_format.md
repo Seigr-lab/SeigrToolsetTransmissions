@@ -73,6 +73,7 @@ Bit  | Meaning
 ```
 
 **Current v0.2.0-alpha:**
+
 - Always little endian (bit 0 = 0)
 - DATA frames encrypted (bit 1 = 1)
 - No compression (bit 2 = 0)
@@ -141,6 +142,7 @@ Common Header (24 bytes)
 ```
 
 **Payload encryption:**
+
 ```python
 {
     'ciphertext': bytes,  # Encrypted data
@@ -213,10 +215,12 @@ Common Header (24 bytes)
 STT uses **varint** encoding for variable-length integers (e.g., payload_length in some contexts):
 
 **Format:**
+
 - MSB (bit 7) indicates continuation (1 = more bytes, 0 = last byte)
 - Remaining 7 bits are data
 
 **Example:**
+
 ```
 Value 300 (0x012C):
 Binary: 0000 0001 0010 1100
@@ -311,10 +315,12 @@ E8 03 00 00 00 00 00 00 | timestamp
 **Current version:** 0x01 (v0.2.0-alpha)
 
 **Future versions:**
+
 - 0x02: v0.4.0 (DHT extensions)
 - 0x03: v0.6.0 (priority, QoS)
 
 **Backward compatibility:**
+
 - Peers must have matching version (checked in HELLO)
 - Future: Negotiation (lowest common version)
 

@@ -446,8 +446,3 @@ class TestSTTSerializer:
         nan_serialized = STTSerializer.serialize(math.nan)
         nan_deserialized = STTSerializer.deserialize(nan_serialized)
         assert math.isnan(nan_deserialized)
-        
-        assert int_result == 42
-        assert float_result == 42.0
-        assert string_result == "42"
-        assert bytes_result == b'42'
