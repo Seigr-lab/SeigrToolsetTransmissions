@@ -110,7 +110,6 @@ except ConnectionTimeoutError as e:
 **Recovery:**
 
 - Upgrade to matching versions
-- Future: Version negotiation (auto-downgrade)
 
 ## Session Errors (0x02XX)
 
@@ -301,7 +300,7 @@ except ConnectionTimeoutError as e:
 
 - Protocol version mismatch
 - Corrupted frame type field
-- Future extension (new frame type)
+- Unknown frame type
 
 **Recovery:**
 

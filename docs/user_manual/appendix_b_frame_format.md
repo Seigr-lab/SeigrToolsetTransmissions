@@ -228,7 +228,7 @@ Varint: 1010 1100  0000 0010
 Bytes:  0xAC       0x02
 ```
 
-**Current 0.2.0a0 (unreleased):** Fixed 4-byte lengths (no varint yet). Planned for FUTURE VERSION (not implemented) optimization.
+**Current 0.2.0a0 (unreleased):** Fixed 4-byte lengths.
 
 ## Checksum Calculation
 
@@ -314,15 +314,9 @@ E8 03 00 00 00 00 00 00 | timestamp
 
 **Current version:** 0x01 (0.2.0a0 (unreleased))
 
-**Future versions:**
-
-- 0x02: FUTURE VERSION (not implemented) (DHT extensions)
-- 0x03: FUTURE VERSION (not implemented) (priority, QoS)
-
 **Backward compatibility:**
 
 - Peers must have matching version (checked in HELLO)
-- Future: Negotiation (lowest common version)
 
 ## Key Takeaways
 

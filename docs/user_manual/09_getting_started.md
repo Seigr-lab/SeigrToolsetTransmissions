@@ -783,11 +783,10 @@ Now that you have STT working:
 
 **Explore advanced features:**
 
-- Multiple concurrent sessions
-- Stream multiplexing (video + audio + chat)
-- DHT integration for peer/content discovery
-- Adaptive priority and probabilistic streams
-- Crypto session continuity and affinity pooling
+- Multiple concurrent sessions with send_to_all() and send_to_sessions()
+- Stream multiplexing (independent data streams)
+- Binary streaming for large file transfer
+- Custom application protocols on top of STT transport
 
 **Join the community:**
 

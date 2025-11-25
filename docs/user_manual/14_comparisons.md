@@ -225,16 +225,16 @@ BitTorrent is a peer-to-peer file-sharing protocol.
 
 | Aspect | BitTorrent | STT |
 |--------|------------|-----|
-| **Model** | Many-to-many (swarm) | One-to-one and many-to-many (DHT + server mode) |
-| **Purpose** | File distribution | General binary streaming + content distribution |
-| **Chunking** | File pieces | Frame-based and content chunks |
-| **Redundancy** | High (many sources) | Content-addressed DHT with multi-peer support |
+| **Model** | Many-to-many (swarm) | One-to-one and server mode (manual peer connections) |
+| **Purpose** | File distribution | General binary streaming with STC encryption |
+| **Chunking** | File pieces | Frame-based streaming |
+| **Redundancy** | High (many sources) | Session-based reliability |
 | **Encryption** | Optional | Always (STC) |
 
 ### When to Use BitTorrent
 
 - Distributing large files to many users **right now**
-- Mature ecosystem with existing trackers/DHT
+- Mature ecosystem with existing infrastructure
 - File sharing is primary use case
 - Standard tooling widely available
 
@@ -242,9 +242,9 @@ BitTorrent is a peer-to-peer file-sharing protocol.
 
 - Seigr ecosystem applications (designed for this)
 - STC encryption required (content-addressed)
-- Real-time streaming AND content distribution
-- DHT-based content distribution with STC.hash
-- Need unified protocol for sessions + distribution
+- Real-time streaming with session continuity
+- Need encrypted peer-to-peer communication
+- Multi-stream multiplexing required
 
 ## Decision Guide
 
@@ -298,9 +298,9 @@ STT is not a web protocol. Cannot be used directly in web browsers.
 
 No public-key infrastructure. Peers must exchange seeds out-of-band before connecting.
 
-### No NAT Traversal (Yet)
+### No NAT Traversal
 
-STT includes STUN-like NAT type detection and hole punching coordination through the NATTraversal module.
+STT requires manual network configuration (port forwarding) for peers behind NAT.
 
 ### No Forward Secrecy
 

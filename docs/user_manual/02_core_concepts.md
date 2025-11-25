@@ -285,12 +285,21 @@ A **peer** is any other node you're communicating with. If your laptop's node co
 
 **Important**: The relationship is symmetric. There's no inherent "client" or "server" - both nodes are equal peers.
 
-### Peer Discovery
+### Connecting to Peers
 
-Before connecting, nodes need to know:
+To connect, nodes need to know:
 
 1. The peer's IP address (like a postal address)
 2. The peer's port number (like an apartment number)
+3. The shared pre-shared seed (for authentication)
+
+**Manual connection:**
+
+```python
+session = await node.connect_udp("192.168.1.100", 8080)
+```
+
+**Note:** Applications can implement their own peer discovery mechanisms (DHT, mDNS, central registry, etc.) to find peer IP addresses, then use STT to establish encrypted connections.
 
 ## Sessions: The Connections
 

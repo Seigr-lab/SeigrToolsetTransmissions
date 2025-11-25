@@ -148,29 +148,6 @@ await stream.close()
 
 **Use case:** API-style interactions, RPC
 
-## Publish-Subscribe Pattern
-
-```python
-from seigr_toolset_transmissions.dht import KademliaDHT, PubSubManager
-
-# Initialize DHT and pub/sub
-dht = KademliaDHT(node_id=my_node_id, port=9337)
-await dht.start()
-pubsub = PubSubManager(dht=dht)
-
-# Publisher
-await pubsub.publish('sensor_data', sensor_reading_bytes)
-
-# Subscriber
-def handle_data(topic: str, data: bytes, publisher: DHTNode):
-    reading = deserialize(data)
-    process_reading(reading)
-
-await pubsub.subscribe('sensor_data', handle_data)
-```
-
-**Seigr ecosystem:** DHT-based pub/sub for content distribution
-
 ## Bidirectional Streaming
 
 ```python
@@ -189,6 +166,24 @@ await asyncio.gather(send_loop(stream), receive_loop(stream))
 ```
 
 **Use case:** Video conferencing, real-time collaboration
+
+## Multiplexed Application
+
+```python
+# Video conferencing: video + audio + chat simultaneously
+session = await node.connect_udp(peer_host, peer_port)
+
+stream_video = await node.create_stream(session.session_id, stream_id=1)
+stream_audio = await node.create_stream(session.session_id, stream_id=2)
+stream_chat = await node.create_stream(session.session_id, stream_id=3)
+
+# Send on all streams concurrently
+await asyncio.gather(
+    send_video(stream_video),
+    send_audio(stream_audio),
+    send_chat(stream_chat)
+)
+```
 
 ## File Transfer with Progress
 
@@ -210,35 +205,19 @@ async def send_file_with_progress(stream, filename):
     await stream.close()
 ```
 
-## Multiplexed Application
-
-```python
-# Video conferencing: video + audio + chat simultaneously
-session = await node.connect(peer_addr, peer_id)
-
-stream_video = session.open_stream(stream_id=1, max_frame_size=32768)
-stream_audio = session.open_stream(stream_id=2, max_frame_size=8192)
-stream_chat = session.open_stream(stream_id=3)
-
-# Send on all streams concurrently
-await asyncio.gather(
-    send_video(stream_video),
-    send_audio(stream_audio),
-    send_chat(stream_chat)
-)
-```
+**Use case:** File transfers, backups, content delivery
 
 ## Retry and Reconnection
 
 ```python
-async def robust_connect(node, peer_addr, peer_id, max_retries=5):
+async def robust_connect(node, peer_host, peer_port, max_retries=5):
     """Connect with exponential backoff."""
     delay = 1.0
     for attempt in range(max_retries):
         try:
-            session = await node.connect(peer_addr, peer_id, timeout=10.0)
+            session = await node.connect_udp(peer_host, peer_port, timeout=10.0)
             return session
-        except (ConnectionTimeoutError, ConnectionRefusedError):
+        except Exception as e:
             if attempt < max_retries - 1:
                 await asyncio.sleep(delay)
                 delay = min(delay * 2, 60.0)
@@ -261,10 +240,7 @@ def on_session_closed(session_id, reason):
 node.on_session_closed(on_session_closed)
 ```
 
-## Content Distribution
-
-```python
-from seigr_toolset_transmissions.dht import KademliaDHT, ContentDistribution\n\n# Initialize DHT and content distribution\ndht = KademliaDHT(node_id=my_node_id, port=9337)\nawait dht.start()\ncontent_dist = ContentDistribution(dht=dht, node_id=my_node_id)\n\n# Publish content\ncontent_id = await content_dist.publish_content(my_data)\n\n# Retrieve from multiple providers\nretrieved_data = await content_dist.retrieve_content(content_id)\nassert retrieved_data == my_data  # Verified with STC.hash\n```\n\n## Best Practices
+## Best Practices
 
 **DO:**
 
@@ -282,10 +258,10 @@ from seigr_toolset_transmissions.dht import KademliaDHT, ContentDistribution\n\n
 
 ## Key Takeaways
 
-- Request-response: Simple RPC pattern
-- Bidirectional: Both peers send/receive concurrently
-- Multiplexing: Use separate streams for independent data flows
-- Robustness: Retry with exponential backoff
-- DHT enables peer/content discovery, content distribution, pub/sub patterns
-- Additional features: Adaptive priority, probabilistic delivery, session continuity, affinity pooling
-- STT designed for Seigr ecosystem many-to-many scenarios
+- **Agnostic primitives**: Use BinaryStreamEncoder/Decoder for data, EndpointManager for routing
+- **Session/Stream API**: Use STTNode/STTSession for connection management
+- **Request-response**: Simple RPC pattern over streams
+- **Bidirectional**: Both peers send/receive concurrently
+- **Multiplexing**: Use separate streams for independent data flows  
+- **Robustness**: Retry with exponential backoff
+- **STT provides secure binary transport** - you define what the bytes mean

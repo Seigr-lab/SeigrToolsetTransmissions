@@ -335,8 +335,6 @@ import binascii
 print(binascii.hexlify(binary_data))
 ```
 
-3. **Use Wireshark** (future: when STT dissector exists)
-
 ## Size Comparisons
 
 Let's compare text vs binary for a typical message:

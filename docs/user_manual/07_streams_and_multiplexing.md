@@ -173,37 +173,30 @@ Frame: Stream 2, Seq 2, 1 KB audio
 - Routes to correct stream
 - Reassembles in order (using `sequence_number`)
 
-### Adaptive Priority
+### Stream Priority
 
-**STT 0.2.0a0 includes adaptive priority** based on content properties:
+**STT supports stream priority** for application-level control:
 
 ```python
-from seigr_toolset_transmissions.stream import AdaptivePriorityManager
+# Stream priority (basic example)
+stream_high = session.open_stream(stream_id=1)  # High priority data
+stream_low = session.open_stream(stream_id=2)   # Low priority data
 
-# Create priority manager with DHT
-priority_mgr = AdaptivePriorityManager(dht=node.dht)
+# Send on different streams
+await stream_high.send(critical_data)
+await stream_low.send(background_data)
 
-# Stream with adaptive priority
-stream = session.open_stream(
-    stream_id=1,
-    priority_manager=priority_mgr
-)
-
-# Priority calculated automatically from content
-await stream.send(data, session=session)
-# High uniqueness content = higher priority
-# Frequently accessed content = higher priority
-# Congestion = automatic backoff
+# Streams are independent - high priority not blocked by low priority
 ```
 
-**Priority factors:**
+**Stream isolation benefits:**
 
-- **Content uniqueness**: Rare content (low DHT replication) gets higher priority
-- **Temporal urgency**: Hot content (frequent access) gets higher priority
-- **Network conditions**: Congestion triggers automatic priority reduction
-- **Hash affinity**: Content clustering in Kademlia neighborhoods
+- **Independent flow control**: Each stream has its own flow control
+- **No head-of-line blocking**: Slow stream doesn't block fast stream
+- **Application-level priorities**: Use different streams for different priority levels
+- **Parallel transmission**: Streams can send data simultaneously
 
-**No manual QoS flags needed** - priority emerges from content properties.
+**Note:** Applications implement their own priority logic by choosing which stream to use for different data types.
 
 ### Flow Control
 
@@ -615,55 +608,28 @@ with open('received_file.bin', 'wb') as f:
 
 ## Advanced Stream Types
 
-### Probabilistic Delivery Streams
+### Guaranteed Delivery
 
-**STT 0.2.0a0 includes entropy-aware loss tolerance:**
+**STT streams provide ordered, reliable delivery:**
 
 ```python
-from seigr_toolset_transmissions.stream import ProbabilisticStream
+# All streams automatically provide ordering and reliability
+stream = session.open_stream(stream_id=1)
 
-# Create probabilistic stream
-prob_stream = ProbabilisticStream(
-    session_id=session.session_id,
-    stream_id=2,
-    stc_wrapper=session.stc_wrapper,
-    dht=node.dht
-)
+# Send data - lost packets automatically retransmitted
+await stream.send(data)
 
-# Send with entropy-based delivery
-delivered = await prob_stream.send_probabilistic(video_data)
-print(f"Delivered {delivered} chunks")
-
-# Get delivery stats
-stats = prob_stream.get_delivery_stats()
-print(f"Delivery rate: {stats['delivery_rate']*100:.1f}%")
+# Receive data - arrives in order sent
+received = await stream.receive()
 ```
 
-**How it works:**
+**Stream guarantees:**
 
-1. **Shannon entropy calculation**: Measures information density
-   - High entropy (random data) = must deliver reliably (0.99+ probability)
-   - Low entropy (redundant data) = can tolerate loss (0.70 probability)
+- **Ordering**: Data arrives in the order it was sent
+- **Reliability**: Lost packets are automatically retransmitted  
+- **Integrity**: Corruption is detected and handled
 
-2. **DHT replication awareness**: Adjusts based on content availability
-   - Unique content (no replicas) = higher delivery requirement
-   - Replicated content (many copies) = lower delivery requirement
-
-3. **Adaptive retransmission**:
-
-   ```python
-   # High entropy chunk: max 10 attempts
-   # Low entropy chunk: max 2 attempts
-   # Probabilistic early exit based on content value
-   ```
-
-**Use cases:**
-
-- **Video streaming**: I-frames (keyframes) get reliable delivery, P-frames can be lossy
-- **Sensor networks**: Anomalies delivered reliably, normal readings can be lossy
-- **Log aggregation**: Error traces delivered reliably, debug logs can be lossy
-
-**NOT simply "unreliable"** - delivery guarantee adapts to information content.
+**Applications can layer additional logic on top** - error correction codes, custom retry strategies, etc.
 
 ## Visual Summary
 
@@ -754,4 +720,3 @@ Session (Encrypted Channel)
 - Ordering = guaranteed per stream (sequence numbers + reordering)
 - Reliability = automatic retransmission (NACKs + timeouts)
 - Flexible = unidirectional, bidirectional, long-lived, RPC patterns all supported
-- Additional features (0.2.0a0) = adaptive priority (content-derived), probabilistic delivery (entropy-based)

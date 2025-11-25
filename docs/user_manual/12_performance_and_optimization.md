@@ -204,45 +204,35 @@ uvloop.install()
 # Now asyncio.run() uses uvloop (10-50% faster)
 ```
 
-### Content-Affinity Session Pooling
+### Session Reuse
 
-**STT 0.2.0a0 includes hash-neighborhood clustering:**
+**Reuse sessions for multiple requests:**
 
 ```python
-from seigr_toolset_transmissions.session import ContentAffinityPool
+# Good: Reuse session
+session = await node.connect_udp("peer.example.com", 8080)
 
-# Create affinity pool
-pool = ContentAffinityPool(dht=node.dht, max_pool_size=100)
+# Send multiple requests over same session
+for i in range(100):
+    await node.send_to_sessions([session.session_id], f"Request {i}".encode())
+    
+# Close when done
+await session.close()
 
-# Add session to pool
-content_hash = stc.hash_data(initial_content)
-pool.add_session(session, content_hash)
-
-# Get session for related content
-related_hash = stc.hash_data(related_content)
-try:
-    session = pool.get_session_for_content(related_hash)
-    # Likely to have related content cached!
-except PoolMissError:
-    # No suitable session, create new one
-    session = await node.connect(peer_addr, peer_id)
-    pool.add_session(session, related_hash)
+# Bad: Create new session for each request (slow!)
+for i in range(100):
+    session = await node.connect_udp("peer.example.com", 8080)
+    await node.send_to_sessions([session.session_id], f"Request {i}".encode())
+    await session.close()  # Wasteful!
 ```
 
-**How it works:**
+**Benefits of session reuse:**
 
-1. **Hash-based clustering**: Sessions grouped by STC.hash prefix (first 4 bytes)
-2. **XOR distance affinity**: Kademlia metric determines content similarity
-3. **Automatic rebalancing**: Sessions migrate between pools as traffic patterns change
-4. **LRU eviction**: Least-recently-used sessions evicted when pool full
+1. **Avoid handshake overhead**: Handshake only happens once
+2. **Maintain encryption context**: Session keys already established
+3. **Better throughput**: No connection setup latency
 
-**Benefits:**
-
-- **Cache locality**: Related content requests use same session
-- **Load distribution**: Sessions allocated based on content hash distribution
-- **Hash-based clustering**: Content groups by STC.hash proximity
-
-Sessions are pooled by content hash proximity rather than by transport endpoint.
+**Note:** Applications can implement custom session pooling strategies based on their specific needs (content routing, load balancing, etc.).
 
 ## Network Optimization
 
@@ -274,8 +264,6 @@ sudo tc class add dev eth0 parent 1: classid 1:1 htb rate 100mbit
 sudo tc filter add dev eth0 protocol ip parent 1:0 prio 1 u32 \\
     match ip dport 8080 0xffff flowid 1:1
 ```
-
-**Mark packets (future STT feature):** DSCP values for QoS
 
 ## Monitoring and Metrics
 
@@ -431,6 +419,6 @@ node = STTNode(
 - Latency: Small frames (4 KB), no_delay=True, UDP transport, frequent keep-alives
 - Memory: Limit concurrent streams, reuse buffers
 - CPU: STC encryption dominates (use multiple cores via multiple sessions)
-- Scaling: Event loop (uvloop), content-affinity pooling, adaptive priority
+- Scaling: Event loop (uvloop), session reuse, multiple connections
 - Monitor: RTT, loss rate, throughput to detect bottlenecks
 - Benchmark: Measure in realistic environment before production

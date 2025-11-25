@@ -139,17 +139,15 @@ Hash: 0xD7A8FBB3...  (256-bit fingerprint)
 File: "video.mp4" (100 MB)
 STC.hash: 0xABC123...
 
-In Seigr network:
-- File stored at DHT key 0xABC123...
-- Anyone with hash 0xABC123... can request file
+For verification:
 - When received, verify: STC.hash(received_data) == 0xABC123...
+- Applications can use hashes as content identifiers
 ```
 
 **STT uses STC.hash for:**
 
-- DHT node distances (XOR metric in Kademlia)
-- Content discovery and addressing
-- Chunk verification in content distribution
+- Cryptographic verification of data integrity
+- Applications can use for content addressing
 
 ## Encryption Metadata
 

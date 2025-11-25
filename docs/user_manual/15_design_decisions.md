@@ -29,10 +29,10 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Rationale:**
 
-- Seigr requires content-addressed storage (STC.hash native)
 - Distributed network needs peer-to-peer (not client-server)
 - Privacy-focused (encryption mandatory, not optional)
 - Decentralized (no central authorities)
+- Multi-peer encrypted transport foundation for building decentralized networks
 
 **Trade-off:** Less general-purpose than HTTP/WebRTC, but optimal for Seigr use case
 
@@ -45,13 +45,13 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 **Rationale:**
 
 - Simpler trust model (no certificate authorities, no PKI complexity)
-- Deterministic keys useful (same seed → same keys, helps content addressing)
+- Deterministic keys from seeds enable consistent peer authentication
 - Lower computational cost (no RSA/ECDH handshake)
 - Aligns with Seigr's privacy model (pre-authorized peers)
 
 **Trade-off:** Cannot connect to arbitrary peers (like HTTPS can) - requires out-of-band seed distribution
 
-**Alternative rejected:** TLS-style PKI - adds complexity, CAs centralized, ephemeral keys incompatible with deterministic content addressing
+**Alternative rejected:** TLS-style PKI - adds complexity, CAs centralized
 
 ### 4. STC Instead of Standard Crypto
 
@@ -59,13 +59,13 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Rationale:**
 
-- STC.hash integral to Seigr (content addressing, DHT distances)
+- STC.hash provides cryptographic hashing for Seigr ecosystem
 - Unified cryptography across ecosystem (one library)
 - Probabilistic hashing (collisions tolerated - design choice for Seigr)
 
 **Trade-off:** Not standardized (IETF), not audited like TLS, unfamiliar to developers
 
-**Alternative rejected:** TLS/AES - doesn't provide STC.hash, deterministic keys harder
+**Alternative rejected:** TLS/AES - doesn't provide STC.hash for ecosystem needs
 
 ### 5. Incremental Development
 
@@ -103,15 +103,15 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Why:**
 
-- Content addressing requires deterministic hashing
-- Same seed must produce same keys (Seigr ecosystem requirement)
+- Same seed must produce same keys (consistent peer authentication)
+- Pre-shared seed authentication model requires deterministic derivation
 - Forward secrecy needs ephemeral keys (random each session)
 
 **Consequence:** Compromised seed exposes all past sessions (if attacker recorded traffic)
 
 **Mitigation:** Seed rotation, secure storage (HSM)
 
-**Alternative:** Hybrid (deterministic content keys + ephemeral session keys) - under research
+**Alternative:** Hybrid (deterministic authentication + ephemeral session keys) - under research
 
 ### Reliability on UDP vs Using TCP
 
@@ -143,24 +143,26 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **STT 0.2.0a0 features:**
 
-- **Adaptive Priority**: Priority calculated from content properties (uniqueness, access patterns, network conditions)
-- **Probabilistic Delivery**: Shannon entropy determines delivery probability
-- **Crypto Session Continuity**: Resume sessions across transports/IPs/devices using seed-based identity
-- **Content-Affinity Pooling**: Sessions clustered by STC.hash proximity (Kademlia XOR distance)
+- **Multi-peer streaming**: send_to_all() and send_to_sessions() for broadcast/multicast
+- **Session management**: Multiple simultaneous encrypted connections
+- **Stream multiplexing**: Independent data streams within sessions
+- **Transport agnostic**: Works over UDP or WebSocket
 
 ### Peer-to-Peer Design
 
-**Chosen:** Peer-to-peer with DHT and content distribution
+**Chosen:** Peer-to-peer architecture with server mode
 
 **Why:**
 
-- Native support for Seigr ecosystem content addressing
+- Symmetric peer design (any node can serve or request)
 - Distributed architecture eliminates single points of failure
-- Kademlia DHT for efficient peer and content discovery
+- Multi-peer connections enable network layer applications to build on top
 
-**Result:** STT includes comprehensive P2P capabilities: server mode, DHT discovery, content distribution
+**Result:** STT provides multi-peer encrypted transport: server mode accepts incoming connections, manual peer connections via connect_udp(), broadcast/multicast primitives
 
-**Alternative:** Client-server only - simpler but defeats purpose of decentralized Seigr ecosystem
+**Alternative:** Client-server only - simpler but limits use cases for decentralized applications
+
+**Note:** STT is a transport layer. Network formation, peer discovery, and routing logic must be implemented by applications built on top of STT.
 
 ## Why Not Existing Protocols?
 
@@ -175,8 +177,9 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 **STT advantages:**
 
 - Native P2P (symmetric peers)
-- STC integration (content addressing)
-- Seigr-specific (DHT, Kademlia XOR distances with STC.hash)
+- STC integration for ecosystem cryptography
+- Seigr-specific (encrypted sessions, binary protocol)
+- Multi-peer primitives (send_to_all, send_to_sessions)
 
 ### Why Not WebRTC?
 
@@ -191,28 +194,29 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - Simpler (no media codecs - general binary protocol)
 - Standalone (no browser required)
 - Seigr-specific (STC, content addressing)
-- Integrated NAT traversal (STUN-like functionality included)
+- Encrypted by default using Seigr Toolset Crypto v0.4.1
 
-**Similarities:** Both P2P, both need NAT traversal
+**Similarities:** Both P2P, both require network configuration for NAT scenarios
+
+**Note:** NAT traversal features are not currently implemented (manual port forwarding required)
 
 ### Why Not BitTorrent Protocol?
 
 **BitTorrent:**
 
 - Designed for file sharing (many-to-many)
-- DHT-based (Kademlia with SHA-1)
 - Proven at scale (millions of users)
 
 **STT advantages:**
 
 - General streaming (not just files)
-- STC encryption (BitTorrent encryption optional, not content-addressed)
+- STC encryption (BitTorrent encryption optional)
 - Real-time capable (not just bulk transfer)
-- STC.hash for content addressing (vs SHA-1)
+- Application-agnostic binary transport
 
-**Similarities:** Both DHT, both P2P, both content distribution
+**Similarities:** Both P2P protocols designed for decentralized content
 
-**Result:** STT inspired by BitTorrent DHT, but extends to real-time + STC
+**Note:** STT uses manual peer connections (connect_udp with IP:port). Applications built on STT can implement their own peer discovery mechanisms.
 
 ### Why Not TLS/DTLS?
 
@@ -226,7 +230,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 - Pre-shared seeds (no PKI)
 - Deterministic keys (no forward secrecy)
-- STC.hash (content addressing)
+- STC.hash for cryptographic hashing
 
 **Could combine?** Yes - future consideration (TLS for transport, STC for content) - but redundant
 
@@ -239,36 +243,43 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 **Seigr ecosystem goals:**
 
 1. **Decentralized content storage** (no central servers)
-2. **Content-addressed** (data identified by STC.hash)
-3. **Privacy-preserving** (encryption mandatory)
-4. **Resilient** (distributed, redundant)
-5. **Efficient** (peer-to-peer, no unnecessary hops)
+2. **Privacy-preserving** (encryption mandatory)
+3. **Resilient** (distributed, redundant)
+4. **Efficient** (peer-to-peer, no unnecessary hops)
 
 **STT's role:**
 
 - **Transport layer** for Seigr ecosystem
 - Connects peers securely (STC encryption)
-- Supports DHT (peer discovery, content routing)
-- Enables content distribution (many-to-many)
+- Enables peer-to-peer communication
+- Provides multi-peer primitives (broadcast/multicast)
+- Foundation for applications to build decentralized networks
 
-**Analogy:** STT is like "HTTP for Seigr" - the protocol that makes the ecosystem work.
+**Analogy:** STT is like "encrypted UDP for P2P" - the protocol that provides secure multi-peer transport for applications to build decentralized systems.
 
 ### Current Capabilities
 
 **Core Features:**
 
-- ✅ One-to-one and many-to-many sessions
-- ✅ STC encryption
+- ✅ One-to-one and one-to-many sessions (multiple simultaneous peers)
+- ✅ STC encryption (Seigr Toolset Crypto v0.4.1)
 - ✅ UDP/WebSocket transports
 - ✅ Stream multiplexing
-- ✅ DHT (Kademlia + STC.hash)
-- ✅ Peer and content discovery
-- ✅ Content-addressed storage
-- ✅ Server mode (one-to-many streaming)
-- ✅ NAT traversal (STUN-like)
-- ✅ Content distribution with chunking
+- ✅ Server mode (accepts incoming connections)
+- ✅ Binary protocol with efficient encoding
+- ✅ Multi-peer primitives (send_to_all, send_to_sessions)
+- ✅ Manual peer connection (connect_udp with IP:port)
 
-**Designed for Seigr ecosystem:**  Distributed content network, automated peer discovery, content-addressed storage
+**Application Layer Responsibilities:**
+
+Applications built on STT must implement:
+
+- Peer discovery mechanisms
+- Network topology management
+- Routing decisions
+- Content distribution logic
+
+**Designed as transport foundation:** STT provides secure multi-peer encrypted transport. Applications implement network formation and routing logic on top.
 
 ## Lessons from Other Systems
 
@@ -276,15 +287,14 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Learned:**
 
-- DHT works at scale (Kademlia proven)
-- Content addressing enables distribution (hash-based)
 - Many-to-many reduces single points of failure
+- P2P architecture provides resilience
 
 **Applied to STT:**
 
-- Kademlia DHT with STC.hash (implemented)
-- Content-addressed from start (STC.hash native)
 - Architecture supports many peers (session manager handles multiple)
+- P2P design avoids centralization
+- Multi-peer primitives (send_to_all, send_to_sessions)
 
 ### Session Continuity Approach
 
@@ -311,16 +321,15 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 **Applied to STT:**
 
 - WebSocket transport (firewall-friendly)
-- NAT traversal implemented (STUN-like functionality)
-- Future: JavaScript client for browsers
+- JavaScript client support possible (browsers)
 
 ### From Seigr Requirements
 
 **Learned:**
 
-- STC.hash must be native (content addressing)
+- STC.hash provides cryptographic hashing for ecosystem
 - Privacy critical (encryption mandatory, not optional)
-- Deterministic keys useful (same seed → same hash)
+- Deterministic keys useful for peer authentication
 
 **Applied to STT:**
 
@@ -338,8 +347,8 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 - **True** - this is a known limitation
 - **Mitigation:** Secure seed storage (HSM), rotation
-- **Trade-off:** Deterministic keys needed for content addressing (Seigr ecosystem requirement)
-- **Research:** Key ratcheting could add forward secrecy while preserving deterministic content keys (not scheduled)
+- **Trade-off:** Deterministic keys needed for peer authentication
+- **Research:** Key ratcheting could add forward secrecy (not scheduled)
 
 ### "Pre-shared seeds don't scale"
 
@@ -359,9 +368,8 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 **Response:**
 
 - **Valid concern** - custom crypto risky
-- **Mitigation:** STC developed by cryptographers, will undergo audit
-- **Rationale:** STC.hash required for Seigr (standard crypto doesn't provide this)
-- **Future:** Security audit planned (before v1.0 production release)
+- **Mitigation:** STC developed by cryptographers
+- **Rationale:** STC.hash required for Seigr ecosystem cryptographic needs
 
 ### "Why not just use HTTP/gRPC/QUIC?"
 
@@ -369,9 +377,9 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Response:**
 
-- **Existing protocols** not designed for Seigr ecosystem (no STC, no content addressing)
-- **STT specific** to Seigr needs (DHT + STC + P2P + content distribution)
-- **Novel features** provide QUIC benefits without QUIC complexity
+- **Existing protocols** not designed for Seigr ecosystem (no STC encryption)
+- **STT specific** to Seigr needs (STC + P2P + multi-peer primitives)
+- **Novel features** provide multi-peer encrypted transport foundation
 - **Trade-off:** Custom protocol more work, but optimal for Seigr
 
 ## Current Status and Research Directions
@@ -380,65 +388,58 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Core Protocol:**
 
-- One-to-one and many-to-many sessions
-- STC encryption with deterministic content addressing
+- One-to-one and one-to-many sessions (multiple simultaneous peers)
+- STC encryption (Seigr Toolset Crypto v0.4.1)
 - UDP and WebSocket transports
 - Stream multiplexing
 
 **P2P Capabilities:**
 
-- Kademlia DHT with STC.hash
-- Automatic peer and content discovery
-- Server mode (one-to-many streaming)
-- Content distribution with chunking
-- NAT traversal (STUN-like functionality)
+- Server mode (accepts incoming connections)
+- Manual peer connections with pre-shared seeds (connect_udp)
+- Session manager for multiple concurrent peers
+- Multi-peer primitives (send_to_all, send_to_sessions)
 
-**Additional Features (0.2.0a0):**
+**Transport Foundation:**
 
-- Adaptive priority (content property-based)
-- Probabilistic delivery (entropy-based)
-- Session continuity (seed-based resumption)
-- Content-affinity pooling (hash proximity)
+STT provides encrypted multi-peer transport. Applications built on STT implement their own:
+
+- Peer discovery mechanisms
+- Network topology management
+- Routing algorithms
+- Content distribution strategies
 
 ### Research Areas
 
 **Potential enhancements under investigation:**
 
-- Key ratcheting for forward secrecy (while preserving deterministic content keys)
-- Post-quantum cryptographic algorithms
-- Hybrid authentication models (seeds + optional certificates)
-- Connection migration for mobile scenarios (may be superseded by session continuity)
-
-These are research directions, not committed roadmap items. Development prioritizes Seigr ecosystem needs.
-
 ### Long-Term Vision
 
-**Long-term goals:**
+**STT's purpose:**
 
 - Standard transport for Seigr ecosystem
 - Reference implementation of STC-based networking
-- Scale to large deployments
-- Security audit and hardening
+- Multi-peer encrypted transport layer
 
 **Seigr ecosystem goals:**
 
-- Decentralized content network using STC
-- End-to-end encryption
-- Distributed architecture
-- DHT-based discovery
+- Decentralized network infrastructure using STC
+- End-to-end encryption for all communications
+- Distributed peer-to-peer architecture
 
-**STT's role:** Protocol layer for Seigr ecosystem.
+**STT's role:** Encrypted multi-peer transport layer for Seigr ecosystem applications.
 
 ## Key Takeaways
 
-- **Design for Seigr first:** STT optimized for Seigr ecosystem needs (STC, content addressing, DHT)
+- **Design for Seigr first:** STT optimized for Seigr ecosystem needs (STC, content addressing, P2P)
 - **Pre-shared seeds:** Simpler trust model than PKI, aligns with privacy goals, enables deterministic keys
 - **STC-only:** Unified cryptography, content addressing native, trade-off vs standard crypto
 - **Incremental development:** Continuous feature delivery guided by ecosystem needs
 - **Binary protocol:** Efficiency over convenience (debugging harder but performance better)
 - **Trade-offs explicit:** No forward secrecy (determinism needed), no PKI (simpler trust), custom protocol (Seigr-specific)
-- **Learned from others:** BitTorrent (DHT), QUIC concepts (streams), WebRTC (NAT)
-- **Implementation details:** Content-derived priority, entropy-based reliability, seed-based continuity, hash-affinity pooling
+- **Learned from others:** P2P resilience concepts from BitTorrent, stream multiplexing ideas from QUIC, NAT challenges from WebRTC
+- **Implementation details:** Multi-peer primitives (send_to_all, send_to_sessions), session management, stream multiplexing
 - **Criticisms valid:** Custom crypto risky (will audit), pre-shared seeds don't scale (different use case), custom protocol (Seigr-specific needs)
-- **Current features:** DHT, NAT traversal, content distribution, server mode, adaptive priority, probabilistic delivery, session continuity, affinity pooling
-- **Goals:** STT as Seigr ecosystem transport - decentralized, encrypted, content-addressed
+- **Current features:** STC encryption, server mode, multi-peer capabilities, manual peer connections
+- **Transport foundation:** STT provides encrypted multi-peer transport; applications implement network formation logic
+- **Goals:** STT as Seigr ecosystem transport - decentralized, encrypted, P2P-capable

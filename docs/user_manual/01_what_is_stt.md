@@ -170,10 +170,9 @@ STT is designed for **any binary data transport scenario**:
    - EventEmitter for custom event types YOU define
 
 **6. Seigr Ecosystem (Primary Target)**
-   - Content-addressed storage across many peers
-   - DHT-based content discovery with Kademlia
-   - Decentralized data distribution
-   - No central server required
+   - Multi-peer encrypted transport for decentralized applications
+   - Foundation for building distributed content networks
+   - No central server required - applications implement peer discovery
 
 ### What STT Is NOT
 
@@ -205,7 +204,7 @@ STT may not be suitable for:
 **2. Email-Style Store-and-Forward**
 
 - Email works when recipient is offline
-- STT requires active peer connectivity (though DHT allows finding content later)
+- STT requires active peer connectivity for real-time communication
 
 **3. Simple Request-Response APIs**
 
@@ -263,10 +262,11 @@ STT may not be suitable for:
 **STT**:
 
 - Designed for Seigr ecosystem (many-to-many capable)
-- DHT-based content distribution with Kademlia
+- Multi-peer encrypted transport foundation
 - STC encryption built-in
-- Real-time streaming AND file distribution
+- Real-time streaming AND large data transfer
 - Uses STC hashes (probabilistic)
+- Applications implement network formation on top
 
 ## Technical Overview (Simplified)
 
@@ -336,7 +336,7 @@ session = await node.connect_udp(peer_host, peer_port)
 
 ```python
 node = STTNode(node_seed, shared_seed, host, port)
-await node.start()  # DHT, session management, transport
+await node.start()  # Starts session management, transport
 ```
 
 ### How YOU Combine Them
@@ -409,7 +409,7 @@ STT sits between YOUR application logic and the network. It never interprets you
 
 **7. STC Encryption**: All data encrypted with Seigr Toolset Crypto (probabilistic cryptography).
 
-**8. Peer-to-Peer**: Direct connections, DHT-based discovery, no mandatory central server.
+**8. Peer-to-Peer**: Direct connections with manual addressing, multi-peer primitives (send_to_all, send_to_sessions).
 
 ## Testing Status
 
@@ -432,7 +432,7 @@ STT is a **binary transport protocol with agnostic primitives**:
 - **Events**: EventEmitter (user-defined event types)
 - **Frames**: FrameDispatcher (custom frame types 0x80-0xFF)
 - **Sessions**: STC-encrypted peer connections
-- **Nodes**: P2P runtime with DHT discovery
+- **Nodes**: P2P runtime with multi-peer transport primitives
 
 **Zero assumptions about your data.** YOU provide semantics (video, sensors, files, messages, protocols).
 

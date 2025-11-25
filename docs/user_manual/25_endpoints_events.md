@@ -277,27 +277,28 @@ asyncio.run(endpoint_example())
 
 ## Common Patterns
 
-### Endpoint Discovery
+### Broadcasting to Multiple Endpoints
 
 ```python
-class PeerDiscovery:
+class EndpointBroadcaster:
     def __init__(self, endpoint_manager, event_emitter):
         self.endpoints = endpoint_manager
         self.events = event_emitter
         
-        # Register discovery handler
-        self.events.on('discovery_response')(self.handle_discovery)
+        # Register broadcast completion handler
+        self.events.on('broadcast_complete')(self.handle_broadcast_done)
     
-    async def discover_peers(self):
-        """Send discovery request to all endpoints"""
-        await self.endpoints.broadcast(b"DISCOVERY_REQUEST")
+    async def send_to_all(self, message):
+        """Send message to all registered endpoints"""
+        endpoint_ids = self.endpoints.list_endpoints()
+        for endpoint_id in endpoint_ids:
+            await self.endpoints.send_to_endpoint(endpoint_id, message)
+        
+        await self.events.emit('broadcast_complete', len(endpoint_ids))
     
-    async def handle_discovery(self, endpoint_id, capabilities):
-        """Handle peer discovery response"""
-        # Update endpoint metadata
-        info = self.endpoints.get_endpoint(endpoint_id)
-        if info:
-            info['metadata']['capabilities'] = capabilities
+    async def handle_broadcast_done(self, count):
+        """Handle broadcast completion"""
+        print(f"Message sent to {count} endpoints")
 ```
 
 ### Health Monitoring

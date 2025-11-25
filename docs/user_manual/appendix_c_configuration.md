@@ -238,9 +238,7 @@ node = STTNode(
 
 ```python
 node = STTNode(
-    no_delay: bool = False,               # Default: False (Nagle-like)
-    compression: bool = False,            # Default: False (not implemented)
-    priority_enabled: bool = False        # Default: False (future)
+    no_delay: bool = False               # Default: False (Nagle-like)
 )
 ```
 
@@ -250,16 +248,6 @@ node = STTNode(
 - False: Buffer small sends, send full frames (higher throughput)
 - True: Send immediately (lower latency, more overhead)
 - Use True for real-time applications (chat, gaming)
-
-**compression** (bool, default: False):
-
-- Enable payload compression (future feature)
-- Not implemented in 0.2.0a0 (unreleased)
-
-**priority_enabled** (bool, default: False):
-
-- Enable stream priority (future feature)
-- Not implemented in 0.2.0a0 (unreleased)
 
 ### Logging Configuration
 
@@ -351,7 +339,6 @@ session = await node.connect(
 
 - Override node's default transport
 - `'udp'` or `'websocket'`
-- Future: Auto-fallback
 
 ## Environment Variables
 

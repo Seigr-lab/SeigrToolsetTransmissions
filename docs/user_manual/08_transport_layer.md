@@ -562,8 +562,7 @@ ping -D -s 1472 peer_ip     # macOS
    stream = session.open_stream(max_frame_size=1400)
    ```
 
-2. **Path MTU discovery** (automatic in future versions)
-3. **Switch to WebSocket** (TCP handles fragmentation)
+2. **Switch to WebSocket** (TCP handles fragmentation)
 
 ### WebSocket Connection Failures
 
@@ -695,7 +694,7 @@ asyncio.run(test_websocket())
    - Firewall traversal, NAT traversal, browser compatibility, proxy support
 
 6. **Is TCP redundant with STT's reliability?**
-   - Yes, partially (both provide retransmissions/ordering) - future versions may optimize
+   - Yes, partially (both provide retransmissions/ordering)
 
 ## Next Steps
 
@@ -709,5 +708,4 @@ asyncio.run(test_websocket())
 - WebSocket = fallback, firewall-friendly, higher latency
 - Both provide same STT features (transport is interchangeable)
 - Choose based on network environment (firewalls, NAT, latency requirements)
-- Future: QUIC, automatic fallback, pluggable transports
 - Monitor transport stats to detect issues (loss rate, throughput)

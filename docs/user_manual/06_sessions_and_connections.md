@@ -46,10 +46,9 @@ You can have the phone line connected but no conversation happening.
 **Flexibility:**
 
 - Sessions can resume across transports (UDP → WebSocket)
-- Sessions can be pooled by content hash similarity
 - Sessions can survive temporary connection loss via resumption tokens
 
-**0.2.0a0 (unreleased):** Includes session continuity and content-affinity pooling features
+**0.2.0a0 (unreleased):** Includes session continuity and multi-session management features
 
 ## Connection Types
 
@@ -251,10 +250,10 @@ session_carol = await alice_node.connect(('10.0.1.8', 8081), b"Carol")
 
 **Practical use cases:**
 
-- Client downloading from multiple servers (content distribution with DHT)
+- Client connecting to multiple servers simultaneously
 - Server handling multiple clients simultaneously (server mode)
 
-**DHT-based discovery:** Use Kademlia DHT to find peers without knowing IPs.
+**Note:** Peer discovery is implemented by applications built on top of STT transport.
 
 ### Session Identification
 
@@ -312,39 +311,31 @@ else:
 
 ## Connection Management
 
-### Content-Affinity Session Pooling
+### Managing Multiple Sessions
 
-**STT 0.2.0a0 includes hash-neighborhood clustering:**
+**SessionManager** handles multiple simultaneous sessions:
 
 ```python
-from seigr_toolset_transmissions.session import ContentAffinityPool
+# Get all active sessions
+sessions = node.session_manager.get_active_sessions()
+print(f"Currently connected to {len(sessions)} peers")
 
-# Create affinity pool
-pool = ContentAffinityPool(dht=node.dht, max_pool_size=100)
+# Get specific session
+session = node.session_manager.get_session(session_id)
 
-# Add session to pool
-content_hash = stc.hash_data(initial_content)
-pool.add_session(session, content_hash)
-
-# Get session for related content
-related_hash = stc.hash_data(related_content)
-try:
-    session = pool.get_session_for_content(related_hash)
-    # Likely to have related content cached!
-except PoolMissError:
-    # No suitable session, create new one
-    session = await node.connect(peer_addr, peer_id)
-    pool.add_session(session, related_hash)
+# Check session count
+count = node.session_manager.get_session_count()
 ```
 
-**How it works:**
+**Automatic cleanup:**
 
-- Sessions cluster by STC.hash prefix (first 4 bytes)
-- XOR distance (Kademlia metric) determines affinity
-- Related content requests use same session
-- Rebalancing occurs when traffic patterns change
+```python
+# SessionManager automatically removes closed sessions
+removed = await node.session_manager.cleanup_closed_sessions()
+print(f"Cleaned up {removed} closed sessions")
+```
 
-Sessions are pooled by content hash similarity rather than transport endpoint.
+**Note:** Applications can implement their own session organization strategies on top of SessionManager.
 
 ### Keep-Alive Mechanism
 
@@ -353,10 +344,10 @@ Sessions are pooled by content hash similarity rather than transport endpoint.
 ```python
 # Configured at node level (defaults)
 node = STTNode(
-    node_id=b"Alice",
-    keep_alive_interval=10.0,  # Send keep-alive every 10 seconds
-    keep_alive_timeout=30.0     # Declare dead after 30 seconds silence
+    node_seed=b"my_seed" * 8,
+    shared_seed=b"shared" * 8
 )
+# Keep-alive happens automatically in the background
 ```
 
 **How it works:**
@@ -675,35 +666,35 @@ await server.send_to_sessions(session_ids[:2], b"Targeted message")
 
 **Use case:** Video streaming server to many viewers
 
-### DHT-Based Discovery
+### Manual Peer Connection
 
-**Find peers without knowing IP addresses:**
+**Connecting to peers:**
 
 ```python
-from seigr_toolset_transmissions.dht import KademliaDHT, ContentDistribution
+# Connect to peer using IP address and port
+session = await node.connect_udp(
+    peer_host="192.168.1.100",
+    peer_port=8080
+)
 
-# Initialize DHT
-dht = KademliaDHT(node_id=my_node_id, port=9337)
-await dht.start()
+# Or connect to multiple peers
+peers = [
+    ("192.168.1.100", 8080),
+    ("192.168.1.101", 8080),
+    ("192.168.1.102", 8080),
+]
 
-# Publish content
-content_dist = ContentDistribution(dht=dht, node_id=my_node_id)
-content_id = await content_dist.publish_content(my_file_data)
+sessions = []
+for host, port in peers:
+    session = await node.connect_udp(host, port)
+    sessions.append(session)
 
-# Find peers serving content
-peers = await dht.find_providers(content_id)
-# Returns: [DHTNode(node_id=..., host='10.0.1.5', port=9337), ...]
-
-# Connect to first available peer
-for peer in peers:
-    try:
-        session = await node.connect((peer.host, peer.port), peer.node_id)
-        break
-    except ConnectionError:
-        continue  # Try next peer
+print(f"Connected to {len(sessions)} peers")
 ```
 
-**This enables Seigr ecosystem content distribution.**
+**Note:** Applications built on STT can implement their own peer discovery mechanisms (DHT, mDNS, centralized registry, etc.) and use `connect_udp()` to establish connections.
+
+**Current approach:** Manual peer configuration with pre-shared seeds and known IP:port addresses.
 
 ## Common Patterns
 
@@ -841,4 +832,4 @@ await stream_chat.send(chat_message)
 - Keep-alives detect dead connections (30-second timeout)
 - Multiple concurrent sessions supported (current and future)
 - STT provides automatic retransmission, reordering, corruption detection
-- Future: DHT discovery, server-to-many sessions, connection migration
+- Applications built on STT can implement peer discovery and content routing
