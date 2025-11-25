@@ -93,10 +93,10 @@ Your computer talks directly to your friend's computer. No middleman needed.
 
 **Features:**
 
-- DHT-based peer discovery (Kademlia with STC.hash)
-- NAT traversal with STUN-like functionality
-- Pre-shared seeds for authentication (current design choice)
+- Pre-shared seeds for authentication
 - Server mode for accepting multiple incoming connections
+- Binary protocol for efficiency
+- Encrypted frames using STC
 
 ### Binary Protocol
 

@@ -182,8 +182,7 @@ STT detects and retransmits lost packets (automatic).
 
 **STT 0.2.0a0 (unreleased) solution:**
 
-- **NAT traversal implemented** (STUN-like functionality)
-- Discover public IP and port via STUN server
+- **NAT traversal**: Not currently implemented (manual port forwarding required)
 - Hole punching for direct peer connections
 - Fallback to relay if direct connection fails
 

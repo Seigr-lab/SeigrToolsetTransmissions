@@ -77,7 +77,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - Adapt design based on real usage and feedback
 - Avoid over-engineering features not yet needed
 
-**Result:** STT now includes comprehensive features: DHT peer discovery, content distribution, NAT traversal, server mode
+**Result:** STT now includes core features: encrypted sessions, streams, binary protocol, server mode
 
 **Alternative rejected:** Wait until all features complete - delays feedback, risks building wrong thing
 

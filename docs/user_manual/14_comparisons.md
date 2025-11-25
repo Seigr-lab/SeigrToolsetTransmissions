@@ -6,8 +6,6 @@ STT is one of many protocols for network communication. This chapter provides fa
 
 **STT's Unique Position:** Agnostic binary transport with zero assumptions. Unlike HTTP (assumes documents/requests), WebRTC (assumes media), or BitTorrent (assumes files), STT works for ANY binary use case. YOU define semantics.
 
-**Important:** STT is designed for the Seigr ecosystem with DHT-based peer discovery, content distribution, and NAT traversal capabilities built-in.
-
 ## STT vs HTTP/HTTPS
 
 ### HTTP/HTTPS Overview
@@ -122,7 +120,7 @@ WebRTC (Web Real-Time Communication) enables peer-to-peer communication in brows
 | **Peer-to-Peer** | Yes (requires signaling server) | Yes (direct) |
 | **Browser Support** | Excellent | None |
 | **Media Focus** | Optimized for A/V | General binary data |
-| **NAT Traversal** | Built-in (ICE/STUN/TURN) | Not yet implemented |
+| **NAT Traversal** | Built-in (ICE/STUN/TURN) | Not implemented |
 | **Encryption** | DTLS-SRTP | STC |
 | **Setup Complexity** | Higher (signaling needed) | Lower (direct if IPs known) |
 | **Data Channels** | Limited | Multiple streams native |
