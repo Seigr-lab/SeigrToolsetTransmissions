@@ -72,7 +72,7 @@ Bit  | Meaning
 4-15 | Reserved (must be 0)
 ```
 
-**Current v0.2.0-alpha:**
+**Current 0.2.0a0 (unreleased):**
 
 - Always little endian (bit 0 = 0)
 - DATA frames encrypted (bit 1 = 1)
@@ -228,7 +228,7 @@ Varint: 1010 1100  0000 0010
 Bytes:  0xAC       0x02
 ```
 
-**Current v0.2.0-alpha:** Fixed 4-byte lengths (no varint yet). Planned for v0.6.0 optimization.
+**Current 0.2.0a0 (unreleased):** Fixed 4-byte lengths (no varint yet). Planned for FUTURE VERSION (not implemented) optimization.
 
 ## Checksum Calculation
 
@@ -312,12 +312,12 @@ E8 03 00 00 00 00 00 00 | timestamp
 
 ## Protocol Version Compatibility
 
-**Current version:** 0x01 (v0.2.0-alpha)
+**Current version:** 0x01 (0.2.0a0 (unreleased))
 
 **Future versions:**
 
-- 0x02: v0.4.0 (DHT extensions)
-- 0x03: v0.6.0 (priority, QoS)
+- 0x02: FUTURE VERSION (not implemented) (DHT extensions)
+- 0x03: FUTURE VERSION (not implemented) (priority, QoS)
 
 **Backward compatibility:**
 

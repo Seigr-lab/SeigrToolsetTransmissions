@@ -21,7 +21,7 @@ This creates an environment named `seigr-stt` with:
 - Python 3.9
 - pytest and pytest-asyncio for testing
 - pytest-cov for coverage reporting
-- seigr-toolset-crypto (STC v0.3.1+) - the ONLY external cryptographic dependency
+- seigr-toolset-crypto (STC >=0.4.0) - the ONLY external cryptographic dependency
 
 ### Activating the Environment
 

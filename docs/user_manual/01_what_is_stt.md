@@ -413,7 +413,7 @@ STT sits between YOUR application logic and the network. It never interprets you
 
 ## Testing Status
 
-STT is currently in pre-release (v0.2.0-alpha) with 90.03% test coverage:
+STT is currently in pre-release (0.2.0a0 (unreleased)) with 93.01% test coverage:
 
 - Core session management: 100% tested
 - Stream operations: 99.24% tested

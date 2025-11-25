@@ -49,7 +49,7 @@ You can have the phone line connected but no conversation happening.
 - Sessions can be pooled by content hash similarity
 - Sessions can survive temporary connection loss via resumption tokens
 
-**v0.2.0-alpha:** Includes session continuity and content-affinity pooling features
+**0.2.0a0 (unreleased):** Includes session continuity and content-affinity pooling features
 
 ## Connection Types
 
@@ -225,7 +225,7 @@ await alice_node.stop()
 
 ## Session Management
 
-### Multiple Sessions (Current v0.2.0-alpha)
+### Multiple Sessions (Current 0.2.0a0 (unreleased))
 
 **One node can handle multiple sessions** (though typically one-to-one):
 
@@ -314,7 +314,7 @@ else:
 
 ### Content-Affinity Session Pooling
 
-**STT v0.2.0+ includes hash-neighborhood clustering:**
+**STT 0.2.0a0 includes hash-neighborhood clustering:**
 
 ```python
 from seigr_toolset_transmissions.session import ContentAffinityPool
@@ -541,7 +541,7 @@ async def connect_with_retry(node, peer_address, peer_node_id):
 
 ### Cryptographic Session Continuity
 
-**STT v0.2.0+ includes seed-based resumption:**
+**STT 0.2.0a0 includes seed-based resumption:**
 
 ```python
 from seigr_toolset_transmissions.session import CryptoSessionContinuity
@@ -628,7 +628,7 @@ node.start()
 - 1,000 sessions: Achievable (server-grade)
 - 10,000+ sessions: Requires tuning (OS limits, large buffers)
 
-**Current v0.2.0-alpha** tested up to ~500 concurrent sessions.
+**Current 0.2.0a0 (unreleased)** tested up to ~500 concurrent sessions.
 
 ### Frame Size Optimization
 
@@ -806,7 +806,7 @@ await stream_chat.send(chat_message)
    - No - XOR only for session ID mixing; STC handles encryption
 
 5. **Can a session survive connection loss?**
-   - Not in v0.2.0-alpha; connection migration planned for v0.6.0+
+   - Not implemented: connection migration not implemented
 
 6. **What happens if handshake fails due to wrong seed?**
    - AuthenticationError raised; session not established

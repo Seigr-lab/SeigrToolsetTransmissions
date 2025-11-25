@@ -170,7 +170,7 @@ class BinaryStreamEncoder:
         is_empty = len(segment) == 0
         encrypt_data = b'\x00' if is_empty else segment
         
-        # STC v0.4.0: encrypt uses STC StreamingContext
+        # Seigr Toolset Crypto v0.4.1: encrypt uses STC StreamingContext
         header_obj, encrypted = self.stream_context.encrypt_chunk(encrypt_data)
         header_bytes = header_obj.to_bytes()  # 16-byte fixed header
         

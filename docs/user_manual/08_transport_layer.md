@@ -180,7 +180,7 @@ STT detects and retransmits lost packets (automatic).
 
 **Problem:** Peers behind NAT can't directly connect
 
-**STT v0.2.0-alpha solution:**
+**STT 0.2.0a0 (unreleased) solution:**
 
 - **NAT traversal implemented** (STUN-like functionality)
 - Discover public IP and port via STUN server
@@ -353,7 +353,7 @@ HTTP/1.1 200 Connection Established
 
 ### Manual Selection
 
-**Current v0.2.0-alpha:** Must choose one transport manually.
+**Current 0.2.0a0 (unreleased):** Must choose one transport manually.
 
 ### Hybrid Approach
 
@@ -379,11 +379,11 @@ session_carol = await node_alice.connect(
 )
 ```
 
-**Not yet implemented** - current v0.2.0-alpha: one transport per node.
+**Not yet implemented** - current 0.2.0a0 (unreleased): one transport per node.
 
 ## Session Continuity Across Transports
 
-**STT v0.2.0+ includes cryptographic session continuity:**
+**STT 0.2.0a0 includes cryptographic session continuity:**
 
 ```python
 from seigr_toolset_transmissions.session import CryptoSessionContinuity
@@ -687,7 +687,7 @@ asyncio.run(test_websocket())
    - UDP (no connection setup, less overhead)
 
 3. **Can STT use both UDP and WebSocket simultaneously?**
-   - Not in v0.2.0-alpha (planned for v0.3.0+)
+   - Not in 0.2.0a0 (unreleased) (not implemented)
 
 4. **Does WebSocket provide encryption?**
    - No (unless using WSS - WebSocket Secure with TLS), but STC encrypts STT payloads anyway

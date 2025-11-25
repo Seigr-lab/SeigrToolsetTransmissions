@@ -1,53 +1,17 @@
 # STT User Manual - Complete Guide
 
-**Version**: 0.2.0-alpha  
-**Last Updated**: November 21, 2025
+**Version**: 0.2.0a0 (unreleased)  
+**Last Updated**: November 25, 2025
 
 ## About This Manual
 
-This manual explains Seigr Toolset Transmissions (STT) in plain language. It is designed for anyone to understand - you don't need to be a developer or cryptography expert. Each chapter builds on the previous one, starting from basic concepts and progressing to advanced topics.
+This manual explains Seigr Toolset Transmissions (STT) in plain language. Each chapter builds on the previous one, starting from basic concepts and progressing to advanced topics.
 
-## What is STT?
+## Quick Start
 
-STT (Seigr Toolset Transmissions) is a **binary transport protocol** with **agnostic primitives**. It moves encrypted bytes between peers without interpreting what they mean.
-
-Think of STT as a secure delivery service for bytes:
-
-- **You** decide what to send (video, sensor data, files, messages, custom protocols)
-- **STT** handles secure transport, storage, and routing
-- **Zero assumptions** about data semantics
-
-STT provides building blocks:
-
-- **BinaryStreamEncoder/Decoder**: Stream bytes (live or bounded modes)
-- **BinaryStorage**: Hash-addressed encrypted byte buckets
-- **EndpointManager**: Route bytes to multiple destinations
-- **EventEmitter**: User-defined event system
-- **FrameDispatcher**: Custom frame types for your protocols
-- **STTSession/Node**: P2P connections with STC encryption
-
-**YOU compose primitives** into video streaming, sensor networks, file sharing, messaging, or anything else that moves bytes.
-
-## Who Should Read This
-
-- **Non-technical users** who want to understand what STT is and how it works
-- **Developers** who want to integrate STT into their applications
-- **System administrators** who need to deploy STT-based systems
-- **Security auditors** who need to understand STT's security model
-- **Anyone curious** about peer-to-peer networking and cryptography
-
-## How to Use This Manual
-
-Read the chapters in order if you're new to STT:
-
-1. Start with **Chapter 1** to understand the basics
-2. Read **Chapters 2-4** to learn core concepts
-3. **Chapters 5-7** explain how things work technically
-4. **Chapters 8-10** cover practical usage
-5. **Chapters 11-13** discuss security and comparisons
-6. **Appendices** provide reference information
-
-If you're looking for specific information, use the chapter links below.
+**New to STT?** → Start with [Chapter 1: What is STT?](01_what_is_stt.md)  
+**Want to code?** → Jump to [Chapter 9: Getting Started](09_getting_started.md)  
+**Need component details?** → See [Part V: Component Reference](#part-v-component-reference) (Chapters 16-25)
 
 ## Manual Structure
 
@@ -153,7 +117,22 @@ If you're looking for specific information, use the chapter links below.
   - Why STC instead of standard crypto?
   - Limitations and when NOT to use STT
 
-### Part V: Reference
+### Part V: Component Reference
+
+**Each component has its own dedicated chapter with detailed examples, patterns, and troubleshooting:**
+
+- **[Chapter 16: STTNode](16_sttnode.md)** - Main runtime and coordination
+- **[Chapter 17: Sessions & SessionManager](17_sessions.md)** - Connection lifecycle and management
+- **[Chapter 18: Handshake & HandshakeManager](18_handshake.md)** - Authentication protocol
+- **[Chapter 19: Frames & FrameDispatcher](19_frames.md)** - Binary protocol and routing
+- **[Chapter 20: Streams & StreamManager](20_streams.md)** - Multiplexing and flow control
+- **[Chapter 21: Chamber Storage](21_chamber.md)** - Encrypted persistent storage
+- **[Chapter 22: Transport Layer](22_transport.md)** - UDP and WebSocket transports
+- **[Chapter 23: Cryptography (STCWrapper)](23_cryptography.md)** - STC encryption integration
+- **[Chapter 24: Binary Streaming](24_binary_streaming.md)** - Large data fragmentation
+- **[Chapter 25: Endpoints & Events](25_endpoints_events.md)** - Endpoint management and event system
+
+### Part VI: Reference
 
 - [Design: Agnostic Design Philosophy](../design/agnostic_design_philosophy.md)
   - **NEW**: Complete agnostic design documentation
@@ -163,9 +142,9 @@ If you're looking for specific information, use the chapter links below.
   - Anti-patterns (what NOT to do)
   - Terminology guide (agnostic language)
 
+
 - [Appendix A: Glossary](appendix_a_glossary.md)
   - All technical terms defined
-  - **NEW**: Agnostic terminology (bytes, segments, hash-based addressing)
 
 - [Appendix B: Frame Format Reference](appendix_b_frame_format.md)
   - Detailed binary format specification
@@ -176,38 +155,16 @@ If you're looking for specific information, use the chapter links below.
 - [Appendix D: Error Code Reference](appendix_d_error_codes.md)
   - Complete error code listing
 
-- [Appendix E: Migration Guide](appendix_e_migration.md)
-  - Migrating from other protocols
+---
 
 ## Getting Help
 
-If you have questions after reading this manual:
+- **[Part V: Component Reference](#part-v-component-reference)** - Chapters 16-25 with detailed component guides
+- **[Glossary](appendix_a_glossary.md)** - Term definitions
+- **[API Reference](../api/API.md)** - Complete Python API
+- **[Architecture](../design/ARCHITECTURE.md)** - Design documentation
 
-1. Check the [Glossary](appendix_a_glossary.md) for term definitions
-2. Review the [FAQ](appendix_f_faq.md) for common questions
-3. See the [API Reference](../api_reference.md) for code-level details
-4. Check the [Examples](../examples.md) for code samples
+---
 
-## Contributing to This Manual
-
-Found an error? Something unclear? This manual can be improved:
-
-- Corrections and clarifications welcome
-- Suggest additional examples
-- Request new chapters or topics
-- Fix typos and formatting
-
-The manual source is in the `docs/user_manual/` directory.
-
-## Document Conventions
-
-Throughout this manual:
-
-- **Bold text**: Important terms or emphasis
-- `Code formatting`: Code, filenames, commands
-- > Block quotes: Important notes or warnings
-- 📝 Note icons: Additional information
-- ⚠️ Warning icons: Important cautions
-- ✅ Success icons: Confirmation or completion
-
-Let's begin! Continue to [Chapter 1: What is STT?](01_what_is_stt.md)
+**Document Version**: 0.2.0a0 (unreleased)  
+**Last Updated**: November 25, 2025

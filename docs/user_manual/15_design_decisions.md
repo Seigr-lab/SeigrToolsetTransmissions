@@ -141,7 +141,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Consequence:** Must maintain own protocol (more work), less ecosystem tooling
 
-**STT v0.2.0+ features:**
+**STT 0.2.0a0 features:**
 
 - **Adaptive Priority**: Priority calculated from content properties (uniqueness, access patterns, network conditions)
 - **Probabilistic Delivery**: Shannon entropy determines delivery probability
@@ -393,7 +393,7 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 - Content distribution with chunking
 - NAT traversal (STUN-like functionality)
 
-**Additional Features (v0.2.0+):**
+**Additional Features (0.2.0a0):**
 
 - Adaptive priority (content property-based)
 - Probabilistic delivery (entropy-based)

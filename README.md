@@ -3,347 +3,223 @@
 [![Sponsor Seigr-lab](https://img.shields.io/badge/Sponsor-Seigr--lab-forestgreen?style=flat&logo=github)](https://github.com/sponsors/Seigr-lab)
 [![License](https://img.shields.io/badge/license-ANTI--CAPITALIST-red)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9+-green)](https://python.org)
+[![Version](https://img.shields.io/badge/version-0.2.0a0-blue)]()
+[![Coverage](https://img.shields.io/badge/coverage-93.01%25-brightgreen)]()
 
-**Agnostic binary transport protocol - NOT a file transfer system.**
+> **Secure binary transport that doesn't care what you're sending.**
 
-STT is a **secure binary transport protocol** using STC (Seigr Toolset Crypto) for encryption. It makes **ZERO assumptions** about what you're sending - could be video, sensor data, protocol messages, or anything else. You define the semantics, STT just moves encrypted bytes securely.
+STT creates **opaque encrypted packets** that tunnel through any network (UDP, WebSocket, HTTPS) and can only be decrypted by authorized participants. No assumptions about your data - you could be streaming video, sending sensor readings, transferring files, or running your own custom protocol.
 
 ---
 
-## What This Is (and Isn't)
+## 📖 Quick Links
 
-**STT IS:**
+- **New to STT?** → [What is STT?](docs/user_manual/01_what_is_stt.md) - Start here
+- **Want to use it?** → [Getting Started](docs/user_manual/09_getting_started.md) - Installation & first program  
+- **Need API docs?** → [API Reference](docs/api/API.md) - Complete Python API
+- **Curious how it works?** → [Architecture](docs/design/ARCHITECTURE.md) - Design & protocol details
 
-- Pure binary transport (send/receive opaque bytes)
-- Agnostic streaming (live streams, bounded streams, infinite streams)
-- Multi-endpoint routing (user defines what endpoints mean)
-- STC-encrypted storage (hash-addressed byte buckets)
-- Extensible framing (custom frame types 0x80-0xFF)
+---
 
-**STT IS NOT:**
+## Why STT?
 
-- A file transfer protocol (no file semantics)
-- A content management system (no content types)
-- Application-specific (you define what data means)
+**Problem**: Most protocols assume what you're sending (HTTP = web pages, MQTT = IoT messages, WebRTC = video calls). But what if you need secure binary transport without those assumptions?
 
-**Philosophy:** STT = Secure Binary Transport Protocol. Period. What you send is your business.
+**Solution**: STT provides **encrypted binary packets** that:
+
+✅ **Tunnel through any transport** (UDP if available, WebSocket/HTTPS if firewalled)  
+✅ **Only decrypt for authorized peers** (pre-shared seed authentication)  
+✅ **Work for any application** (you define what the bytes mean)  
+✅ **Are opaque to intermediaries** (network sees encrypted binary blobs)  
+
+**Use STT for**: Video streaming, sensor networks, file transfer, messaging, custom protocols - anything that moves bytes securely.
 
 ---
 
 ## Status
 
-**Pre-release v0.2.0-alpha** - Core agnostic primitives implemented and tested
+**Version**: 0.2.0a0 (unreleased)  
+**Test Coverage**: 93.01% (2803 statements)  
+**Status**: Alpha - core functionality implemented and tested
 
-**Test Coverage: 90.03%** (210 missing lines from 2107 total statements)
-
----
-
-## Agnostic Primitives (New in v0.2.0-alpha)
-
-STT provides low-level primitives with NO semantic assumptions:
-
-**BinaryStreamEncoder/Decoder:**
-
-- Live streaming (infinite): `mode='live'` - continuous data flow, never ends
-- Bounded streaming (finite): `mode='bounded'` - known completion, call `end()`
-- Async iterators: `async for segment in encoder.send(bytes)`
-- Out-of-order handling: Automatic segment reordering
-- Flow control: Credit-based backpressure
-
-**BinaryStorage:**
-
-- Hash-addressed byte buckets: `put(bytes) -> address`
-- STC-encrypted storage: Secure at rest
-- Deduplication: Same bytes = same address (SHA3-256)
-- NO file semantics: Just bytes in, bytes out
-
-**EndpointManager:**
-
-- Multi-endpoint routing: `send_to()`, `send_to_many()`, `receive_any()`
-- User-defined endpoints: You decide what they represent
-- Per-endpoint queues: Independent receive streams
-
-**EventEmitter:**
-
-- User-defined events: Register custom event handlers
-- Async dispatch: `@emitter.on('custom_event')`
-- Built-in events: `bytes_received`, `endpoint_connected`, etc.
-
-**FrameDispatcher:**
-
-- Custom frame types: 0x80-0xFF reserved for user protocols
-- Handler registration: `register_custom_handler(type, handler)`
-- Zero assumptions about payload meaning
+**What works**: Handshake, sessions, streams, frames, UDP/WebSocket transport, encryption, storage  
+**What's next**: Production hardening, performance optimization, additional transports
 
 ---
 
-## Components
-
-- **Handshake** - Complete mutual authentication using STC encrypt/decrypt (87.93% coverage)
-- **Session** - Full lifecycle and key rotation (100% coverage)
-- **Stream** - Multiplexed data channels with ordering (99.24% coverage)
-- **Frame** - Binary framing with STC encryption (80% coverage)
-- **Serialization** - Binary format (not JSON/msgpack) (88.44% coverage)
-- **Transport** - UDP & WebSocket native implementations (84%+ coverage)
-
----
-
-## Architecture
-
-Application → Stream → Session → Frame → Transport
-
-**Handshake Flow (4 messages):**
-
-1. **HELLO**: Initiator generates nonce, creates commitment hash, sends to responder
-2. **RESPONSE**: Responder generates nonce, encrypts challenge (both nonces) with STC, sends to initiator
-3. **AUTH_PROOF**: Initiator decrypts challenge, creates session_id from XOR of (nonce_i, nonce_r, node_id_i, node_id_r), encrypts proof, sends to responder
-4. **FINAL**: Responder verifies proof by decrypting and comparing session_id, sends confirmation
-
-Both peers now have the same session_id and can establish streams. This protocol requires pre-shared seeds - the ability to decrypt the STC-encrypted challenge proves seed possession.
-
----
-
-## Test Coverage
-
-**Overall: 90.03% (210 missing lines from 2107 total statements)**
-
-**Module Coverage:**
-
-- session.py: **100%** (96 statements, 0 missing)
-- serialization.py: **100%** (147 statements, 0 missing)
-- session_manager.py: **100%** (78 statements, 0 missing)
-- stream.py: **99.24%** (131 statements, 1 missing)
-- stream_manager.py: **98.61%** (72 statements, 1 missing)
-- stc_wrapper.py: **98.78%** (82 statements, 1 missing)
-- frame.py: **98.26%** (115 statements, 2 missing)
-- decoder.py: **97.87%** (47 statements, 1 missing)
-- chamber.py: **96.97%** (66 statements, 2 missing)
-- udp.py: **89.86%** (138 statements, 14 missing)
-- handshake.py: **87.36%** (174 statements, 22 missing)
-- websocket.py: **84.17%** (436 statements, 69 missing)
-- node.py: **82.95%** (129 statements, 22 missing)
-
-Core protocol components (session, stream, frame, serialization) have high coverage. Lower coverage in node.py and websocket.py is primarily in error handling paths and less common code branches.
-
----
-
-## Installation
-
-Not yet published to PyPI.
-
-From source:
-
-```bash
-git clone https://github.com/Seigr-lab/SeigrToolsetTransmissions.git
-cd SeigrToolsetTransmissions
-pip install -e .
-```
-
-### Requirements
-
-- Python 3.9+
-- seigr-toolset-crypto>=0.3.1
-
----
-
-## Quick Start
-
-### Basic Node
+## Quick Example
 
 ```python
 import asyncio
 from seigr_toolset_transmissions import STTNode
 
 async def main():
-    seed = b"shared_seed_32_bytes_minimum!!"
+    # Create node with pre-shared seeds
+    node = STTNode(
+        node_seed=b"my_node_secret_32bytes_minimum!",
+        shared_seed=b"shared_secret_32bytes_minimum!",
+        host="0.0.0.0",
+        port=8080
+    )
     
-    node = STTNode(node_seed=seed, shared_seed=seed)
-    await node.start()
+    # Start listening
+    await node.start(server_mode=True)
     
-    print(f"Node ID: {node.node_id.hex()}")
+    # Receive packets from any authorized peer
+    async for packet in node.receive():
+        print(f"Received {len(packet.data)} bytes")
+        # packet.data contains decrypted bytes
+        # Only peers with matching shared_seed can send to us
 
 asyncio.run(main())
 ```
 
-### Handshake Example
+**That's it.** Encrypted packets tunnel through your network automatically.
 
-```python
-from seigr_toolset_transmissions.handshake import STTHandshake
-from seigr_toolset_transmissions.crypto import STCWrapper
-
-seed = b"shared_seed_32_bytes_minimum!!"
-
-# Initiator
-initiator = STTHandshake(
-    node_id=b"\x01" * 32,
-    stc_wrapper=STCWrapper(seed),
-    is_initiator=True
-)
-
-# Responder
-responder = STTHandshake(
-    node_id=b"\x02" * 32,
-    stc_wrapper=STCWrapper(seed),
-    is_initiator=False
-)
-
-# Protocol
-hello = initiator.create_hello()
-challenge = responder.process_hello(hello)
-response = initiator.process_challenge(challenge)
-final = responder.verify_response(response)
-initiator.process_final(final)
-
-print(f"Session: {initiator.session_id.hex()}")
-```
-
-### Frame Encryption
-
-```python
-from seigr_toolset_transmissions.frame import STTFrame
-from seigr_toolset_transmissions.crypto import STCWrapper
-
-stc = STCWrapper(b"seed" * 8)
-
-frame = STTFrame.create_frame(
-    frame_type=1,
-    session_id=b"\x01" * 8,
-    sequence=0,
-    stream_id=1,
-    payload=b"Hello!"
-)
-
-encrypted = frame.encrypt(stc)
-serialized = frame.to_bytes()
-
-# Decrypt
-received = STTFrame.from_bytes(serialized, stc)
-print(received.payload)  # b"Hello!"
-```
+👉 **Learn more**: [Getting Started Guide](docs/user_manual/09_getting_started.md)
 
 ---
 
-## Usage
+## How It Works
 
-### Session Management
+**1. Pre-Shared Seeds**: Both peers must have matching secrets (QR code, secure channel, etc.)  
+**2. Handshake**: 4-message mutual authentication using STC encryption  
+**3. Encrypted Packets**: All data encrypted before sending - opaque to network  
+**4. Transport Agnostic**: Packets travel over UDP, WebSocket, or any byte transport  
 
-```python
-from seigr_toolset_transmissions.session import STTSession
-from seigr_toolset_transmissions.crypto import STCWrapper
-
-stc = STCWrapper(b"seed" * 8)
-session = STTSession(
-    session_id=b"\x01" * 8,
-    peer_node_id=b"\x02" * 32,
-    stc_wrapper=stc
-)
-
-session.record_sent_bytes(1024)
-session.record_received_bytes(2048)
-
-stats = session.get_statistics()
-print(stats)
+```
+┌─────────────┐                    ┌─────────────┐
+│   Node A    │ ──[encrypted]────→ │   Node B    │
+│ (shared_seed│    UDP/WebSocket   │ shared_seed)│
+└─────────────┘ ←─[encrypted]───── └─────────────┘
+                Only A & B can decrypt
+                Network sees random bytes
 ```
 
-### Stream Usage
-
-```python
-from seigr_toolset_transmissions.stream import STTStream
-from seigr_toolset_transmissions.crypto import STCWrapper
-
-stc = STCWrapper(b"seed" * 8)
-stream = STTStream(
-    session_id=b"\x01" * 8,
-    stream_id=1,
-    stc_wrapper=stc
-)
-
-await stream.send(b"Data")
-data = await stream.receive()
-```
+👉 **Deep dive**: [Architecture](docs/design/ARCHITECTURE.md) | [Handshake Process](docs/user_manual/05_handshake_process.md) | [Security Model](docs/user_manual/13_security_model.md)
 
 ---
 
-## Documentation
+## Installation
 
-**User Manual**: [`docs/user_manual/`](docs/user_manual/) - Complete guide (15 chapters)
+**Requirements**: Python 3.9+
 
-**Core References**:
+```bash
+# From source (not yet on PyPI)
+git clone https://github.com/Seigr-lab/SeigrToolsetTransmissions.git
+cd SeigrToolsetTransmissions
+pip install -e .
+```
 
-- [API Reference](docs/api/api_reference.md) - Complete API documentation
-- [Protocol Specification](docs/design/protocol_spec.md) - Protocol details
-- [STC API Reference](docs/api/STC_API_REFERENCE.md) - seigr-toolset-crypto API
-- [Environment Setup](docs/development/ENVIRONMENT_SETUP.md) - Development environment
+**Dependencies**: 
+- `seigr-toolset-crypto` >= 0.4.0 (STC encryption)
 
-**Development**:
-
-- [Documentation Updates](docs/development/DOCUMENTATION_UPDATE.md) - Tracking doc changes
-
-**Releases**:
-
-- [CHANGELOG](docs/releases/CHANGELOG.md) - Complete changelog
-- [v0.2.0-alpha](docs/releases/v0.2.0-alpha.md) - Current release
-- [v0.1.0](docs/releases/v0.1.0.md) - Initial release
+👉 **Full guide**: [Installation & Setup](docs/user_manual/09_getting_started.md)
 
 ---
 
-## Features
+## 📚 Documentation
 
-- Handshake using STC encrypt/decrypt proof
-- XOR-based session IDs (pure math)  
-- Session lifecycle with statistics  
-- Stream multiplexing with ordering  
-- Frame encryption (STC AEAD-like)  
-- Binary serialization  
-- Varint encoding
+### **User Manual** (Learn STT from scratch)
 
-### Not Yet Implemented
+**Getting Started**:
+- [Chapter 1: What is STT?](docs/user_manual/01_what_is_stt.md) - Overview and use cases
+- [Chapter 2: Core Concepts](docs/user_manual/02_core_concepts.md) - Nodes, sessions, streams
+- [Chapter 9: Getting Started](docs/user_manual/09_getting_started.md) - Installation and first program
 
-- Manager async integration (blocks many tests)
-- Transport layer integration
-- Streaming encoder/decoder
-- NAT traversal
-- DHT discovery
+**Understanding How It Works**:
+- [Chapter 3: Binary Protocols](docs/user_manual/03_binary_protocols.md) - Why binary?
+- [Chapter 4: Encryption](docs/user_manual/04_understanding_encryption.md) - STC and pre-shared seeds
+- [Chapter 5: Handshake](docs/user_manual/05_handshake_process.md) - 4-message authentication
+- [Chapter 6: Sessions](docs/user_manual/06_sessions_and_connections.md) - Session lifecycle
+- [Chapter 7: Streams](docs/user_manual/07_streams_and_multiplexing.md) - Multiplexing explained
+- [Chapter 8: Transport](docs/user_manual/08_transport_layer.md) - UDP vs WebSocket
+
+**Using STT**:
+- [Chapter 10: Common Patterns](docs/user_manual/10_common_usage_patterns.md) - Real-world examples
+- [Chapter 11: Error Handling](docs/user_manual/11_error_handling.md) - Troubleshooting
+- [Chapter 12: Performance](docs/user_manual/12_performance_and_optimization.md) - Optimization
+
+**Security & Design**:
+- [Chapter 13: Security Model](docs/user_manual/13_security_model.md) - Threat model
+- [Chapter 14: Comparisons](docs/user_manual/14_comparisons.md) - STT vs HTTP/gRPC/WebRTC/QUIC
+- [Chapter 15: Design Decisions](docs/user_manual/15_design_decisions.md) - Why STT works this way
+
+**Reference**:
+- [Glossary](docs/user_manual/appendix_a_glossary.md) - All terms defined
+- [Frame Format](docs/user_manual/appendix_b_frame_format.md) - Binary format spec
+- [Configuration](docs/user_manual/appendix_c_configuration.md) - All settings
+- [Error Codes](docs/user_manual/appendix_d_error_codes.md) - Complete error reference
+
+### **API & Technical Docs**
+
+- **[API Reference](docs/api/API.md)** - Complete Python API for all components
+- **[Architecture](docs/design/ARCHITECTURE.md)** - Design philosophy and protocol stack
+- **[STC Dependency](docs/api/STC_DEPENDENCY_REFERENCE.md)** - External crypto library docs
+
+### **Development**
+
+- [Environment Setup](docs/development/ENVIRONMENT_SETUP.md) - Dev environment
+- [CHANGELOG](docs/releases/CHANGELOG.md) - Version history
+
+---
+
+## Components
+
+STT is built from these core components (all with dedicated documentation):
+
+- **[STTNode](docs/user_manual/02_core_concepts.md#sttnode)** - Main runtime (85.56% tested)
+- **[Handshake](docs/user_manual/05_handshake_process.md)** - Mutual authentication (87.93% tested)
+- **[Sessions](docs/user_manual/06_sessions_and_connections.md)** - Connection management (100% tested)
+- **[Streams](docs/user_manual/07_streams_and_multiplexing.md)** - Multiplexed channels (99.24% tested)
+- **[Frames](docs/user_manual/appendix_b_frame_format.md)** - Binary protocol (98.26% tested)
+- **[Transport](docs/user_manual/08_transport_layer.md)** - UDP/WebSocket (84-90% tested)
+- **[Chamber](docs/api/API.md#storage)** - Encrypted storage (96.97% tested)
+- **[STCWrapper](docs/api/STC_DEPENDENCY_REFERENCE.md)** - Cryptography (98.78% tested)
+
+👉 **Full component docs**: [API Reference](docs/api/API.md)
 
 ---
 
 ## Testing
 
 ```bash
-# All tests
-pytest tests/ -v
-
-# Specific modules
-pytest tests/test_handshake.py -v
-pytest tests/test_session.py -v
-
-# With coverage
-pytest tests/ --cov
+pytest tests/ -v --cov
 ```
+
+**Coverage**: 93.01% (2803 statements)  
+**Test suite**: 200+ tests covering all core components
 
 ---
 
 ## Contributing
 
-1. Fork repository
-2. Create feature branch
-3. Add tests
-4. Keep modules focused
-5. Use ONLY STC crypto
-6. Submit PR
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality  
+4. Ensure all tests pass
+5. Submit a pull request
+
+**Development**: See [Environment Setup](docs/development/ENVIRONMENT_SETUP.md)
 
 ---
 
 ## License
 
-ANTI-CAPITALIST SOFTWARE LICENSE (v 1.4)
+**ANTI-CAPITALIST SOFTWARE LICENSE (v 1.4)**
+
+See [LICENSE](LICENSE) for full details.
 
 ---
 
-## Links
+## Support & Community
 
-- [Seigr Toolset Crypto](https://pypi.org/project/seigr-toolset-crypto/)
-- [Protocol Spec](docs/design/protocol_spec.md)
-- [API Reference](docs/api/api_reference.md)
+- **Issues**: [GitHub Issues](https://github.com/Seigr-lab/SeigrToolsetTransmissions/issues)
+- **Sponsor**: [GitHub Sponsors](https://github.com/sponsors/Seigr-lab)
 
 ---
+
+**Made with ❤️ by Seigr Lab**
+

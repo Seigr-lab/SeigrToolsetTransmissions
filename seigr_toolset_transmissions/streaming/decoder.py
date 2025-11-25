@@ -163,7 +163,7 @@ class BinaryStreamDecoder:
         header_bytes = encoded_segment[1:17]  # 16-byte fixed header
         encrypted = encoded_segment[17:]
         
-        # Decrypt with STC v0.4.0
+        # Decrypt with Seigr Toolset Crypto v0.4.1
         header_obj = ChunkHeader.from_bytes(header_bytes)
         decrypted = self.stream_context.decrypt_chunk(header_obj, encrypted)
         

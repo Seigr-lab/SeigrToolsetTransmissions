@@ -206,7 +206,7 @@ uvloop.install()
 
 ### Content-Affinity Session Pooling
 
-**STT v0.2.0+ includes hash-neighborhood clustering:**
+**STT 0.2.0a0 includes hash-neighborhood clustering:**
 
 ```python
 from seigr_toolset_transmissions.session import ContentAffinityPool

@@ -1,5 +1,5 @@
 """
-STCWrapper - STC v0.4.0 crypto operations for STT.
+STCWrapper - Seigr Toolset Crypto v0.4.1 crypto operations for STT.
 
 Uses STC's adaptive, non-deterministic crypto:
 - Probabilistic hashing (PHE) for privacy

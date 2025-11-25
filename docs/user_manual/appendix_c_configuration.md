@@ -254,12 +254,12 @@ node = STTNode(
 **compression** (bool, default: False):
 
 - Enable payload compression (future feature)
-- Not implemented in v0.2.0-alpha
+- Not implemented in 0.2.0a0 (unreleased)
 
 **priority_enabled** (bool, default: False):
 
 - Enable stream priority (future feature)
-- Not implemented in v0.2.0-alpha
+- Not implemented in 0.2.0a0 (unreleased)
 
 ### Logging Configuration
 

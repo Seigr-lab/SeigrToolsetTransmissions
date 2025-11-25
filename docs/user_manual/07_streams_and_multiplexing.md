@@ -175,7 +175,7 @@ Frame: Stream 2, Seq 2, 1 KB audio
 
 ### Adaptive Priority
 
-**STT v0.2.0+ includes adaptive priority** based on content properties:
+**STT 0.2.0a0 includes adaptive priority** based on content properties:
 
 ```python
 from seigr_toolset_transmissions.stream import AdaptivePriorityManager
@@ -617,7 +617,7 @@ with open('received_file.bin', 'wb') as f:
 
 ### Probabilistic Delivery Streams
 
-**STT v0.2.0+ includes entropy-aware loss tolerance:**
+**STT 0.2.0a0 includes entropy-aware loss tolerance:**
 
 ```python
 from seigr_toolset_transmissions.stream import ProbabilisticStream
@@ -754,4 +754,4 @@ Session (Encrypted Channel)
 - Ordering = guaranteed per stream (sequence numbers + reordering)
 - Reliability = automatic retransmission (NACKs + timeouts)
 - Flexible = unidirectional, bidirectional, long-lived, RPC patterns all supported
-- Additional features (v0.2.0+) = adaptive priority (content-derived), probabilistic delivery (entropy-based)
+- Additional features (0.2.0a0) = adaptive priority (content-derived), probabilistic delivery (entropy-based)

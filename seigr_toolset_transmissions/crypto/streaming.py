@@ -29,7 +29,7 @@ def create_stream_context(session_id: bytes, stream_id: int) -> StreamingContext
     """
     Create isolated StreamingContext for stream encryption.
     
-    Returns STC v0.4.0 StreamingContext directly:
+    Returns Seigr Toolset Crypto v0.4.1 StreamingContext directly:
     - 132.9 FPS, 7.52ms latency
     - 16-byte fixed headers via ChunkHeader
     - Lazy CEL initialization

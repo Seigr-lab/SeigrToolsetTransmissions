@@ -1,7 +1,12 @@
-# Seigr Toolset Crypto (STC) - Complete API Reference
+# Seigr Toolset Crypto (STC) - External Dependency Reference
 
-**Version:** 0.3.1  
-**Package Name:** `seigrtc` (imports as `from interfaces.api import stc_api`)
+> **IMPORTANT**: This document describes the **external STC cryptography library** that STT depends on.  
+> **STC Package**: `seigr-toolset-crypto>=0.4.0` (separate package, separate repository)  
+> **Import**: `from interfaces.api import stc_api`  
+> **This is NOT part of STT** - it's a dependency. For STT APIs, see `API.md`.
+
+**STC Version Required**: >=0.4.0  
+**STT Version**: 0.2.0a0 (unreleased)
 
 ---
 
