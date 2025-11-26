@@ -29,15 +29,15 @@ STT uses **STC (Seigr Temporal Cryptography)** exclusively for all encryption. T
 | **Setup** | No prior setup (server has certificate) | Both peers need same seed beforehand |
 | **Trust Model** | Certificate authorities (CAs) | Direct trust (you shared the seed) |
 | **Use Case** | Public internet (connect to anyone) | Private networks (pre-authorized peers) |
-| **Standardization** | IETF standards (RFC 5246, 8446) | Custom (Seigr ecosystem) |
+| **Standardization** | IETF standards (RFC 5246, 8446) | Custom (Seigr Toolset Crypto) |
 | **Forward Secrecy** | Yes (ephemeral keys) | No (deterministic from seed) |
 
 **Why STC instead of TLS?**
 
-- **Content addressing**: STC.hash is integral to Seigr ecosystem (content IDs)
+- **Content addressing**: STC.hash provides cryptographic hashing for content identification
 - **Deterministic**: Same seed always generates same keys (useful for distributed systems)
 - **Simpler trust model**: No certificate infrastructure needed
-- **Seigr ecosystem integration**: Designed specifically for this use case
+- **Designed for binary transmission**: Optimized for the specific needs of encrypted binary protocols
 
 **Trade-off:** Requires out-of-band seed distribution (you must share seeds securely before connecting).
 
@@ -129,9 +129,9 @@ Hash: 0xD7A8FBB3...  (256-bit fingerprint)
 - **Unique**: Different data produces different hash (extremely likely)
 - **Deterministic**: Same data always produces same hash
 - **One-way**: Cannot reverse hash to get original data
-- **Probabilistic**: STC.hash intentionally allows collisions (design choice for Seigr)
+- **Probabilistic**: STC.hash intentionally allows collisions (design choice)
 
-### Use in Seigr Ecosystem
+### Content Addressing with STC.hash
 
 **Content addressing** means data is identified by its hash:
 
@@ -288,7 +288,7 @@ Each encrypted payload includes **metadata** so receiver knows how to decrypt:
 
 - Known peer networks (you decide who to trust)
 - Private applications
-- Seigr ecosystem (content-addressed, pre-authorized peers)
+- Content-addressed systems with pre-authorized peers
 
 **Not suitable for:**
 
@@ -349,7 +349,7 @@ STC uses sophisticated cryptographic algorithms - far more complex than XOR.
 
 **When to use STC (STT):**
 
-- Seigr ecosystem applications
+- Binary transmission applications
 - Private peer networks (pre-authorized)
 - Content-addressed systems (STC.hash integration)
 - Deterministic keys useful (same seed = same keys)
@@ -520,7 +520,7 @@ Don't use "password123" as a seed!
 5. **Does STC provide forward secrecy?**
    - No - compromised seed exposes all past sessions (deterministic keys)
 
-6. **Why does Seigr ecosystem use STC instead of standard TLS?**
+6. **Why does STT use STC instead of standard TLS?**
    - Content addressing (STC.hash), deterministic keys, simpler trust model for private networks
 
 ## Next Steps
@@ -541,5 +541,5 @@ Now that you understand encryption in STT:
 - All STT payloads are encrypted; headers are not
 - XOR in session ID derivation is mixing, not encryption
 - Secure seed management is critical (strong generation, secure distribution, periodic rotation)
-- STC designed for Seigr ecosystem (content addressing, deterministic keys)
+- STC provides content addressing (STC.hash) and deterministic keys
 - Current limitations: no forward secrecy, requires pre-shared seeds

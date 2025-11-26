@@ -1,7 +1,7 @@
 """
 Seigr Toolset Transmissions (STT)
 
-Binary, encrypted, application-agnostic transmission protocol for the Seigr Ecosystem.
+Binary, encrypted, application-agnostic transmission protocol.
 
 Philosophy: Zero semantic assumptions. STT transports/stores/routes bytes.
 YOU define what they mean.

@@ -240,8 +240,8 @@ BitTorrent is a peer-to-peer file-sharing protocol.
 
 ### When to Use STT
 
-- Seigr ecosystem applications (designed for this)
-- STC encryption required (content-addressed)
+- Binary transmission applications requiring encryption
+- STC encryption integration (content-addressed hashing)
 - Real-time streaming with session continuity
 - Need encrypted peer-to-peer communication
 - Multi-stream multiplexing required

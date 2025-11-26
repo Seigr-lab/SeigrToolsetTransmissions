@@ -145,52 +145,62 @@ This difference requires special handling, which STT provides through its handsh
 STT is designed for **any binary data transport scenario**:
 
 **1. Live Streaming**
-   - Video/audio encoding → binary frames → BinaryStreamEncoder
-   - Receiver gets bytes → YOU decode H.264/VP9/Opus/etc.
-   - STT doesn't know it's video, just encrypted byte segments
+
+- Video/audio encoding → binary frames → BinaryStreamEncoder
+- Receiver gets bytes → YOU decode H.264/VP9/Opus/etc.
+- STT doesn't know it's video, just encrypted byte segments
 
 **2. Distributed Storage**
-   - Store arbitrary binary data in hash-addressed buckets
-   - BinaryStorage: SHA3-256 hash → encrypted bytes
-   - Could be images, documents, sensor logs, anything
+
+- Store arbitrary binary data in hash-addressed buckets
+- BinaryStorage: SHA3-256 hash → encrypted bytes
+- Could be images, documents, sensor logs, anything
 
 **3. Real-Time Sensors**
-   - IoT devices generate readings → serialize to bytes
-   - BinaryStreamEncoder sends live data stream
-   - YOU define the sensor data format, STT just transports
+
+- IoT devices generate readings → serialize to bytes
+- BinaryStreamEncoder sends live data stream
+- YOU define the sensor data format, STT just transports
 
 **4. P2P Messaging**
-   - Serialize messages → bytes → EndpointManager routes to peers
-   - Custom frame types (0x80-0xFF) for your protocol
-   - STT doesn't know they're "messages", just binary frames
+
+- Serialize messages → bytes → EndpointManager routes to peers
+- Custom frame types (0x80-0xFF) for your protocol
+- STT doesn't know they're "messages", just binary frames
 
 **5. Custom Binary Protocols**
-   - Define your own handshake/data exchange format
-   - Use FrameDispatcher for application-specific frame handling
-   - EventEmitter for custom event types YOU define
 
-**6. Seigr Ecosystem (Primary Target)**
-   - Multi-peer encrypted transport for decentralized applications
-   - Foundation for building distributed content networks
-   - No central server required - applications implement peer discovery
+- Define your own handshake/data exchange format
+- Use FrameDispatcher for application-specific frame handling
+- EventEmitter for custom event types YOU define
+
+**6. Decentralized Applications**
+
+- Multi-peer encrypted transport foundation
+- Build distributed systems with peer-to-peer communication
+- No central server required - applications implement peer discovery
 
 ### What STT Is NOT
 
 **Not a File Transfer Protocol**
-   - No concept of "files" or "directories"
-   - If you want file transfer, YOU implement it using STT primitives
+
+- No concept of "files" or "directories"
+- If you want file transfer, YOU implement it using STT primitives
 
 **Not a Messaging System**
-   - No "messages" or "chats" built-in
-   - If you want messaging, YOU define message format and use STT to transport bytes
+
+- No "messages" or "chats" built-in
+- If you want messaging, YOU define message format and use STT to transport bytes
 
 **Not a Media Streaming Library**
-   - No video/audio codecs built-in
-   - If you want media streaming, YOU encode/decode, STT transports encrypted bytes
+
+- No video/audio codecs built-in
+- If you want media streaming, YOU encode/decode, STT transports encrypted bytes
 
 **Not Application-Specific**
-   - Zero built-in assumptions about data semantics
-   - YOU decide what the bytes mean
+
+- Zero built-in assumptions about data semantics
+- YOU decide what the bytes mean
 
 ### When NOT to Use STT
 
@@ -261,7 +271,7 @@ STT may not be suitable for:
 
 **STT**:
 
-- Designed for Seigr ecosystem (many-to-many capable)
+- General-purpose binary transmission protocol
 - Multi-peer encrypted transport foundation
 - STC encryption built-in
 - Real-time streaming AND large data transfer

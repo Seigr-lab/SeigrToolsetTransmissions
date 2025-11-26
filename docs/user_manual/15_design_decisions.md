@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This chapter explains **why** STT is designed the way it is - the reasoning behind key decisions, trade-offs made, and the vision for the Seigr ecosystem.
+This chapter explains **why** STT is designed the way it is - the reasoning behind key decisions and trade-offs made.
 
 ## Core Design Principles
 
@@ -23,18 +23,18 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Result:** Same STT node can simultaneously run video streaming, sensor networks, file sharing, custom protocols
 
-### 2. Seigr Ecosystem First
+### 2. Privacy and Encryption First
 
-**Decision:** Build STT specifically for Seigr ecosystem needs
+**Decision:** Build STT with mandatory encryption and decentralized capability
 
 **Rationale:**
 
-- Distributed network needs peer-to-peer (not client-server)
 - Privacy-focused (encryption mandatory, not optional)
-- Decentralized (no central authorities)
-- Multi-peer encrypted transport foundation for building decentralized networks
+- Decentralized (no central authorities required)
+- Multi-peer encrypted transport foundation for building distributed applications
+- Peer-to-peer capable (not limited to client-server)
 
-**Trade-off:** Less general-purpose than HTTP/WebRTC, but optimal for Seigr use case
+**Trade-off:** Less general-purpose than HTTP/WebRTC, but optimal for privacy-focused binary transmission
 
 **Alternative rejected:** Use existing protocols (HTTP, BitTorrent) - don't integrate STC natively
 
@@ -55,17 +55,17 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 ### 4. STC Instead of Standard Crypto
 
-**Decision:** Use STC (Seigr Temporal Cryptography) exclusively
+**Decision:** Use STC (Seigr Toolset Crypto) exclusively
 
 **Rationale:**
 
-- STC.hash provides cryptographic hashing for Seigr ecosystem
-- Unified cryptography across ecosystem (one library)
-- Probabilistic hashing (collisions tolerated - design choice for Seigr)
+- STC.hash provides cryptographic hashing for content addressing
+- Unified cryptography from Seigr Labs toolset
+- Probabilistic hashing (collisions tolerated - design choice)
 
 **Trade-off:** Not standardized (IETF), not audited like TLS, unfamiliar to developers
 
-**Alternative rejected:** TLS/AES - doesn't provide STC.hash for ecosystem needs
+**Alternative rejected:** TLS/AES - doesn't provide STC.hash for content addressing
 
 ### 5. Incremental Development
 
@@ -234,28 +234,28 @@ This chapter explains **why** STT is designed the way it is - the reasoning behi
 
 **Could combine?** Yes - future consideration (TLS for transport, STC for content) - but redundant
 
-**Result:** STC sufficient for Seigr ecosystem, simpler trust model
+**Result:** STC sufficient for binary transmission needs, simpler trust model
 
-## Seigr Ecosystem Vision
+## STT Vision and Purpose
 
 ### The Big Picture
 
-**Seigr ecosystem goals:**
+**STT purpose:**
 
-1. **Decentralized content storage** (no central servers)
-2. **Privacy-preserving** (encryption mandatory)
-3. **Resilient** (distributed, redundant)
-4. **Efficient** (peer-to-peer, no unnecessary hops)
+1. **Encrypted binary transmission** (mandatory encryption)
+2. **Privacy-preserving** (pre-shared seed model)
+3. **Multi-peer capable** (peer-to-peer communication)
+4. **Application-agnostic** (zero assumptions about data)
 
 **STT's role:**
 
-- **Transport layer** for Seigr ecosystem
+- **Transport layer** for binary applications
 - Connects peers securely (STC encryption)
 - Enables peer-to-peer communication
 - Provides multi-peer primitives (broadcast/multicast)
-- Foundation for applications to build decentralized networks
+- Foundation for applications to build on
 
-**Analogy:** STT is like "encrypted UDP for P2P" - the protocol that provides secure multi-peer transport for applications to build decentralized systems.
+**Analogy:** STT is like "encrypted UDP for P2P" - the protocol that provides secure multi-peer transport for binary applications.
 
 ### Current Capabilities
 
@@ -357,9 +357,8 @@ Applications built on STT must implement:
 **Response:**
 
 - **True** - STT not designed for public internet (like HTTP)
-- **Use case:** Private networks, known peers, Seigr ecosystem (pre-authorized)
+- **Use case:** Private networks, known peers, pre-authorized connections
 - **Alternative:** If need public access, use HTTP/TLS (different use case)
-- **Research:** Optional certificate auth for hybrid trust model (not scheduled)
 
 ### "Custom crypto is dangerous"
 
@@ -368,8 +367,8 @@ Applications built on STT must implement:
 **Response:**
 
 - **Valid concern** - custom crypto risky
-- **Mitigation:** STC developed by cryptographers
-- **Rationale:** STC.hash required for Seigr ecosystem cryptographic needs
+- **Mitigation:** STC developed by cryptographers at Seigr Labs
+- **Rationale:** STC.hash required for content-addressed cryptographic hashing
 
 ### "Why not just use HTTP/gRPC/QUIC?"
 
@@ -377,12 +376,12 @@ Applications built on STT must implement:
 
 **Response:**
 
-- **Existing protocols** not designed for Seigr ecosystem (no STC encryption)
-- **STT specific** to Seigr needs (STC + P2P + multi-peer primitives)
+- **Existing protocols** don't integrate STC encryption and content addressing
+- **STT specific** needs (STC + P2P + multi-peer primitives)
 - **Novel features** provide multi-peer encrypted transport foundation
-- **Trade-off:** Custom protocol more work, but optimal for Seigr
+- **Trade-off:** Custom protocol more work, but optimal for binary transmission with STC
 
-## Current Status and Research Directions
+## Current Status
 
 ### Implemented Features
 
@@ -417,29 +416,29 @@ STT provides encrypted multi-peer transport. Applications built on STT implement
 
 **STT's purpose:**
 
-- Standard transport for Seigr ecosystem
+- Binary transmission protocol with mandatory encryption
 - Reference implementation of STC-based networking
 - Multi-peer encrypted transport layer
 
-**Seigr ecosystem goals:**
+**Development goals:**
 
-- Decentralized network infrastructure using STC
+- Privacy-preserving binary transmission
 - End-to-end encryption for all communications
-- Distributed peer-to-peer architecture
+- Distributed peer-to-peer capable architecture
 
-**STT's role:** Encrypted multi-peer transport layer for Seigr ecosystem applications.
+**STT's role:** Encrypted multi-peer transport layer for binary applications.
 
 ## Key Takeaways
 
-- **Design for Seigr first:** STT optimized for Seigr ecosystem needs (STC, content addressing, P2P)
+- **Privacy and encryption first:** STT designed for encrypted binary transmission (STC, content addressing, P2P)
 - **Pre-shared seeds:** Simpler trust model than PKI, aligns with privacy goals, enables deterministic keys
-- **STC-only:** Unified cryptography, content addressing native, trade-off vs standard crypto
-- **Incremental development:** Continuous feature delivery guided by ecosystem needs
+- **STC-only:** Unified cryptography from Seigr Labs toolset, content addressing native, trade-off vs standard crypto
+- **Incremental development:** Continuous feature delivery based on real needs
 - **Binary protocol:** Efficiency over convenience (debugging harder but performance better)
-- **Trade-offs explicit:** No forward secrecy (determinism needed), no PKI (simpler trust), custom protocol (Seigr-specific)
+- **Trade-offs explicit:** No forward secrecy (determinism needed), no PKI (simpler trust), custom protocol (STC-specific)
 - **Learned from others:** P2P resilience concepts from BitTorrent, stream multiplexing ideas from QUIC, NAT challenges from WebRTC
 - **Implementation details:** Multi-peer primitives (send_to_all, send_to_sessions), session management, stream multiplexing
-- **Criticisms valid:** Custom crypto risky (will audit), pre-shared seeds don't scale (different use case), custom protocol (Seigr-specific needs)
+- **Criticisms valid:** Custom crypto risky, pre-shared seeds don't scale to public internet, custom protocol learning curve
 - **Current features:** STC encryption, server mode, multi-peer capabilities, manual peer connections
 - **Transport foundation:** STT provides encrypted multi-peer transport; applications implement network formation logic
-- **Goals:** STT as Seigr ecosystem transport - decentralized, encrypted, P2P-capable
+- **Goals:** Binary transmission protocol - decentralized, encrypted, P2P-capable
