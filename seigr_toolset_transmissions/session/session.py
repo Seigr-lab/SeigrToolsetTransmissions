@@ -51,6 +51,19 @@ class STTSession:
         self.frames_sent = 0
         self.frames_received = 0
         
+        # Performance metrics
+        self.rtt_samples = []  # Rolling window of RTT measurements
+        self.max_rtt_samples = 100
+        self.frame_send_times = {}  # frame_id -> send_timestamp
+        self.encryption_time_total = 0.0
+        self.decryption_time_total = 0.0
+        self.encryption_ops = 0
+        self.decryption_ops = 0
+        
+        # Throughput tracking
+        self.throughput_window = []  # (timestamp, bytes) tuples
+        self.throughput_window_size = 10  # seconds
+        
         # Metadata
         self.metadata: Dict = metadata if metadata is not None else {}
     
@@ -74,17 +87,79 @@ class STTSession:
         """Update last activity timestamp."""
         self.last_activity = time.time()
     
-    def record_frame_sent(self, size: int) -> None:
-        """Record sent frame statistics."""
+    def record_frame_sent(self, size: int, frame_id: Optional[int] = None) -> None:
+        """Record sent frame statistics and start RTT tracking."""
         self.frames_sent += 1
         self.bytes_sent += size
+        
+        # Track for throughput calculation
+        current_time = time.time()
+        self.throughput_window.append((current_time, size))
+        
+        # Clean old entries
+        cutoff = current_time - self.throughput_window_size
+        self.throughput_window = [(t, s) for t, s in self.throughput_window if t > cutoff]
+        
+        # Track frame send time for RTT calculation
+        if frame_id is not None:
+            self.frame_send_times[frame_id] = current_time
+        
         self.update_activity()
     
-    def record_frame_received(self, size: int) -> None:
-        """Record received frame statistics."""
+    def record_frame_received(self, size: int, frame_id: Optional[int] = None) -> None:
+        """Record received frame statistics and calculate RTT if applicable."""
         self.frames_received += 1
         self.bytes_received += size
+        
+        # Calculate RTT if this is a response to our frame
+        if frame_id is not None and frame_id in self.frame_send_times:
+            rtt = time.time() - self.frame_send_times[frame_id]
+            self.rtt_samples.append(rtt)
+            
+            # Keep only recent samples
+            if len(self.rtt_samples) > self.max_rtt_samples:
+                self.rtt_samples = self.rtt_samples[-self.max_rtt_samples:]
+            
+            # Clean up send time
+            del self.frame_send_times[frame_id]
+        
         self.update_activity()
+    
+    def record_encryption(self, duration: float) -> None:
+        """Record encryption operation timing."""
+        self.encryption_time_total += duration
+        self.encryption_ops += 1
+    
+    def record_decryption(self, duration: float) -> None:
+        """Record decryption operation timing."""
+        self.decryption_time_total += duration
+        self.decryption_ops += 1
+    
+    def get_average_rtt(self) -> Optional[float]:
+        """Get average RTT in seconds."""
+        if not self.rtt_samples:
+            return None
+        return sum(self.rtt_samples) / len(self.rtt_samples)
+    
+    def get_current_throughput(self) -> float:
+        """Get current throughput in bytes/second."""
+        if not self.throughput_window:
+            return 0.0
+        
+        current_time = time.time()
+        cutoff = current_time - self.throughput_window_size
+        recent = [(t, s) for t, s in self.throughput_window if t > cutoff]
+        
+        if not recent:
+            return 0.0
+        
+        total_bytes = sum(s for _, s in recent)
+        time_span = current_time - recent[0][0]
+        
+        if time_span == 0:
+            return 0.0
+        
+        return total_bytes / time_span
     
     def record_sent_bytes(self, size: int) -> None:
         """Record sent bytes (alias for compatibility)."""
@@ -105,8 +180,11 @@ class STTSession:
         return not self.is_active
     
     def get_stats(self) -> Dict:
-        """Get session statistics."""
-        return {
+        """Get comprehensive session statistics including performance metrics."""
+        avg_rtt = self.get_average_rtt()
+        throughput = self.get_current_throughput()
+        
+        stats = {
             'session_id': self.session_id.hex(),
             'peer_node_id': self.peer_node_id.hex(),
             'key_version': self.key_version,
@@ -116,7 +194,29 @@ class STTSession:
             'bytes_received': self.bytes_received,
             'frames_sent': self.frames_sent,
             'frames_received': self.frames_received,
+            
+            # Performance metrics
+            'average_rtt_ms': round(avg_rtt * 1000, 2) if avg_rtt else None,
+            'min_rtt_ms': round(min(self.rtt_samples) * 1000, 2) if self.rtt_samples else None,
+            'max_rtt_ms': round(max(self.rtt_samples) * 1000, 2) if self.rtt_samples else None,
+            'rtt_samples_count': len(self.rtt_samples),
+            
+            # Throughput
+            'current_throughput_bps': round(throughput, 2),
+            'current_throughput_mbps': round(throughput / 1_000_000, 2),
+            
+            # Encryption performance
+            'avg_encryption_time_ms': round(
+                (self.encryption_time_total / self.encryption_ops * 1000) if self.encryption_ops > 0 else 0, 3
+            ),
+            'avg_decryption_time_ms': round(
+                (self.decryption_time_total / self.decryption_ops * 1000) if self.decryption_ops > 0 else 0, 3
+            ),
+            'encryption_ops': self.encryption_ops,
+            'decryption_ops': self.decryption_ops,
         }
+        
+        return stats
     
     def get_statistics(self) -> Dict:
         """Get session statistics (alias for compatibility)."""

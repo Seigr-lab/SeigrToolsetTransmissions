@@ -24,6 +24,12 @@ from .storage import BinaryStorage
 from .endpoints import EndpointManager
 from .events import EventEmitter, STTEvents
 
+# NAT Coordination (Pluggable)
+from .nat import NATCoordinator, ManualNATCoordinator, RelayNATCoordinator, NATStrategy
+
+# Performance Profiling
+from .utils.profiler import PerformanceProfiler, PerformanceSnapshot
+
 __all__ = [
     # Core Runtime
     'STTNode',
@@ -50,4 +56,12 @@ __all__ = [
     'EndpointManager',        # Multi-endpoint routing
     'EventEmitter',           # User-defined event system
     'STTEvents',              # Event registry
+    # NAT Coordination
+    'NATCoordinator',         # Abstract NAT coordinator interface
+    'ManualNATCoordinator',   # Manual peer configuration (default)
+    'RelayNATCoordinator',    # Relay-based NAT traversal
+    'NATStrategy',            # NAT strategy enumeration
+    # Performance
+    'PerformanceProfiler',    # Performance profiling utility
+    'PerformanceSnapshot',    # Performance metrics snapshot
 ]

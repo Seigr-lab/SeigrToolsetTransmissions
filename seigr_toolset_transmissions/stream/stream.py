@@ -46,6 +46,12 @@ class STTStream:
         self.messages_sent = 0
         self.messages_received = 0
         
+        # Performance metrics
+        self.send_latencies = []  # Message send latencies
+        self.max_latency_samples = 100
+        self.frame_queue_depth = 0
+        self.max_queue_depth_seen = 0
+        
         # Buffering
         self.receive_buffer = deque()
         self.send_buffer = deque()
@@ -197,7 +203,9 @@ class STTStream:
         return not self.is_active
     
     def get_stats(self) -> Dict:
-        """Get stream statistics."""
+        """Get comprehensive stream statistics including performance metrics."""
+        avg_latency = sum(self.send_latencies) / len(self.send_latencies) if self.send_latencies else 0
+        
         return {
             'session_id': self.session_id.hex(),
             'stream_id': self.stream_id,
@@ -209,6 +217,12 @@ class STTStream:
             'messages_received': self.messages_received,
             'send_window': self.send_window,
             'receive_window': self.receive_window,
+            
+            # Performance metrics
+            'avg_send_latency_ms': round(avg_latency * 1000, 3) if avg_latency else 0,
+            'current_queue_depth': self.frame_queue_depth,
+            'max_queue_depth': self.max_queue_depth_seen,
+            'priority': self.current_priority,
         }
     
     def get_statistics(self) -> Dict:
