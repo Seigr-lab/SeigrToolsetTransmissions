@@ -155,8 +155,8 @@ async def test_send_probabilistic_retry_logic(prob_stream):
     
     prob_stream._try_send_segment = mock_try_send
     
-    # Patch random to prevent early exit (always retry)
-    with patch('seigr_toolset_transmissions.stream.probabilistic_stream.random.random', return_value=0.0):
+    # Patch secrets to prevent early exit (always retry)
+    with patch('seigr_toolset_transmissions.stream.probabilistic_stream.secrets.randbelow', return_value=0):
         delivered = await prob_stream.send_probabilistic(data)
     
     # At least one segment should have made multiple attempts (2 or more)
@@ -172,8 +172,8 @@ async def test_send_probabilistic_early_exit(prob_stream):
     # Always fail send attempts
     prob_stream._try_send_segment = AsyncMock(return_value=False)
     
-    # Patch random to force early exits
-    with patch('seigr_toolset_transmissions.stream.probabilistic_stream.random.random', return_value=0.99):
+    # Patch secrets to force early exits (return high value to make ratio > 0.5)
+    with patch('seigr_toolset_transmissions.stream.probabilistic_stream.secrets.randbelow', return_value=999999):
         delivered = await prob_stream.send_probabilistic(data)
     
     # Should have early exits (not all segments delivered)
@@ -259,7 +259,7 @@ async def test_high_entropy_gets_more_attempts(prob_stream):
     prob_stream._try_send_segment = AsyncMock(return_value=False)
     
     # Force no early exits
-    with patch('seigr_toolset_transmissions.stream.probabilistic_stream.random.random', return_value=0.0):
+    with patch('seigr_toolset_transmissions.stream.probabilistic_stream.secrets.randbelow', return_value=0):
         await prob_stream.send_probabilistic(high_entropy)
         high_entropy_attempts = sum(m.attempts for m in prob_stream.segment_metadata.values())
         

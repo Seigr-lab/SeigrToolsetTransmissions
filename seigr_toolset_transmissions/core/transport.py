@@ -35,7 +35,7 @@ class TCPTransport:
     
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",  # Default to localhost for security
         port: int = STT_DEFAULT_TCP_PORT,
     ):
         """
@@ -104,8 +104,8 @@ class TCPTransport:
             try:
                 writer.close()
                 await writer.wait_closed()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Error closing writer: {e}")
             logger.info(f"Connection closed: {peer_addr}")
     
     async def connect(
@@ -143,8 +143,8 @@ class TCPTransport:
             try:
                 writer.close()
                 await writer.wait_closed()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug(f"Error closing connection during stop: {e}")
         
         self.connections.clear()
         
@@ -162,7 +162,7 @@ class TCPTransport:
 class UDPTransport:
     """UDP transport implementation (placeholder for future)."""
     
-    def __init__(self, host: str = "0.0.0.0", port: int = 9001):
+    def __init__(self, host: str = "127.0.0.1", port: int = 9001):  # Default to localhost
         """
         Initialize UDP transport.
         

@@ -391,6 +391,11 @@ All higher layers are transport-agnostic. Adding new transports (QUIC, SCTP, etc
 - WebSocket: 84.63%
 - Node Runtime: 85.56%
 
+**Known Stubs/Incomplete Implementations**:
+- `ProbabilisticStream._try_send_segment()` - stub that simulates random network success/failure (integration point for real transport)
+- `RelayServer._handle_forward()` - counts forwarded frames but doesn't implement actual STT frame forwarding
+- `core/transport.py UDPTransport` - placeholder class that raises `NotImplementedError` (use `transport/udp.py` instead)
+
 **Untested Lines**: Primarily defensive exception handlers, race condition handlers, and complex integration paths requiring multi-node test environments.
 
 ---

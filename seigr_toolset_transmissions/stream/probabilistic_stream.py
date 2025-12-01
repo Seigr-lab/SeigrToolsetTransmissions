@@ -10,7 +10,7 @@ Based purely on local content analysis, no external dependencies.
 
 import asyncio
 import math
-import random
+import secrets  # Use secrets instead of random for better randomness
 import time
 from typing import Optional, List, TYPE_CHECKING
 from dataclasses import dataclass
@@ -168,7 +168,7 @@ class ProbabilisticStream(STTStream):
                 
                 # Probabilistic early exit (acceptable loss)
                 # Random decision: continue retrying or accept loss
-                if random.random() > delivery_prob:
+                if (secrets.randbelow(1000000) / 1000000.0) > delivery_prob:
                     logger.debug(
                         f"Probabilistic exit: segment {segment_idx}, "
                         f"entropy={entropy:.3f}, prob={delivery_prob:.3f}, "
@@ -211,7 +211,7 @@ class ProbabilisticStream(STTStream):
         await asyncio.sleep(0.001)  # Simulate network delay
         
         # Simulate 50% packet loss for testing
-        return random.random() > 0.5
+        return (secrets.randbelow(1000000) / 1000000.0) > 0.5
     
     def _segment_data(self, data: bytes) -> List[bytes]:
         """

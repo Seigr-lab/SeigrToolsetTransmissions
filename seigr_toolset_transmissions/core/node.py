@@ -1,11 +1,14 @@
 """
 STT Node - Core runtime for Seigr Toolset Transmissions.
+
+STT is a transmission protocol - it moves encrypted bytes between nodes.
+Storage is NOT part of STT's responsibility - applications provide their own
+storage via the optional StorageProvider interface.
 """
 
 import asyncio
 import secrets
-from pathlib import Path
-from typing import Optional, AsyncIterator, Tuple
+from typing import Optional, AsyncIterator, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 
 from ..crypto.stc_wrapper import STCWrapper
@@ -13,7 +16,6 @@ from ..transport import UDPTransport, WebSocketTransport
 from ..session import SessionManager, STTSession
 from ..handshake import HandshakeManager, STTHandshake
 from ..frame import STTFrame
-from ..chamber import Chamber
 from ..utils.constants import (
     STT_DEFAULT_TCP_PORT,
     STT_FRAME_TYPE_HANDSHAKE,
@@ -23,6 +25,10 @@ from ..utils.constants import (
 )
 from ..utils.exceptions import STTException, STTSessionError
 from ..utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from ..storage.provider import StorageProvider
+
 logger = get_logger(__name__)
 
 
@@ -38,25 +44,28 @@ class ReceivedPacket:
 class STTNode:
     """
     Main STT node providing async API for secure binary communications.
+    
+    STT is a pure transmission protocol. Storage is optional and pluggable -
+    applications provide their own StorageProvider implementation if needed.
     """
     
     def __init__(
         self,
         node_seed: bytes,
-        shared_seed: bytes,
-        host: str = "0.0.0.0",
+        shared_seed: bytes = b"",
+        host: str = "127.0.0.1",  # Default to localhost for security
         port: int = 0,
-        chamber_path: Optional[Path] = None,
+        storage: Optional['StorageProvider'] = None,
     ):
         """
         Initialize STT node.
         
         Args:
             node_seed: Seed for STC initialization and node ID generation
-            shared_seed: Pre-shared seed for peer authentication
-            host: Host address to bind (default: all interfaces)
+            shared_seed: Pre-shared seed for peer authentication (optional)
+            host: Host address to bind (default: localhost)
             port: UDP port to bind (0 = random)
-            chamber_path: Path to chamber storage
+            storage: Optional storage provider (applications implement their own)
         """
         self.host = host
         self.port = port
@@ -67,10 +76,8 @@ class STTNode:
         # Generate node ID from identity
         self.node_id = self.stc.generate_node_id(b"stt_node_identity")
         
-        # Initialize chamber with STC
-        if chamber_path is None:
-            chamber_path = Path.home() / ".seigr" / "chambers" / self.node_id.hex()
-        self.chamber = Chamber(chamber_path, self.node_id, self.stc)
+        # Optional storage (application provides)
+        self.storage = storage
         
         # Initialize managers
         self.session_manager = SessionManager(self.node_id, self.stc)

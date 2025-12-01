@@ -253,14 +253,13 @@ class TestCoverageBoost:
             await transport.send_frame(frame, ("127.0.0.1", 12345))
     
     @pytest.mark.asyncio
-    async def test_node_handle_handshake_frame_server_side(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_handle_handshake_frame_server_side(self, node_seed, shared_seed):
         """Test node handling handshake as server (lines 248-269)."""
         from seigr_toolset_transmissions.core.node import STTNode
         
         node = STTNode(
             node_seed=node_seed,
-            shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            shared_seed=shared_seed
         )
         
         await node.start()
@@ -295,14 +294,13 @@ class TestCoverageBoost:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_node_frame_handling_error(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_frame_handling_error(self, node_seed, shared_seed):
         """Test node frame handling error path (lines 227-230)."""
         from seigr_toolset_transmissions.core.node import STTNode
         
         node = STTNode(
             node_seed=node_seed,
-            shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            shared_seed=shared_seed
         )
         
         await node.start()
@@ -324,15 +322,14 @@ class TestCoverageBoost:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_node_stop_with_tasks_and_websockets(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_stop_with_tasks_and_websockets(self, node_seed, shared_seed):
         """Test node stop with active tasks and WebSocket connections (lines 125, 128)."""
         from seigr_toolset_transmissions.core.node import STTNode
         import asyncio
         
         node = STTNode(
             node_seed=node_seed,
-            shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            shared_seed=shared_seed
         )
         
         await node.start()

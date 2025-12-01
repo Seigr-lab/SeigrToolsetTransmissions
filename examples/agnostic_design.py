@@ -3,12 +3,14 @@ Example: STT Agnostic Design - You Define Semantics
 
 This example demonstrates how STT makes ZERO assumptions about data.
 The SAME primitives work for completely different use cases.
+
+STT is a TRANSMISSION PROTOCOL - storage is optional and pluggable.
 """
 
 import asyncio
 from seigr_toolset_transmissions.streaming.encoder import BinaryStreamEncoder
 from seigr_toolset_transmissions.streaming.decoder import BinaryStreamDecoder
-from seigr_toolset_transmissions.storage.binary_storage import BinaryStorage
+from seigr_toolset_transmissions.storage import StorageProvider, InMemoryStorage
 from seigr_toolset_transmissions.endpoints.manager import EndpointManager
 from seigr_toolset_transmissions.events.emitter import EventEmitter, STTEvents
 from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper
@@ -66,45 +68,38 @@ async def example_video_streaming():
 
 async def example_sensor_data():
     """
-    Example 2: IoT sensor data storage
+    Example 2: IoT sensor data with pluggable storage
     
     STT doesn't know it's sensor data - you define that meaning.
+    Storage is OPTIONAL and pluggable - you bring your own.
     """
-    print("\n=== Example 2: IoT Sensor Data Storage ===")
+    print("\n=== Example 2: IoT Sensor Data with Pluggable Storage ===")
     
-    import tempfile
-    from pathlib import Path
+    # Use in-memory storage (you could use Redis, S3, etc.)
+    storage: StorageProvider = InMemoryStorage()
     
-    stc = STCWrapper(TEST_SEED)
+    # Simulate sensor readings (STT sees only bytes)
+    sensor_data = {
+        "temperature": b"25.3C",
+        "humidity": b"60%",
+        "pressure": b"1013hPa"
+    }
     
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = BinaryStorage(
-            storage_path=Path(tmpdir),
-            stc_wrapper=stc
-        )
-        
-        # Simulate sensor readings (STT sees only bytes)
-        sensor_data = {
-            "temperature": b"25.3C",
-            "humidity": b"60%",
-            "pressure": b"1013hPa"
-        }
-        
-        print("Storing sensor data (STT just sees bytes)...")
-        addresses = {}
-        
-        for sensor_type, reading in sensor_data.items():
-            address = await storage.put(reading)
-            addresses[sensor_type] = address
-            print(f"  Stored {sensor_type}: {address.hex()[:16]}...")
-        
-        # Retrieve data
-        print("\nRetrieving sensor data...")
-        for sensor_type, address in addresses.items():
-            data = await storage.get(address)
-            print(f"  Retrieved {sensor_type}: {data.decode()}")
-        
-        print("✓ Sensor data stored/retrieved (STT never knew it was sensor data!)")
+    print("Storing sensor data (using pluggable storage)...")
+    
+    for sensor_type, reading in sensor_data.items():
+        key = f"sensor:{sensor_type}".encode()
+        await storage.store(key, reading)
+        print(f"  Stored {sensor_type}: {key.decode()}")
+    
+    # Retrieve data
+    print("\nRetrieving sensor data...")
+    for sensor_type in sensor_data.keys():
+        key = f"sensor:{sensor_type}".encode()
+        data = await storage.retrieve(key)
+        print(f"  Retrieved {sensor_type}: {data.decode() if data else 'N/A'}")
+    
+    print("✓ Sensor data stored/retrieved (storage is YOUR choice!)")
 
 
 async def example_p2p_messaging():
@@ -227,8 +222,9 @@ async def main():
     print("ALL EXAMPLES COMPLETE")
     print("=" * 70)
     print("\nKey Takeaway:")
-    print("  STT provides primitives (streaming, storage, endpoints, events)")
+    print("  STT provides transmission primitives (streaming, endpoints, events)")
     print("  YOU define semantics (video, sensors, messages, protocols)")
+    print("  Storage is OPTIONAL and PLUGGABLE - bring your own!")
     print("  Zero assumptions = Maximum flexibility")
     print("=" * 70)
 

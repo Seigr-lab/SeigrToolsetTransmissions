@@ -300,9 +300,8 @@ class BinaryStorage:
         
         try:
             # Load persisted index
-            import pickle
-            with open(index_path, 'rb') as f:
-                self._index = pickle.load(f)
+            with open(index_path, 'r', encoding='utf-8') as f:
+                self._index = json.load(f)
             
             # Calculate current size
             self._current_size = sum(meta['size'] for meta in self._index.values())
@@ -316,9 +315,8 @@ class BinaryStorage:
         """Save storage index to disk."""
         index_path = self.storage_path / 'index.bin'
         try:
-            import pickle
-            with open(index_path, 'wb') as f:
-                pickle.dump(self._index, f)
+            with open(index_path, 'w', encoding='utf-8') as f:
+                json.dump(self._index, f, indent=2)
         except Exception as e:
             import logging
             logging.error(f"Failed to save index: {e}")
@@ -355,6 +353,7 @@ class BinaryStorage:
                     }
                     self._current_size += encrypted_size
                     
-                except Exception:
+                except Exception as e:
                     # Skip invalid files
+                    logger.debug(f"Skipping invalid file {file_path}: {e}")
                     continue

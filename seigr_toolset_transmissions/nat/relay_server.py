@@ -55,7 +55,7 @@ class RelayServer:
     
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",  # Default to localhost, use '0.0.0.0' for public relay
         port: int = 9000,
         registration_timeout: float = 90.0,
         enable_forwarding: bool = True
@@ -387,7 +387,7 @@ class RelayProtocol(asyncio.DatagramProtocol):
 
 
 async def run_relay_server(
-    host: str = "0.0.0.0",
+    host: str = "127.0.0.1",  # Default to localhost for security
     port: int = 9000,
     enable_forwarding: bool = True
 ) -> None:

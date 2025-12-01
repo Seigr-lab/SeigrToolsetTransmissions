@@ -43,7 +43,12 @@ STT creates **opaque encrypted packets** that tunnel through any network (UDP, W
 **Status**: Alpha - core functionality implemented and tested
 
 **What works**: Handshake, sessions, streams, frames, UDP/WebSocket transport, encryption, storage  
-**What's next**: Production hardening, performance optimization, additional transports
+**Known stubs/incomplete**:
+- `ProbabilisticStream._try_send_segment()` - simulates network delivery (stub for integration)
+- `RelayServer._handle_forward()` - counts forwarded frames but doesn't implement actual forwarding
+- `core/transport.py UDPTransport` - placeholder class (working implementation is in `transport/udp.py`)
+
+**What's next**: Complete stub implementations, production hardening, additional transports
 
 ---
 
@@ -58,7 +63,7 @@ async def main():
     node = STTNode(
         node_seed=b"my_node_secret_32bytes_minimum!",
         shared_seed=b"shared_secret_32bytes_minimum!",
-        host="0.0.0.0",
+        host="127.0.0.1",  # Default; use "0.0.0.0" to accept external connections
         port=8080
     )
     
@@ -111,7 +116,8 @@ cd SeigrToolsetTransmissions
 pip install -e .
 ```
 
-**Dependencies**: 
+**Dependencies**:
+
 - `seigr-toolset-crypto` >= 0.4.0 (STC encryption)
 
 👉 **Full guide**: [Installation & Setup](docs/user_manual/09_getting_started.md)
@@ -123,11 +129,13 @@ pip install -e .
 ### **User Manual** (Learn STT from scratch)
 
 **Getting Started**:
+
 - [Chapter 1: What is STT?](docs/user_manual/01_what_is_stt.md) - Overview and use cases
 - [Chapter 2: Core Concepts](docs/user_manual/02_core_concepts.md) - Nodes, sessions, streams
 - [Chapter 9: Getting Started](docs/user_manual/09_getting_started.md) - Installation and first program
 
 **Understanding How It Works**:
+
 - [Chapter 3: Binary Protocols](docs/user_manual/03_binary_protocols.md) - Why binary?
 - [Chapter 4: Encryption](docs/user_manual/04_understanding_encryption.md) - STC and pre-shared seeds
 - [Chapter 5: Handshake](docs/user_manual/05_handshake_process.md) - 4-message authentication
@@ -136,16 +144,19 @@ pip install -e .
 - [Chapter 8: Transport](docs/user_manual/08_transport_layer.md) - UDP vs WebSocket
 
 **Using STT**:
+
 - [Chapter 10: Common Patterns](docs/user_manual/10_common_usage_patterns.md) - Real-world examples
 - [Chapter 11: Error Handling](docs/user_manual/11_error_handling.md) - Troubleshooting
 - [Chapter 12: Performance](docs/user_manual/12_performance_and_optimization.md) - Optimization
 
 **Security & Design**:
+
 - [Chapter 13: Security Model](docs/user_manual/13_security_model.md) - Threat model
 - [Chapter 14: Comparisons](docs/user_manual/14_comparisons.md) - STT vs HTTP/gRPC/WebRTC/QUIC
 - [Chapter 15: Design Decisions](docs/user_manual/15_design_decisions.md) - Why STT works this way
 
 **Reference**:
+
 - [Glossary](docs/user_manual/appendix_a_glossary.md) - All terms defined
 - [Frame Format](docs/user_manual/appendix_b_frame_format.md) - Binary format spec
 - [Configuration](docs/user_manual/appendix_c_configuration.md) - All settings
@@ -192,6 +203,26 @@ pytest tests/ -v --cov
 
 ---
 
+## Security
+
+STT has undergone comprehensive security auditing:
+
+- ✅ **Bandit** static analysis: 0 issues (6679 lines of code scanned)
+- ✅ **Safety** dependency check: 0 vulnerabilities
+- ✅ **pip-audit** OSV database: 0 vulnerabilities in STT code
+
+All identified security issues have been fixed, including:
+
+- SHA1 usage properly marked as non-cryptographic (WebSocket handshake only)
+- Default bind addresses set to localhost (127.0.0.1) for security
+- Pickle replaced with JSON for storage serialization
+- Secrets module used for cryptographic randomness
+- Comprehensive error logging for debugging
+
+👉 **Full security audit**: [Security Audit Summary](docs/security/SECURITY_AUDIT_SUMMARY.md)
+
+---
+
 ## Contributing
 
 Contributions welcome! Please:
@@ -218,8 +249,3 @@ See [LICENSE](LICENSE) for full details.
 
 - **Issues**: [GitHub Issues](https://github.com/Seigr-lab/SeigrToolsetTransmissions/issues)
 - **Sponsor**: [GitHub Sponsors](https://github.com/sponsors/Seigr-lab)
-
----
-
-**Made with ❤️ by Seigr Lab**
-

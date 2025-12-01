@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 class UDPConfig:
     """UDP transport configuration."""
     
-    bind_address: str = "0.0.0.0"
+    bind_address: str = "127.0.0.1"  # Default to localhost for security
     bind_port: int = 0  # 0 = random port
     max_packet_size: int = 1472  # Safe MTU for IPv4 (1500 - 20 IP - 8 UDP)
     receive_buffer_size: int = 65536
@@ -43,7 +43,7 @@ class UDPTransport:
     
     def __init__(
         self,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",  # Default to localhost for security
         port: int = 0,
         stc_wrapper: Optional['STCWrapper'] = None,
         on_frame_received: Optional[Callable[[STTFrame, Tuple[str, int]], None]] = None

@@ -19,9 +19,10 @@ class TestNodeAdditional:
         return STTNode(node_seed, shared_seed, "127.0.0.1", 0)
     
     @pytest.mark.asyncio
-    async def test_node_chamber_initialization(self, node):
-        """Test node chamber initialization."""
-        assert node.chamber is not None
+    async def test_node_storage_initialization(self, node):
+        """Test node storage initialization (storage is optional)."""
+        # Storage is now optional - defaults to None
+        assert node.storage is None
         assert node.node_id is not None
     
     @pytest.mark.asyncio

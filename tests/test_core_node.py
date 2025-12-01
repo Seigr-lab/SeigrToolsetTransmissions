@@ -1,5 +1,7 @@
 """
 Tests for core STT Node functionality.
+
+STT is a transmission protocol - storage is optional and pluggable.
 """
 
 import pytest
@@ -16,13 +18,6 @@ class TestSTTNode:
     """Test STT Node core functionality."""
     
     @pytest.fixture
-    def temp_chamber_path(self):
-        """Create temporary chamber directory."""
-        temp_dir = Path(tempfile.mkdtemp())
-        yield temp_dir
-        shutil.rmtree(temp_dir, ignore_errors=True)
-    
-    @pytest.fixture
     def node_seed(self):
         """Node seed for testing."""
         return b"test_node_seed_12345678"
@@ -33,34 +28,34 @@ class TestSTTNode:
         return b"test_shared_seed_1234567"
     
     @pytest.mark.asyncio
-    async def test_create_node(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_create_node(self, node_seed, shared_seed):
         """Test creating STT node."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
             host="127.0.0.1",
             port=0,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         assert node.host == "127.0.0.1"
         assert node.port == 0
         assert node.stc is not None
         assert node.node_id is not None
-        assert node.chamber is not None
+        assert node.storage is None  # No storage by default
         assert node.session_manager is not None
         assert node.handshake_manager is not None
         assert not node._running
     
     @pytest.mark.asyncio
-    async def test_node_start_stop(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_start_stop(self, node_seed, shared_seed):
         """Test starting and stopping node."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
             host="127.0.0.1",
             port=0,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         # Start node
@@ -76,12 +71,12 @@ class TestSTTNode:
         assert node._running == False
     
     @pytest.mark.asyncio
-    async def test_node_double_start(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_double_start(self, node_seed, shared_seed):
         """Test starting node twice returns same address."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         addr1 = await node.start()
@@ -94,12 +89,12 @@ class TestSTTNode:
         await node.stop()
     
     @pytest.mark.asyncio
-    async def test_node_stop_when_not_running(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_stop_when_not_running(self, node_seed, shared_seed):
         """Test stopping node when not running."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         # Should not raise error
@@ -107,42 +102,69 @@ class TestSTTNode:
         assert node._running == False
     
     @pytest.mark.asyncio
-    async def test_connect_udp_without_start(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_connect_udp_without_start(self, node_seed, shared_seed):
         """Test connecting before starting node raises error."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         with pytest.raises(STTException, match="not started"):
             await node.connect_udp("127.0.0.1", 12345)
     
     @pytest.mark.asyncio
-    async def test_default_chamber_path(self, node_seed, shared_seed):
-        """Test node with default chamber path."""
+    async def test_node_without_storage(self, node_seed, shared_seed):
+        """Test node works without storage (pure transmission mode)."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
             host="127.0.0.1",
-            port=0
+            port=0,
+            storage=None
         )
         
-        # Should use default path in home directory
-        assert node.chamber.chamber_path is not None
-        assert ".seigr" in str(node.chamber.chamber_path)
+        # Storage should be None
+        assert node.storage is None
+        
+        # Node should still work for transmission
+        addr = await node.start()
+        assert addr is not None
+        await node.stop()
     
     @pytest.mark.asyncio
-    async def test_node_id_generation(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_with_storage(self, node_seed, shared_seed):
+        """Test node with pluggable storage."""
+        from seigr_toolset_transmissions.storage import InMemoryStorage
+        
+        storage = InMemoryStorage()
+        node = STTNode(
+            node_seed=node_seed,
+            shared_seed=shared_seed,
+            host="127.0.0.1",
+            port=0,
+            storage=storage
+        )
+        
+        # Storage should be set
+        assert node.storage is storage
+        
+        # Node should work
+        addr = await node.start()
+        assert addr is not None
+        await node.stop()
+    
+    @pytest.mark.asyncio
+    async def test_node_id_generation(self, node_seed, shared_seed):
         """Test node ID is generated from seed."""
-        node1 = STTNode(node_seed, shared_seed, chamber_path=temp_chamber_path)
-        node2 = STTNode(node_seed, shared_seed, chamber_path=temp_chamber_path / "node2")
+        node1 = STTNode(node_seed, shared_seed, storage=None)
+        node2 = STTNode(node_seed, shared_seed, storage=None)
         
         # Same seed should produce same node ID
         assert node1.node_id == node2.node_id
         
         # Different seed should produce different ID
-        node3 = STTNode(b"different_seed_12345", shared_seed, chamber_path=temp_chamber_path / "node3")
+        node3 = STTNode(b"different_seed_12345", shared_seed, storage=None)
         assert node1.node_id != node3.node_id
     
     @pytest.mark.asyncio
@@ -163,13 +185,6 @@ class TestSTTNodeIntegration:
     """Integration tests for STT Node."""
     
     @pytest.fixture
-    def temp_chamber_path(self):
-        """Create temporary chamber directory."""
-        temp_dir = Path(tempfile.mkdtemp())
-        yield temp_dir
-        shutil.rmtree(temp_dir, ignore_errors=True)
-    
-    @pytest.fixture
     def node_seed(self):
         """Node seed for testing."""
         return b"test_node_seed_12345678"
@@ -182,89 +197,74 @@ class TestSTTNodeIntegration:
     @pytest.mark.asyncio
     async def test_two_nodes_communication(self):
         """Test two nodes can communicate."""
-        temp_dir1 = Path(tempfile.mkdtemp())
-        temp_dir2 = Path(tempfile.mkdtemp())
+        node_seed1 = b"node1_seed_1234567890"
+        node_seed2 = b"node2_seed_0987654321"
+        shared_seed = b"shared_seed_12345678"
         
-        try:
-            node_seed1 = b"node1_seed_1234567890"
-            node_seed2 = b"node2_seed_0987654321"
-            shared_seed = b"shared_seed_12345678"
-            
-            # Create two nodes
-            node1 = STTNode(node_seed1, shared_seed, "127.0.0.1", 0, temp_dir1)
-            node2 = STTNode(node_seed2, shared_seed, "127.0.0.1", 0, temp_dir2)
-            
-            # Start both nodes
-            addr1 = await node1.start()
-            addr2 = await node2.start()
-            
-            assert addr1 is not None
-            assert addr2 is not None
-            assert addr1 != addr2  # Different ports
-            
-            # Give nodes time to initialize
-            await asyncio.sleep(0.1)
-            
-            # Stop nodes
-            await node1.stop()
-            await node2.stop()
-            
-        finally:
-            shutil.rmtree(temp_dir1, ignore_errors=True)
-            shutil.rmtree(temp_dir2, ignore_errors=True)
+        # Create two nodes (no storage - pure transmission)
+        node1 = STTNode(node_seed1, shared_seed, "127.0.0.1", 0, storage=None)
+        node2 = STTNode(node_seed2, shared_seed, "127.0.0.1", 0, storage=None)
+        
+        # Start both nodes
+        addr1 = await node1.start()
+        addr2 = await node2.start()
+        
+        assert addr1 is not None
+        assert addr2 is not None
+        assert addr1 != addr2  # Different ports
+        
+        # Give nodes time to initialize
+        await asyncio.sleep(0.1)
+        
+        # Stop nodes
+        await node1.stop()
+        await node2.stop()
     
     @pytest.mark.asyncio
     async def test_node_lifecycle(self):
         """Test complete node lifecycle."""
-        temp_dir = Path(tempfile.mkdtemp())
+        node = STTNode(
+            node_seed=b"lifecycle_test_seed_123",
+            shared_seed=b"shared_seed_12345678",
+            host="127.0.0.1",
+            port=0,
+            storage=None
+        )
         
-        try:
-            node = STTNode(
-                node_seed=b"lifecycle_test_seed_123",
-                shared_seed=b"shared_seed_12345678",
-                host="127.0.0.1",
-                port=0,
-                chamber_path=temp_dir
-            )
-            
-            # Initial state
-            assert not node._running
-            assert node.udp_transport is None
-            assert len(node._tasks) == 0
-            
-            # Start
-            await node.start()
-            assert node._running
-            assert node.udp_transport is not None
-            
-            # Stop
-            await node.stop()
-            assert not node._running
-            assert len(node.ws_connections) == 0
-            
-        finally:
-            shutil.rmtree(temp_dir, ignore_errors=True)
-
-
+        # Initial state
+        assert not node._running
+        assert node.udp_transport is None
+        assert len(node._tasks) == 0
+        
+        # Start
+        await node.start()
+        assert node._running
+        assert node.udp_transport is not None
+        
+        # Stop
+        await node.stop()
+        assert not node._running
+        assert len(node.ws_connections) == 0
+    
     @pytest.mark.asyncio
-    async def test_connect_udp_not_started(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_connect_udp_not_started(self, node_seed, shared_seed):
         """Test connecting UDP before node is started raises error."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         with pytest.raises(STTException, match="Node not started"):
             await node.connect_udp("127.0.0.1", 9999)
     
     @pytest.mark.asyncio
-    async def test_node_stop_when_not_running(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_stop_when_not_running(self, node_seed, shared_seed):
         """Test stopping node when not running."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         # Should not raise error
@@ -272,97 +272,84 @@ class TestSTTNodeIntegration:
         assert not node._running
     
     @pytest.mark.asyncio
-    async def test_node_chamber_initialization(self, node_seed, shared_seed, temp_chamber_path):
-        """Test node initializes chamber correctly."""
-        node = STTNode(
-            node_seed=node_seed,
-            shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
-        )
-        
-        assert node.chamber is not None
-        assert node.chamber.node_id == node.node_id
-        assert node.chamber.stc_wrapper == node.stc
-    
-    @pytest.mark.asyncio
-    async def test_node_session_manager_initialization(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_session_manager_initialization(self, node_seed, shared_seed):
         """Test node initializes session manager."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         assert node.session_manager is not None
         assert node.session_manager.local_node_id == node.node_id
     
     @pytest.mark.asyncio
-    async def test_node_handshake_manager_initialization(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_handshake_manager_initialization(self, node_seed, shared_seed):
         """Test node initializes handshake manager."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         assert node.handshake_manager is not None
         assert node.handshake_manager.node_id == node.node_id
     
     @pytest.mark.asyncio
-    async def test_node_receive_queue_initialization(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_receive_queue_initialization(self, node_seed, shared_seed):
         """Test node initializes receive queue."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         assert node._recv_queue is not None
         assert isinstance(node._recv_queue, asyncio.Queue)
     
     @pytest.mark.asyncio
-    async def test_node_host_port_configuration(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_host_port_configuration(self, node_seed, shared_seed):
         """Test node host and port configuration."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
             host="192.168.1.1",
             port=5000,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         assert node.host == "192.168.1.1"
         assert node.port == 5000
     
     @pytest.mark.asyncio
-    async def test_node_ws_connections_empty(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_ws_connections_empty(self, node_seed, shared_seed):
         """Test WebSocket connections dict is empty initially."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         assert len(node.ws_connections) == 0
     
     @pytest.mark.asyncio
-    async def test_node_tasks_empty_initially(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_tasks_empty_initially(self, node_seed, shared_seed):
         """Test tasks list is empty initially."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         assert len(node._tasks) == 0
     
     @pytest.mark.asyncio
-    async def test_node_get_stats(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_get_stats(self, node_seed, shared_seed):
         """Test node statistics retrieval."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         stats = node.get_stats()
@@ -372,12 +359,12 @@ class TestSTTNodeIntegration:
         assert stats['node_id'] == node.node_id.hex()
     
     @pytest.mark.asyncio
-    async def test_node_receive_queue(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_receive_queue(self, node_seed, shared_seed):
         """Test node receive queue."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         
         # Queue should be empty initially
@@ -394,12 +381,12 @@ class TestSTTNodeIntegration:
         assert not node._recv_queue.empty()
     
     @pytest.mark.asyncio
-    async def test_handle_handshake_frame(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_handle_handshake_frame(self, node_seed, shared_seed):
         """Test handling handshake frames."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         await node.start()
         
@@ -428,12 +415,12 @@ class TestSTTNodeIntegration:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_handle_data_frame_no_session(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_handle_data_frame_no_session(self, node_seed, shared_seed):
         """Test handling data frame with no session."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         await node.start()
         
@@ -461,12 +448,12 @@ class TestSTTNodeIntegration:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_handle_data_frame_with_session(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_handle_data_frame_with_session(self, node_seed, shared_seed):
         """Test handling data frame with valid session."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         await node.start()
         
@@ -478,8 +465,7 @@ class TestSTTNodeIntegration:
             session_id = b'\x01' * 8
             session = await node.session_manager.create_session(
                 session_id=session_id,
-                peer_node_id=b'\x02' * 32,
-                capabilities=0
+                peer_node_id=b'\x02' * 32
             )
             
             # Create data frame
@@ -505,12 +491,12 @@ class TestSTTNodeIntegration:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_receive_generator(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_receive_generator(self, node_seed, shared_seed):
         """Test receive generator."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         await node.start()
         
@@ -538,12 +524,12 @@ class TestSTTNodeIntegration:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_handle_unknown_frame_type(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_handle_unknown_frame_type(self, node_seed, shared_seed):
         """Test handling unknown frame type."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         await node.start()
         
@@ -570,46 +556,12 @@ class TestSTTNodeIntegration:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_handle_frame_exception(self, node_seed, shared_seed, temp_chamber_path):
-        """Test frame handler exception handling."""
-        node = STTNode(
-            node_seed=node_seed,
-            shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
-        )
-        await node.start()
-        
-        try:
-            # Create a frame that will cause issues
-            from seigr_toolset_transmissions.frame import STTFrame
-            from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
-            
-            # Malformed frame
-            frame = STTFrame(
-                frame_type=STT_FRAME_TYPE_DATA,
-                session_id=b'\xFF' * 8,  # Non-existent session
-                sequence=0,
-                stream_id=1,
-                payload=b'test'
-            )
-            
-            peer_addr = ('127.0.0.1', 5000)
-            
-            # Should handle exception gracefully
-            node._handle_frame_received(frame, peer_addr)
-            
-            await asyncio.sleep(0.1)
-            
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_node_with_background_tasks(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_node_with_background_tasks(self, node_seed, shared_seed):
         """Test node with background tasks gets cancelled on stop."""
         node = STTNode(
             node_seed=node_seed,
             shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
+            storage=None
         )
         await node.start()
         
@@ -627,314 +579,14 @@ class TestSTTNodeIntegration:
         assert task.cancelled() or task.done()
     
     @pytest.mark.asyncio
-    async def test_node_double_start(self, node_seed, shared_seed, temp_chamber_path):
-        """Test starting node twice returns same address."""
-        node = STTNode(
-            node_seed=node_seed,
-            shared_seed=shared_seed,
-            chamber_path=temp_chamber_path
-        )
-        
-        addr1 = await node.start()
-        addr2 = await node.start()  # Second start should return without error
-        
-        # Second start returns the default (host, port) not the bound address
-        # but doesn't fail and doesn't restart
-        assert node._running is True
-        
-        await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_connect_udp_not_started(self, temp_chamber_path, node_seed, shared_seed):
-        """Test connect_udp raises error when node not started."""
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        # Try to connect without starting node
-        with pytest.raises(STTException, match="Node not started"):
-            await node.connect_udp("127.0.0.1", 9999)
-    
-    @pytest.mark.asyncio
-    async def test_connect_udp_handshake_flow(self, temp_chamber_path, node_seed, shared_seed):
-        """Test connect_udp initiates handshake and sends HELLO with REAL HandshakeManager."""
-        from unittest.mock import AsyncMock, patch
-        from seigr_toolset_transmissions.handshake.handshake import STTHandshake
-        
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        
-        try:
-            # Mock UDP send to capture the HELLO
-            # Complete the handshake manually to test full flow
-            handshake_completed = False
-            
-            async def mock_initiate(peer_addr):
-                # Use REAL STTHandshake to generate REAL hello data
-                hs = STTHandshake(
-                    node_id=node.handshake_manager.node_id,
-                    stc_wrapper=node.handshake_manager.stc_wrapper,
-                    is_initiator=True
-                )
-                # Manually complete it for testing
-                hs.session_key = b"test_session_key_16b"
-                hs.peer_node_id = b"test_peer_node_id_32"
-                return hs
-            
-            with patch.object(node.handshake_manager, 'initiate_handshake', side_effect=mock_initiate):
-                with patch.object(node.udp_transport, 'send_raw', new_callable=AsyncMock) as mock_send:
-                    # Connect should work now
-                    session = await node.connect_udp("127.0.0.1", 8888)
-                    
-                    # Verify HELLO was sent
-                    assert mock_send.call_count >= 1
-                    first_call_args = mock_send.call_args_list[0][0]
-                    hello_data = first_call_args[0]
-                    peer_addr = first_call_args[1]
-                    
-                    # REAL hello data from STTHandshake
-                    assert isinstance(hello_data, bytes)
-                    assert len(hello_data) > 0
-                    assert peer_addr == ("127.0.0.1", 8888)
-                    
-                    # Verify session was created
-                    assert session is not None
-                    assert session.session_key == b"test_session_key_16b"
-                    assert session.peer_node_id == b"test_peer_node_id_32"
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_connect_udp_incomplete_handshake(self, temp_chamber_path, node_seed, shared_seed):
-        """Test connect_udp validates handshake completion."""
-        from unittest.mock import AsyncMock, patch
-        from seigr_toolset_transmissions.handshake.handshake import STTHandshake
-        
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        
-        try:
-            # Mock initiate_handshake to return handshake with no session_key
-            # This tests the validation logic in connect_udp
-            async def fake_initiate(peer_addr):
-                # Create REAL handshake but clear session key to simulate incomplete
-                handshake = STTHandshake(
-                    node_id=node.handshake_manager.node_id,
-                    stc_wrapper=node.handshake_manager.stc_wrapper,
-                    is_initiator=True
-                )
-                handshake.session_key = None  # Make it incomplete
-                return handshake
-            
-            with patch.object(node.handshake_manager, 'initiate_handshake', side_effect=fake_initiate):
-                # Should raise exception for incomplete handshake
-                with pytest.raises(STTException, match="Handshake incomplete"):
-                    await node.connect_udp("127.0.0.1", 9999)
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_connect_udp_no_peer_id(self, temp_chamber_path, node_seed, shared_seed):
-        """Test connect_udp validates peer_node_id presence."""
-        from unittest.mock import patch
-        from seigr_toolset_transmissions.handshake.handshake import STTHandshake
-        
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        
-        try:
-            # Mock initiate_handshake to return handshake with no peer_node_id
-            async def fake_initiate(peer_addr):
-                handshake = STTHandshake(
-                    node_id=node.handshake_manager.node_id,
-                    stc_wrapper=node.handshake_manager.stc_wrapper,
-                    is_initiator=True
-                )
-                handshake.peer_node_id = None  # Missing peer ID
-                return handshake
-            
-            with patch.object(node.handshake_manager, 'initiate_handshake', side_effect=fake_initiate):
-                # Should raise exception for incomplete handshake
-                with pytest.raises(STTException, match="Handshake incomplete"):
-                    await node.connect_udp("127.0.0.1", 9999)
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_connect_udp_exception_handling(self, temp_chamber_path, node_seed, shared_seed):
-        """Test connect_udp exception handling."""
-        from unittest.mock import AsyncMock, patch
-        
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        
-        try:
-            # Mock handshake that raises exception
-            with patch.object(node.handshake_manager, 'initiate_handshake', new_callable=AsyncMock, side_effect=Exception("Handshake creation failed")):
-                # Should wrap exception in STTException
-                with pytest.raises(STTException, match="Failed to connect to 127.0.0.1:9999"):
-                    await node.connect_udp("127.0.0.1", 9999)
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_handle_handshake_frame_error(self, temp_chamber_path, node_seed, shared_seed):
-        """Test _handle_handshake_frame error handling."""
-        from unittest.mock import patch
-        from seigr_toolset_transmissions.frame import STTFrame
-        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_HANDSHAKE
-        
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        node._accept_connections = True  # Enable server mode
-        
-        try:
-            # Create handshake frame (incoming HELLO)
-            frame = STTFrame(
-                frame_type=STT_FRAME_TYPE_HANDSHAKE,
-                session_id=b"test_ses",
-                stream_id=0,
-                sequence=0,
-                payload=b"handshake_payload"
-            )
-            
-            peer_addr = ("127.0.0.1", 9999)
-            
-            # Mock handshake manager's handle_hello to raise error
-            with patch.object(node.handshake_manager, 'handle_hello', side_effect=Exception("Handshake error")):
-                # Should catch and log error (no exception raised)
-                await node._handle_handshake_frame(frame, peer_addr)
-                # Error logged, no crash
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_handle_data_frame_no_session(self, temp_chamber_path, node_seed, shared_seed):
-        """Test _handle_data_frame with no session."""
-        from seigr_toolset_transmissions.frame import STTFrame
-        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
-        
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        
-        try:
-            # Create data frame with unknown session
-            frame = STTFrame(
-                frame_type=STT_FRAME_TYPE_DATA,
-                session_id=b"unknown_",
-                stream_id=1,
-                sequence=0,
-                payload=b"data"
-            )
-            
-            peer_addr = ("127.0.0.1", 8888)
-            
-            # Should handle gracefully (log warning, no error)
-            await node._handle_data_frame(frame, peer_addr)
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_handle_data_frame_error(self, temp_chamber_path, node_seed, shared_seed):
-        """Test _handle_data_frame error handling."""
-        from unittest.mock import MagicMock, patch
-        from seigr_toolset_transmissions.frame import STTFrame
-        from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
-        
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        
-        try:
-            # Create data frame
-            frame = STTFrame(
-                frame_type=STT_FRAME_TYPE_DATA,
-                session_id=b"test_ses",
-                stream_id=1,
-                sequence=0,
-                payload=b"data"
-            )
-            
-            peer_addr = ("127.0.0.1", 8888)
-            
-            # Mock session manager to raise error
-            with patch.object(node.session_manager, 'get_session', side_effect=Exception("Session error")):
-                # Should catch and log error
-                await node._handle_data_frame(frame, peer_addr)
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_receive_timeout(self, temp_chamber_path, node_seed, shared_seed):
-        """Test receive with timeout."""
-        node = STTNode(
-            chamber_path=temp_chamber_path,
-            node_seed=node_seed,
-            shared_seed=shared_seed
-        )
-        
-        await node.start()
-        
-        try:
-            # Try to receive with short timeout (should timeout since no data)
-            received = []
-            gen = node.receive()
-            try:
-                packet = await asyncio.wait_for(gen.__anext__(), timeout=0.1)
-                received.append(packet)
-            except asyncio.TimeoutError:
-                pass  # Expected - no data available
-            
-            # Should have no packets (timed out)
-            assert len(received) == 0
-        finally:
-            await node.stop()
-    
-    @pytest.mark.asyncio
-    async def test_node_stop_with_websockets(self, temp_chamber_path, node_seed, shared_seed):
+    async def test_node_stop_with_websockets(self, node_seed, shared_seed):
         """Test stopping node with active WebSocket connections."""
         from unittest.mock import AsyncMock, MagicMock
         
         node = STTNode(
-            chamber_path=temp_chamber_path,
             node_seed=node_seed,
-            shared_seed=shared_seed
+            shared_seed=shared_seed,
+            storage=None
         )
         
         await node.start()

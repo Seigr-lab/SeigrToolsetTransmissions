@@ -279,7 +279,7 @@ class WebSocketTransport:
         
         # Verify accept key
         expected_accept = base64.b64encode(
-            hashlib.sha1(key.encode() + WEBSOCKET_GUID).digest()
+            hashlib.sha1(key.encode() + WEBSOCKET_GUID, usedforsecurity=False).digest()
         ).decode()
         
         if headers.get("sec-websocket-accept") != expected_accept:
@@ -759,7 +759,7 @@ class WebSocketTransport:
         
         # Generate accept key
         accept_key = base64.b64encode(
-            hashlib.sha1((ws_key + WEBSOCKET_GUID.decode()).encode()).digest()
+            hashlib.sha1((ws_key + WEBSOCKET_GUID.decode()).encode(), usedforsecurity=False).digest()
         ).decode()
         
         # Send handshake response
@@ -865,8 +865,8 @@ class WebSocketTransport:
                 if transport:
                     local_addr = transport.getsockname()
                     remote_addr = transport.getpeername()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not get peer name: {e}")
         
         return {
             'connected': self.state == WebSocketState.OPEN,
@@ -905,8 +905,8 @@ class WebSocketTransport:
                 sock = self.writer.get_extra_info('socket')
                 if sock:
                     return sock.getsockname()
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Could not get socket name: {e}")
         return None
     
     def set_on_message(self, callback: Callable[[bytes], None]) -> None:

@@ -34,10 +34,12 @@ pip install seigr-toolset-transmissions  # When released
 ```
 
 **Dependencies**:
+
 - Python >= 3.9
 - `seigr-toolset-crypto >= 0.4.0` (STC cryptography)
 
 **Optional**:
+
 - `websockets >= 11.0.0` (for WebSocket transport)
 
 ---
@@ -51,14 +53,14 @@ Full node runtime with handshake, sessions, streams, and transport management.
 **Coverage**: 85.56%
 
 ```python
-from seigr_toolset_transmissions import STTNode
+from seigr_toolset_transmissions import STTNode, StorageProvider
 
 node = STTNode(
     node_seed: bytes,        # 32+ bytes, node-specific secret
     shared_seed: bytes,      # 32+ bytes, pre-shared with peers
     host: str = '0.0.0.0',  # Listen address
     port: int = 0,          # Listen port (0 = random)
-    chamber_path: Optional[Path] = None  # Storage directory
+    storage: Optional[StorageProvider] = None  # Pluggable storage (optional)
 )
 
 # Start node
@@ -93,6 +95,7 @@ await node.stop()
 ```
 
 **Key Features**:
+
 - Automatic handshake on connect
 - Multi-session management
 - UDP and WebSocket transports
@@ -286,6 +289,7 @@ encoder.reset()
 ```
 
 **Modes**:
+
 - `'live'`: Infinite streaming (no end marker)
 - `'bounded'`: Known-size streaming (must call `end()`)
 
@@ -372,6 +376,7 @@ frame._is_encrypted  # bool (internal)
 ```
 
 **Frame Types** (STT reserved 0x01-0x7F):
+
 - `0x01` = HANDSHAKE_INIT
 - `0x02` = HANDSHAKE_CHALLENGE
 - `0x03` = HANDSHAKE_RESPONSE
@@ -478,65 +483,117 @@ manager.cleanup_handshake(session_id)
 
 ## Storage
 
-### Chamber
+STT is a **transmission protocol** - storage is optional and pluggable.
+Applications define their own storage implementations using the `StorageProvider` protocol.
 
-Hash-addressed binary storage with encryption.
+### StorageProvider Protocol
 
-**Coverage**: 100%
+Interface for pluggable storage implementations.
 
 ```python
-from seigr_toolset_transmissions import Chamber
+from seigr_toolset_transmissions import StorageProvider
+from typing import Protocol, Optional
 
-chamber = Chamber(
-    storage_dir: Path,
-    stc_wrapper: STCWrapper
-)
-
-# Store data (returns SHA3-256 hash address)
-data_hash = chamber.store(key: str, data: bytes)
-# key = arbitrary name, hash = SHA3-256(data)
-
-# Retrieve data
-data = chamber.retrieve(key: str)
-
-# Check existence
-exists = chamber.exists(key: str)
-
-# Delete data
-chamber.delete(key: str)
-
-# List all keys
-keys = chamber.list_keys()
-
-# Clear all data
-chamber.clear()
+class StorageProvider(Protocol):
+    """Protocol for pluggable storage implementations."""
+    
+    async def store(self, key: bytes, data: bytes) -> None:
+        """Store data under a key."""
+        ...
+    
+    async def retrieve(self, key: bytes) -> Optional[bytes]:
+        """Retrieve data by key. Returns None if not found."""
+        ...
+    
+    async def exists(self, key: bytes) -> bool:
+        """Check if key exists in storage."""
+        ...
+    
+    async def delete(self, key: bytes) -> bool:
+        """Delete data by key. Returns True if deleted."""
+        ...
 ```
 
-### BinaryStorage
+### InMemoryStorage
 
-Alternative simple key-value storage.
-
-**Coverage**: 84%+
+Simple in-memory storage implementation (included for testing/demos).
 
 ```python
-from seigr_toolset_transmissions import BinaryStorage
+from seigr_toolset_transmissions import InMemoryStorage
 
-storage = BinaryStorage(
-    storage_dir: Path,
-    stc_wrapper: STCWrapper
+storage = InMemoryStorage()
+
+# Use with STTNode
+node = STTNode(
+    node_seed=seed,
+    shared_seed=shared,
+    storage=storage  # Optional - STT works without storage
 )
 
-# Store
-await storage.store(key: str, data: bytes)
+# Store data
+await storage.store(b"key", b"data")
 
-# Retrieve
-data = await storage.retrieve(key: str)
+# Retrieve data
+data = await storage.retrieve(b"key")
+
+# Check existence
+exists = await storage.exists(b"key")
 
 # Delete
-await storage.delete(key: str)
+deleted = await storage.delete(b"key")
+```
 
-# List keys
-keys = await storage.list_keys()
+### Custom Storage Implementation
+
+Implement your own storage for your application:
+
+```python
+from seigr_toolset_transmissions import StorageProvider
+
+class MyDatabaseStorage:
+    """Example: Redis-backed storage."""
+    
+    def __init__(self, redis_client):
+        self.redis = redis_client
+    
+    async def store(self, key: bytes, data: bytes) -> None:
+        await self.redis.set(key, data)
+    
+    async def retrieve(self, key: bytes) -> Optional[bytes]:
+        return await self.redis.get(key)
+    
+    async def exists(self, key: bytes) -> bool:
+        return await self.redis.exists(key)
+    
+    async def delete(self, key: bytes) -> bool:
+        return await self.redis.delete(key) > 0
+
+# Use with STTNode
+node = STTNode(seed, shared, storage=MyDatabaseStorage(redis))
+```
+
+### Chamber (DEPRECATED)
+
+> ⚠️ **DEPRECATED**: Use `StorageProvider` protocol instead.
+> Chamber will be removed in v0.3.0.
+
+Legacy hash-addressed binary storage.
+
+```python
+# DEPRECATED - do not use in new code
+from seigr_toolset_transmissions import Chamber
+```
+
+### BinaryStorage (DEPRECATED)
+
+> ⚠️ **DEPRECATED**: Use `StorageProvider` protocol instead.
+> BinaryStorage will be removed in v0.3.0.
+
+Legacy simple key-value storage.
+
+```python
+# DEPRECATED - do not use in new code
+from seigr_toolset_transmissions import BinaryStorage
 ```
 
 ---
@@ -577,6 +634,7 @@ endpoints = manager.list_endpoints()
 ```
 
 **Endpoint Naming**:
+
 - Names are arbitrary strings
 - Hashed with SHA3-256 for routing
 - Allows content-addressed discovery
@@ -729,6 +787,7 @@ obj = deserialize_stt(data)
 ```
 
 **Supported Types**:
+
 - None, bool, int, float, str, bytes
 - list, tuple, dict, set
 - Nested structures
@@ -801,21 +860,21 @@ from seigr_toolset_transmissions.utils import (
 
 ```python
 import asyncio
-from pathlib import Path
 from seigr_toolset_transmissions import (
     STTNode,
     EndpointManager,
-    EventEmitter
+    EventEmitter,
+    InMemoryStorage  # Optional - STT works without storage
 )
 
 async def main():
-    # Initialize node
+    # Initialize node (storage is optional)
     node = STTNode(
         node_seed=b'my_node_secret_32bytes_minimum!',
         shared_seed=b'shared_secret_32bytes_minimum!',
         host='0.0.0.0',
         port=8080,
-        chamber_path=Path('./storage')
+        storage=None  # Pure transmission mode - no storage needed
     )
     
     # Setup endpoints
