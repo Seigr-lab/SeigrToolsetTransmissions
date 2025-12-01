@@ -91,7 +91,7 @@ def main() -> None:
     parser.add_argument(
         '--ws-host',
         type=str,
-        default='0.0.0.0',
+        default='0.0.0.0',  # nosec B104 - intentional bind-all for server CLI
         help='WebSocket host to bind (default: 0.0.0.0)'
     )
     
