@@ -38,3 +38,6 @@ rebuild_coverage.py
 rebuild_coverage.sh
 *.txt
 NOVEL_FEATURES_DESIGN.md
+# Dev utilities (not for release)
+run_node_tests*.py
+archive_bloat/
