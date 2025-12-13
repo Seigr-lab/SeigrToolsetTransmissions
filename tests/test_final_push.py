@@ -24,7 +24,7 @@ class TestWebSocketFinalPush:
                 WebSocketTransport.connect_to("127.0.0.1", 9999, "/"),
                 timeout=0.5
             )
-        except Exception:
+        except (OSError, asyncio.TimeoutError):
             pass
     
     @pytest.mark.asyncio

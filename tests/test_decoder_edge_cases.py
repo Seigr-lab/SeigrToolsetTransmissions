@@ -12,6 +12,12 @@ from seigr_toolset_transmissions.utils.exceptions import STTStreamingError
 from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper
 
 
+# Segment structure constants for test maintainability
+SEGMENT_HEADER_SIZE = 16  # bytes, per protocol
+FLAG_SIZE = 1  # bytes
+MIN_SEGMENT_LEN = FLAG_SIZE + SEGMENT_HEADER_SIZE
+
+
 @pytest.fixture
 def stc_wrapper():
     """Create STC wrapper for testing."""
@@ -53,9 +59,9 @@ class TestDecoderValidation:
     @pytest.mark.asyncio
     async def test_decrypt_segment_too_short(self, decoder):
         """Test decryption with segment shorter than minimum (line 158-159)."""
-        # Minimum valid segment is 17 bytes: 1 flag + 16 header
+        # Minimum valid segment is MIN_SEGMENT_LEN bytes: 1 flag + 16 header
         # Test with 16 bytes (too short)
-        short_segment = b'\x00' * 16
+        short_segment = b'\x00' * SEGMENT_HEADER_SIZE
         
         with pytest.raises(STTStreamingError, match="too short"):
             await decoder._decrypt_segment(short_segment)
@@ -65,7 +71,7 @@ class TestDecoderValidation:
         """Test edge case: exactly 17 bytes (minimum valid)."""
         # This should NOT raise the "too short" error
         # 1 byte flag + 16 byte header + 0 bytes encrypted data
-        min_segment = b'\x00' * 17
+        min_segment = b'\x00' * MIN_SEGMENT_LEN
         
         # This will fail at ChunkHeader parsing or decryption,
         # but NOT at the length check on line 158

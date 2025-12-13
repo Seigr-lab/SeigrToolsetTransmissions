@@ -13,6 +13,9 @@ from seigr_toolset_transmissions.frame import STTFrame
 from seigr_toolset_transmissions.utils.exceptions import STTTransportError
 
 
+def _incomplete_read_error():
+    return asyncio.IncompleteReadError(b'', 2)
+
 class TestWebSocketFrameProcessing:
     """Test WebSocket frame reception and processing."""
     
@@ -50,7 +53,7 @@ class TestWebSocketFrameProcessing:
         reader.readexactly = AsyncMock(side_effect=[
             ws_header,
             frame_data,
-            asyncio.IncompleteReadError(b'', 2)
+            asyncio.IncompleteReadError(partial=ws_header[:1], expected=2)
         ])
         
         try:
@@ -85,7 +88,7 @@ class TestWebSocketFrameProcessing:
         reader.readexactly = AsyncMock(side_effect=[
             header,
             text_data,
-            asyncio.IncompleteReadError(b'', 2)
+            asyncio.IncompleteReadError(partial=header[:1], expected=2)
         ])
         
         try:
@@ -114,7 +117,7 @@ class TestWebSocketFrameProcessing:
         reader.readexactly = AsyncMock(side_effect=[
             header,
             ping_data,
-            asyncio.IncompleteReadError(b'', 2)
+            asyncio.IncompleteReadError(partial=header[:1], expected=2)
         ])
         
         try:
@@ -143,7 +146,7 @@ class TestWebSocketFrameProcessing:
         reader.readexactly = AsyncMock(side_effect=[
             header,
             pong_data,
-            asyncio.IncompleteReadError(b'', 2)
+            asyncio.IncompleteReadError(partial=header[:1], expected=2)
         ])
         
         try:
@@ -229,7 +232,7 @@ class TestWebSocketExtendedLengths:
             header,
             length_bytes,
             payload,
-            asyncio.IncompleteReadError(b'', 2)
+            _incomplete_read_error()
         ])
         
         try:
@@ -261,7 +264,7 @@ class TestWebSocketExtendedLengths:
             header,
             length_bytes,
             payload,
-            asyncio.IncompleteReadError(b'', 2)
+            _incomplete_read_error()
         ])
         
         try:
@@ -330,7 +333,7 @@ class TestWebSocketMasking:
             header,
             mask,
             bytes(masked),
-            asyncio.IncompleteReadError(b'', 2)
+            _incomplete_read_error()
         ])
         
         try:
@@ -371,7 +374,7 @@ class TestWebSocketAsyncHandlers:
         reader.readexactly = AsyncMock(side_effect=[
             header,
             text_data,
-            asyncio.IncompleteReadError(b'', 2)
+            _incomplete_read_error()
         ])
         
         try:
@@ -415,7 +418,7 @@ class TestWebSocketAsyncHandlers:
         reader.readexactly = AsyncMock(side_effect=[
             header,
             frame_data,
-            asyncio.IncompleteReadError(b'', 2)
+            _incomplete_read_error()
         ])
         
         try:
@@ -492,7 +495,7 @@ class TestWebSocketErrors:
         reader.readexactly = AsyncMock(side_effect=[
             header,
             bad_data,
-            asyncio.IncompleteReadError(b'', 2)
+            _incomplete_read_error()
         ])
         
         try:
@@ -552,7 +555,7 @@ class TestWebSocketBinaryWithMessageHandler:
         reader.readexactly = AsyncMock(side_effect=[
             header,
             binary_data,
-            asyncio.IncompleteReadError(b'', 2)
+            _incomplete_read_error()
         ])
         
         try:

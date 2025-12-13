@@ -32,6 +32,20 @@ def temp_chamber_path(tmp_path):
     return tmp_path / "test_chamber"
 
 
+@pytest.fixture
+def make_peer_node_id():
+    """Helper to generate a peer node ID of correct length (default 8 bytes, can be changed as needed)."""
+    def _make_peer_node_id(n: int = 1, length: int = 8):
+        """
+        Returns a unique peer node ID as bytes.
+        :param n: unique integer, default 1.
+        :param length: length in bytes, default 8 (adjust as in production code).
+        """
+        base = f'peer{n:0{length-4}d}'
+        return base.encode().ljust(length, b'0')[:length]
+    return _make_peer_node_id
+
+
 class TestBroadcastMulticast:
     """Test broadcast and multicast functionality."""
     
@@ -48,7 +62,7 @@ class TestBroadcastMulticast:
             await node.stop()
     
     @pytest.mark.asyncio
-    async def test_broadcast_with_sessions(self, node_seed, shared_seed, temp_chamber_path):
+    async def test_broadcast_with_sessions(self, node_seed, shared_seed, temp_chamber_path, make_peer_node_id):
         """Test broadcast to active sessions (lines 385-392)."""
         node = STTNode(node_seed, shared_seed, "127.0.0.1", 0, temp_chamber_path)
         await node.start()
@@ -57,7 +71,7 @@ class TestBroadcastMulticast:
             # Create some sessions
             session1 = await node.session_manager.create_session(
                 session_id=b'bcast001',
-                peer_node_id=b'peer0001',
+                peer_node_id=make_peer_node_id(1),
                 capabilities=0
             )
             session1.state = STT_SESSION_STATE_ACTIVE
@@ -65,7 +79,7 @@ class TestBroadcastMulticast:
             
             session2 = await node.session_manager.create_session(
                 session_id=b'bcast002',
-                peer_node_id=b'peer0002',
+                peer_node_id=make_peer_node_id(2),
                 capabilities=0
             )
             session2.state = STT_SESSION_STATE_ACTIVE

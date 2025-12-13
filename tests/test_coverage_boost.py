@@ -2,6 +2,7 @@
 Simple tests to boost coverage for specific uncovered lines.
 """
 import pytest
+import unittest.mock
 from seigr_toolset_transmissions.session.session_manager import SessionManager
 from seigr_toolset_transmissions.stream.stream_manager import StreamManager
 from seigr_toolset_transmissions.frame.frame import STTFrame
@@ -94,14 +95,15 @@ class TestCoverageBoost:
         # Encrypt properly to set up state
         frame.encrypt_payload(stc_wrapper)
         # Corrupt the crypto metadata to cause decryption to fail
-        frame.crypto_metadata = {
+        # Patch crypto_metadata to corrupt it without direct assignment
+        corrupted_metadata = {
             'nonce': b'corrupted_nonce_',
             'tag': b'corrupted_tag___'
         }
-        
         # Decryption should fail due to invalid crypto metadata
-        with pytest.raises(STTFrameError, match="Decryption failed"):
-            frame.decrypt_payload(stc_wrapper)
+        with unittest.mock.patch.object(frame, 'crypto_metadata', new=corrupted_metadata):
+            with pytest.raises(STTFrameError, match="Decryption failed"):
+                frame.decrypt_payload(stc_wrapper)
     
     def test_frame_header_parsing_error(self):
         """Test frame header parsing error (lines 261-262)."""
