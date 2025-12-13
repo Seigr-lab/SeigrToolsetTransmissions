@@ -13,9 +13,11 @@ from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper
 
 
 # Segment structure constants for test maintainability
-SEGMENT_HEADER_SIZE = 16  # bytes, per protocol
-FLAG_SIZE = 1  # bytes
-MIN_SEGMENT_LEN = FLAG_SIZE + SEGMENT_HEADER_SIZE
+# These values represent the binary protocol structure and should match the implementation.
+# If the protocol changes, update these constants accordingly.
+SEGMENT_HEADER_SIZE = 16  # bytes, per protocol spec
+FLAG_SIZE = 1  # bytes, flags byte at start of segment
+MIN_SEGMENT_LEN = FLAG_SIZE + SEGMENT_HEADER_SIZE  # minimum valid segment = 17 bytes
 
 
 @pytest.fixture

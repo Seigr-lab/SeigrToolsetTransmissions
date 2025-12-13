@@ -40,8 +40,11 @@ def make_peer_node_id():
         Returns a unique peer node ID as bytes.
         :param n: unique integer, default 1.
         :param length: length in bytes, default 8 (adjust as in production code).
+        :raises ValueError: if length is less than the prefix length.
         """
         prefix = 'peer'
+        if length < len(prefix):
+            raise ValueError(f"length must be at least {len(prefix)} bytes for prefix '{prefix}'")
         base = f'{prefix}{n:0{length-len(prefix)}d}'
         return base.encode().ljust(length, b'0')[:length]
     return _make_peer_node_id

@@ -17,9 +17,12 @@ def _incomplete_read_error():
     """Helper to generate an IncompleteReadError for tests that don't need realistic partial data.
     
     Returns an IncompleteReadError with empty partial data and expected=2.
-    Used in tests where the specific partial data content doesn't matter for the test scenario.
-    Tests that need realistic partial data should use asyncio.IncompleteReadError directly
-    with appropriate partial= parameter.
+    The expected=2 value represents the minimum WebSocket frame header size (2 bytes).
+    Used in tests where the specific partial data content doesn't matter for the test scenario
+    (e.g., when testing error handling paths that trigger regardless of partial data).
+    
+    Tests that need realistic partial data to exercise specific code paths should use
+    asyncio.IncompleteReadError directly with appropriate partial= parameter.
     """
     return asyncio.IncompleteReadError(b'', 2)
 
