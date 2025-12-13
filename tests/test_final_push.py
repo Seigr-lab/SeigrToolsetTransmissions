@@ -26,6 +26,7 @@ class TestWebSocketFinalPush:
                 timeout=0.5
             )
         except (OSError, asyncio.TimeoutError, STTTransportError):
+            # Expected: connection may fail if server isn't running; ignore for coverage.
             pass
     
     @pytest.mark.asyncio
