@@ -14,6 +14,13 @@ from seigr_toolset_transmissions.utils.exceptions import STTTransportError
 
 
 def _incomplete_read_error():
+    """Helper to generate an IncompleteReadError for tests that don't need realistic partial data.
+    
+    Returns an IncompleteReadError with empty partial data and expected=2.
+    Used in tests where the specific partial data content doesn't matter for the test scenario.
+    Tests that need realistic partial data should use asyncio.IncompleteReadError directly
+    with appropriate partial= parameter.
+    """
     return asyncio.IncompleteReadError(b'', 2)
 
 class TestWebSocketFrameProcessing:

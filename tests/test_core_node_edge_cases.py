@@ -41,7 +41,8 @@ def make_peer_node_id():
         :param n: unique integer, default 1.
         :param length: length in bytes, default 8 (adjust as in production code).
         """
-        base = f'peer{n:0{length-4}d}'
+        prefix = 'peer'
+        base = f'{prefix}{n:0{length-len(prefix)}d}'
         return base.encode().ljust(length, b'0')[:length]
     return _make_peer_node_id
 
