@@ -7,6 +7,7 @@ import asyncio
 from seigr_toolset_transmissions.transport.websocket import WebSocketTransport
 from seigr_toolset_transmissions.core.node import STTNode, ReceivedPacket
 from seigr_toolset_transmissions.crypto import STCWrapper
+from seigr_toolset_transmissions.utils.exceptions import STTTransportError
 
 
 class TestWebSocketFinalPush:
@@ -24,7 +25,7 @@ class TestWebSocketFinalPush:
                 WebSocketTransport.connect_to("127.0.0.1", 9999, "/"),
                 timeout=0.5
             )
-        except (OSError, asyncio.TimeoutError):
+        except (OSError, asyncio.TimeoutError, STTTransportError):
             pass
     
     @pytest.mark.asyncio
