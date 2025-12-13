@@ -394,8 +394,8 @@ class HandshakeManager:
         if handshake and handshake.completed:
             return handshake.get_session_id()
         
-        # Check completed sessions
-        for session_id, hs in self.completed_sessions.items():
+        # Check completed sessions - return first session_id if any exist
+        for session_id in self.completed_sessions:
             return session_id
         
         return None

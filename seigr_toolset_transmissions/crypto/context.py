@@ -4,7 +4,7 @@ Shared STC context for all crypto operations.
 Initialized once at node startup, shared across all crypto functions.
 """
 
-from typing import Union, Optional
+from typing import Union
 import sys
 
 try:

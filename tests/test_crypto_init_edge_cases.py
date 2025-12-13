@@ -4,8 +4,6 @@ Tests import error handling and edge cases.
 """
 
 import pytest
-import sys
-from unittest.mock import patch
 
 
 class TestCryptoInitEdgeCases:

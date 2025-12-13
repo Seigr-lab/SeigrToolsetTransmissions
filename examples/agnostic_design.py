@@ -12,7 +12,7 @@ from seigr_toolset_transmissions.streaming.encoder import BinaryStreamEncoder
 from seigr_toolset_transmissions.streaming.decoder import BinaryStreamDecoder
 from seigr_toolset_transmissions.storage import StorageProvider, InMemoryStorage
 from seigr_toolset_transmissions.endpoints.manager import EndpointManager
-from seigr_toolset_transmissions.events.emitter import EventEmitter, STTEvents
+from seigr_toolset_transmissions.events.emitter import EventEmitter
 from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper
 
 

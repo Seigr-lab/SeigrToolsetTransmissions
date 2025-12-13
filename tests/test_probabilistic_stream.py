@@ -10,7 +10,6 @@ Validates:
 """
 
 import pytest
-import asyncio
 from unittest.mock import Mock, AsyncMock, patch
 
 from seigr_toolset_transmissions.stream.probabilistic_stream import (

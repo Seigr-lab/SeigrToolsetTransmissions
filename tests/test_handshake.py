@@ -3,7 +3,6 @@ Tests for STT handshake protocol with pre-shared seed authentication.
 """
 
 import pytest
-import asyncio
 from seigr_toolset_transmissions.handshake import (
     STTHandshake,
     HandshakeManager,

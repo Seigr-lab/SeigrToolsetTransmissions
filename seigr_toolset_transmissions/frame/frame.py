@@ -15,13 +15,10 @@ from typing import Optional, TYPE_CHECKING, Callable, Dict
 
 from ..utils.constants import (
     STT_MAGIC,
-    STT_VERSION,
     STT_SESSION_ID_LENGTH,
     STT_SEQUENCE_LENGTH,
     STT_TIMESTAMP_LENGTH,
-    STT_RESERVED_LENGTH,
     STT_MAX_FRAME_SIZE,
-    STT_FRAME_TYPE_DATA,
 )
 from ..utils.exceptions import STTFrameError
 from ..utils.varint import encode_varint, decode_varint

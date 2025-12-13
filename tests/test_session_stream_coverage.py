@@ -3,7 +3,6 @@ Session and stream additional coverage.
 """
 
 import pytest
-import asyncio
 from seigr_toolset_transmissions.session.session import STTSession
 from seigr_toolset_transmissions.stream.stream import STTStream
 from seigr_toolset_transmissions.crypto import STCWrapper

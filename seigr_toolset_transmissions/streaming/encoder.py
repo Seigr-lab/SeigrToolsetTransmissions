@@ -8,7 +8,7 @@ Supports:
 """
 
 import asyncio
-from typing import Optional, Callable, AsyncIterator
+from typing import Optional, AsyncIterator
 from interfaces.api.streaming_context import StreamingContext
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamingError

@@ -5,8 +5,6 @@ Generates deterministic node IDs for transmission nodes.
 No personal data - derived from node identity (e.g., public key).
 """
 
-from typing import Union
-import sys
 
 from . import context as stc_context
 

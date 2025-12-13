@@ -4,7 +4,6 @@ Tests for STT chamber (STC-encrypted storage).
 
 import pytest
 import tempfile
-import os
 from pathlib import Path
 from seigr_toolset_transmissions.chamber import Chamber
 from seigr_toolset_transmissions.crypto import STCWrapper

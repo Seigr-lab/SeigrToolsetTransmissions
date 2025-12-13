@@ -3,7 +3,6 @@ Advanced stream and session coverage tests.
 """
 
 import pytest
-import asyncio
 import time
 from seigr_toolset_transmissions.stream import STTStream
 from seigr_toolset_transmissions.stream.stream_manager import StreamManager

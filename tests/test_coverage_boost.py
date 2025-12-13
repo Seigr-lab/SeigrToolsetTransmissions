@@ -2,8 +2,6 @@
 Simple tests to boost coverage for specific uncovered lines.
 """
 import pytest
-import struct
-from pathlib import Path
 from seigr_toolset_transmissions.session.session_manager import SessionManager
 from seigr_toolset_transmissions.stream.stream_manager import StreamManager
 from seigr_toolset_transmissions.frame.frame import STTFrame

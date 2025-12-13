@@ -43,11 +43,14 @@ class NodeCLI:
             chamber_path: Optional chamber path
         """
         try:
+            # Create node seed from host:port combination for unique identity
+            node_seed = f"stt_node_{host}:{port}".encode().ljust(32, b'\x00')[:32]
+            
             # Create and start node
             self.node = STTNode(
+                node_seed=node_seed,
                 host=host,
                 port=port,
-                chamber_path=chamber_path,
             )
             
             await self.node.start()

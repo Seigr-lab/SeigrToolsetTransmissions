@@ -16,9 +16,7 @@ from unittest.mock import Mock
 
 from seigr_toolset_transmissions.session.continuity import (
     CryptoSessionContinuity,
-    SessionResumptionError,
-    SessionState,
-    StreamState
+    SessionResumptionError
 )
 from seigr_toolset_transmissions.session.session import STTSession
 from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper

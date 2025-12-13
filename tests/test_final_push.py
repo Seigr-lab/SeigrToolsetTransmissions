@@ -7,7 +7,6 @@ import asyncio
 from seigr_toolset_transmissions.transport.websocket import WebSocketTransport
 from seigr_toolset_transmissions.core.node import STTNode, ReceivedPacket
 from seigr_toolset_transmissions.crypto import STCWrapper
-from seigr_toolset_transmissions.frame import STTFrame
 
 
 class TestWebSocketFinalPush:

@@ -9,10 +9,8 @@ Shows how to use different NAT traversal strategies:
 
 import asyncio
 from seigr_toolset_transmissions import (
-    STTNode,
     ManualNATCoordinator,
     RelayNATCoordinator,
-    NATStrategy,
 )
 
 

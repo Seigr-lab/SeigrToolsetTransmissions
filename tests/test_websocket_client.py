@@ -4,7 +4,6 @@ Additional tests for WebSocket client mode coverage.
 
 import pytest
 import asyncio
-import struct
 
 from seigr_toolset_transmissions.transport.websocket import WebSocketTransport, WebSocketOpcode
 from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper

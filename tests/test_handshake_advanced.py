@@ -1,7 +1,6 @@
 """Advanced handshake coverage tests."""
 
 import pytest
-import time
 
 from seigr_toolset_transmissions.handshake.handshake import (
     STTHandshake,
@@ -127,12 +126,11 @@ class TestHandshakeVerifyProof:
     
     def test_verify_proof_wrong_decrypted_content(self):
         """Test verify_proof fails when decrypted content doesn't match."""
-        stc = STCWrapper(b"test_key_32_bytes_minimum_size!!")
-        
-        # This is tricky - we'd need to craft a proof with wrong content
-        # For now, test the success path is covered elsewhere
-        # The failure path (line 295) is when decrypted_session_id != session_id
-        pass
+        # This test case is intentionally skipped - crafting a proof with 
+        # wrong decrypted content requires complex setup. The success path
+        # is tested in other tests, and the failure branch (decrypted_session_id != session_id)
+        # is covered by test_verify_proof_session_id_mismatch.
+        pytest.skip("Complex setup required - covered by related tests")
 
 
 class TestHandshakeGetters:

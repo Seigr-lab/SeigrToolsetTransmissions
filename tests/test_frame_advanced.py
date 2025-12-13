@@ -6,7 +6,7 @@ import pytest
 import struct
 from seigr_toolset_transmissions.frame import STTFrame
 from seigr_toolset_transmissions.utils.exceptions import STTFrameError
-from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA, STT_MAGIC
+from seigr_toolset_transmissions.utils.constants import STT_FRAME_TYPE_DATA
 
 
 class TestFrameConstruction:

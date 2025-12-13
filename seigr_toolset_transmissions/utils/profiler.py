@@ -12,7 +12,7 @@ import time
 import statistics
 from typing import Dict, List, Optional, Any
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass

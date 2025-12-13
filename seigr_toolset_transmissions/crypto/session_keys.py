@@ -6,7 +6,6 @@ Keys are derived from handshake data and rotated for forward secrecy.
 """
 
 from typing import Dict, Union
-import sys
 
 from . import context as stc_context
 

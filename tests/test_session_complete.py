@@ -2,7 +2,6 @@
 
 import pytest
 import time
-import secrets
 from unittest.mock import Mock
 
 from seigr_toolset_transmissions.session.session import (

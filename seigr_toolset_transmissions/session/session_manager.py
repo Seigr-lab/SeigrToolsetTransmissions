@@ -7,7 +7,6 @@ import time
 from typing import Dict, Optional, List
 
 from .session import STTSession
-from ..utils.constants import STT_SESSION_TIMEOUT
 from ..utils.exceptions import STTSessionError
 from ..utils.logging import get_logger
 

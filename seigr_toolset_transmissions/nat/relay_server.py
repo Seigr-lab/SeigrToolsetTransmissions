@@ -19,9 +19,8 @@ import asyncio
 import json
 import logging
 import time
-from typing import Dict, Tuple, Optional, Set
+from typing import Dict, Tuple, Optional
 from dataclasses import dataclass, field
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 

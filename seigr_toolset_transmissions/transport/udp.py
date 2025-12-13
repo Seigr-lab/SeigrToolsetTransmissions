@@ -7,15 +7,16 @@ DTLS-style encryption via STC.
 
 import asyncio
 import socket
-import struct
 import time
-from typing import Optional, Callable, Tuple, Dict, Any, Set, List
+from typing import Optional, Callable, Tuple, Dict, Any, TYPE_CHECKING
 from dataclasses import dataclass
-from enum import IntEnum
 
 from ..frame import STTFrame
 from ..utils.exceptions import STTTransportError
 from ..utils.logging import get_logger
+
+if TYPE_CHECKING:
+    from ..crypto.stc_wrapper import STCWrapper
 
 
 logger = get_logger(__name__)

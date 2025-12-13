@@ -3,8 +3,6 @@ Targeted tests for session, stream, handshake, and transport uncovered lines.
 """
 
 import pytest
-import asyncio
-import time
 from seigr_toolset_transmissions.session.session import STTSession
 from seigr_toolset_transmissions.stream.stream import STTStream
 from seigr_toolset_transmissions.handshake.handshake import STTHandshake

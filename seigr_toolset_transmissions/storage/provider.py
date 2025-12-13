@@ -11,7 +11,7 @@ Example implementations:
 - In-memory caches
 """
 
-from typing import Protocol, Optional, List, Dict, Any, runtime_checkable
+from typing import Protocol, Optional, List, Dict, runtime_checkable
 
 
 @runtime_checkable

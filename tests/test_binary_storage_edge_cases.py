@@ -5,9 +5,7 @@ Targets uncovered lines: 81, 95-97, 151, 161, 183-184, 191, 211, 254, 269-280, 3
 
 import pytest
 import asyncio
-import hashlib
 import shutil
-from pathlib import Path
 from seigr_toolset_transmissions.storage.binary_storage import BinaryStorage
 from seigr_toolset_transmissions.crypto import STCWrapper
 from seigr_toolset_transmissions.utils.exceptions import STTStorageError

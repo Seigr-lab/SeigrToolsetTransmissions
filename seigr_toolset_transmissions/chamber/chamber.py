@@ -2,9 +2,8 @@
 Chamber - STC-encrypted persistent storage for STT.
 """
 
-import json
 from pathlib import Path
-from typing import Any, List, Optional, Dict
+from typing import Any, List, Dict
 from dataclasses import dataclass
 
 from ..crypto.stc_wrapper import STCWrapper

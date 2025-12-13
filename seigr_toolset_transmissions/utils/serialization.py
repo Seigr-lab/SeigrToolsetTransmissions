@@ -5,7 +5,7 @@ Self-sovereign binary encoding using STC's TLV (Type-Length-Value) format.
 Replaces JSON, msgpack, and other third-party serialization.
 """
 
-from typing import Any, Dict, List, Union, Optional
+from typing import Any
 from enum import IntEnum
 import struct
 

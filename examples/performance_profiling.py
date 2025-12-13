@@ -9,7 +9,6 @@ Shows how to measure and analyze STT performance:
 """
 
 import asyncio
-import time
 from seigr_toolset_transmissions import (
     STTNode,
     PerformanceProfiler,
@@ -42,9 +41,7 @@ async def profile_session():
         # Connect (measure handshake)
         print("Performing handshake...")
         with profiler.measure('handshake'):
-            session_id = await alice.connect_udp("127.0.0.1", 8002, b"Bob")
-        
-        session = alice.session_manager.get_session(session_id)
+            session = await alice.connect_udp("127.0.0.1", 8002)
         
         # Send messages and measure performance
         print("\nSending messages for performance measurement...")

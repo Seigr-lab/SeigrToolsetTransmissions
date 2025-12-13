@@ -8,7 +8,7 @@ Handles:
 """
 
 import asyncio
-from typing import Dict, Optional, AsyncIterator
+from typing import Dict, AsyncIterator
 from interfaces.api.streaming_context import StreamingContext, ChunkHeader
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamingError

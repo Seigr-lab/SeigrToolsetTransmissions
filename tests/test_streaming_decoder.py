@@ -4,11 +4,9 @@ Tests the ACTUAL async streaming API.
 """
 
 import pytest
-import asyncio
 from seigr_toolset_transmissions.crypto import STCWrapper
 from seigr_toolset_transmissions.streaming.decoder import StreamDecoder
 from seigr_toolset_transmissions.streaming.encoder import StreamEncoder
-from seigr_toolset_transmissions.utils.exceptions import STTStreamingError
 
 
 class TestStreamDecoder:

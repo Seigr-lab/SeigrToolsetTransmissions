@@ -3,10 +3,7 @@ Additional core node tests targeting uncovered lines.
 """
 
 import pytest
-import asyncio
-from pathlib import Path
 from seigr_toolset_transmissions.core.node import STTNode
-from seigr_toolset_transmissions.crypto import STCWrapper
 
 
 class TestNodeAdditional:

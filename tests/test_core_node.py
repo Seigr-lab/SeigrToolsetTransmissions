@@ -6,9 +6,6 @@ STT is a transmission protocol - storage is optional and pluggable.
 
 import pytest
 import asyncio
-from pathlib import Path
-import tempfile
-import shutil
 
 from seigr_toolset_transmissions.core.node import STTNode, ReceivedPacket
 from seigr_toolset_transmissions.utils.exceptions import STTException

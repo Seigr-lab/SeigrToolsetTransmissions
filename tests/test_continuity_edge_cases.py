@@ -9,7 +9,6 @@ Targets uncovered lines:
 """
 
 import pytest
-import time
 from seigr_toolset_transmissions.session.continuity import CryptoSessionContinuity
 from seigr_toolset_transmissions.session.session import STTSession
 from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper

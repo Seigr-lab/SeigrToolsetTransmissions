@@ -12,7 +12,6 @@ Tests that STT makes NO assumptions about data:
 
 import asyncio
 import pytest
-from pathlib import Path
 
 from seigr_toolset_transmissions.streaming.encoder import BinaryStreamEncoder
 from seigr_toolset_transmissions.streaming.decoder import BinaryStreamDecoder

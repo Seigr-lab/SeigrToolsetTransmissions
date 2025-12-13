@@ -14,16 +14,14 @@ from dataclasses import dataclass
 from ..crypto.stc_wrapper import STCWrapper
 from ..transport import UDPTransport, WebSocketTransport
 from ..session import SessionManager, STTSession
-from ..handshake import HandshakeManager, STTHandshake
+from ..handshake import HandshakeManager
 from ..frame import STTFrame
 from ..utils.constants import (
-    STT_DEFAULT_TCP_PORT,
     STT_FRAME_TYPE_HANDSHAKE,
     STT_FRAME_TYPE_DATA,
-    STT_HANDSHAKE_HELLO,
     STT_SESSION_STATE_ACTIVE,
 )
-from ..utils.exceptions import STTException, STTSessionError
+from ..utils.exceptions import STTException
 from ..utils.logging import get_logger
 
 if TYPE_CHECKING:

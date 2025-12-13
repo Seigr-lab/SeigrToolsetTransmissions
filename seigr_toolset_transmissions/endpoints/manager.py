@@ -6,7 +6,7 @@ User defines what endpoints mean (peers? nodes? servers? user decides).
 """
 
 import asyncio
-from typing import Dict, List, Tuple, Optional, Set, Union
+from typing import Dict, List, Tuple, Optional, Union
 import time
 
 from ..utils.exceptions import STTEndpointError

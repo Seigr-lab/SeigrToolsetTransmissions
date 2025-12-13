@@ -7,7 +7,6 @@ Targets uncovered lines:
 """
 
 import pytest
-import asyncio
 from seigr_toolset_transmissions.streaming.decoder import BinaryStreamDecoder
 from seigr_toolset_transmissions.utils.exceptions import STTStreamingError
 from seigr_toolset_transmissions.crypto.stc_wrapper import STCWrapper

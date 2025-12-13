@@ -159,7 +159,7 @@ class TestTCPTransport:
             try:
                 while True:
                     await asyncio.sleep(0.1)
-            except:
+            except asyncio.CancelledError:
                 pass
         
         await transport.start(on_connection)

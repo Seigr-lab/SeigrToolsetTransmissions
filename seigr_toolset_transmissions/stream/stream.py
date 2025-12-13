@@ -10,6 +10,9 @@ from collections import deque
 from ..crypto.stc_wrapper import STCWrapper
 from ..utils.exceptions import STTStreamError
 
+if TYPE_CHECKING:
+    from ..session.session import STTSession
+
 
 class STTStream:
     """

@@ -7,7 +7,6 @@ User defines all event semantics.
 
 import asyncio
 from typing import Callable, Dict, List, Any, Optional
-import inspect
 
 from ..utils.exceptions import STTEventError
 

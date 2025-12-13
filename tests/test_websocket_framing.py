@@ -3,12 +3,10 @@
 import pytest
 import asyncio
 import struct
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 from seigr_toolset_transmissions.transport.websocket import (
     WebSocketTransport,
-    WebSocketConfig,
-    WebSocketOpcode,
     WebSocketState
 )
 from seigr_toolset_transmissions.frame import STTFrame

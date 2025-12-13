@@ -6,7 +6,6 @@ Tests broadcast/multicast functionality and exception paths.
 import pytest
 import asyncio
 import os
-from pathlib import Path
 from seigr_toolset_transmissions.core.node import STTNode, ReceivedPacket
 from seigr_toolset_transmissions.frame.frame import STTFrame
 from seigr_toolset_transmissions.utils.constants import (

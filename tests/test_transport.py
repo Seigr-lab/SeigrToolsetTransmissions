@@ -169,7 +169,6 @@ class TestUDPTransport:
     @pytest.mark.asyncio
     async def test_udp_double_start(self, stc_wrapper):
         """Test starting UDP transport twice."""
-        from seigr_toolset_transmissions.utils.exceptions import STTTransportError
         transport = UDPTransport("127.0.0.1", 0, stc_wrapper)
         
         await transport.start()
@@ -580,7 +579,6 @@ class TestWebSocketTransport:
     @pytest.mark.asyncio
     async def test_websocket_client_close_frame(self, stc_wrapper):
         """Test WebSocket client handling CLOSE frame during disconnect."""
-        import asyncio
         from seigr_toolset_transmissions.transport.websocket import WebSocketState
         
         server = WebSocketTransport("127.0.0.1", 0, stc_wrapper, is_server=True)
@@ -611,8 +609,6 @@ class TestWebSocketTransport:
     @pytest.mark.asyncio
     async def test_websocket_client_receive_error(self, stc_wrapper):
         """Test WebSocket client receive_frames() error handling."""
-        import asyncio
-        
         client = WebSocketTransport(
             "127.0.0.1", 9999, stc_wrapper, is_server=False
         )
@@ -633,8 +629,6 @@ class TestWebSocketTransport:
     @pytest.mark.asyncio
     async def test_websocket_receive_frames_server_mode_error(self, stc_wrapper):
         """Test receive_frames() raises error when called on server."""
-        from seigr_toolset_transmissions.utils.exceptions import STTTransportError
-        
         server = WebSocketTransport("127.0.0.1", 0, stc_wrapper, is_server=True)
         await server.start()
         

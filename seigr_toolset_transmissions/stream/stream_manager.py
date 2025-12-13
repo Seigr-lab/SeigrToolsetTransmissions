@@ -6,8 +6,6 @@ import asyncio
 from typing import Dict, Optional, List
 
 from .stream import STTStream
-from ..utils.constants import STT_STREAM_STATE_CLOSED
-from ..utils.exceptions import STTStreamError
 from ..utils.logging import get_logger
 
 

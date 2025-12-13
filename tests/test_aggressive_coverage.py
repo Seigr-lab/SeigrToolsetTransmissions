@@ -3,10 +3,8 @@ More aggressive tests for remaining gaps.
 """
 
 import pytest
-import asyncio
 from seigr_toolset_transmissions.session.session import STTSession
 from seigr_toolset_transmissions.stream.stream import STTStream
-from seigr_toolset_transmissions.handshake.handshake import STTHandshake
 from seigr_toolset_transmissions.transport.udp import UDPTransport
 from seigr_toolset_transmissions.crypto import STCWrapper
 
