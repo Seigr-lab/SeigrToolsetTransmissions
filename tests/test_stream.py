@@ -423,7 +423,7 @@ class TestStreamManager:
         
         # Try to receive with short timeout
         try:
-            _result = await asyncio.wait_for(stream.receive(), timeout=0.01)  # Should timeout
+            await asyncio.wait_for(stream.receive(), timeout=0.01)  # Should timeout
         except asyncio.TimeoutError:
             pass  # Expected timeout
         except Exception:
@@ -476,8 +476,7 @@ class TestStreamManager:
         
         # Set error state if possible
         if hasattr(stream, 'state'):
-            _original_state = stream.state  # Store for reference
-            # Try operations in different states
+            # State exists, try operations in different states
             await stream.close()
     
     @pytest.mark.asyncio

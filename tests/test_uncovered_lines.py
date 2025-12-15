@@ -19,7 +19,7 @@ class TestSessionUncovered:
     def test_session_invalid_id_length(self, stc_wrapper):
         """Test session with invalid ID length (line 27)."""
         try:
-            _session = STTSession(b"short", b"peer", stc_wrapper)  # Should raise
+            STTSession(b"short", b"peer", stc_wrapper)  # Should raise
         except Exception as e:
             assert "8 bytes" in str(e)
     

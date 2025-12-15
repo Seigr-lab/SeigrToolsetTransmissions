@@ -446,8 +446,7 @@ class WebSocketTransport:
         # Read first 2 bytes
         header = await self.reader.readexactly(2)
         
-        # Parse header
-        _fin = (header[0] & 0x80) != 0  # FIN bit reserved for fragmentation
+        # Parse header (FIN bit at header[0] & 0x80 reserved for fragmentation)
         opcode = WebSocketOpcode(header[0] & 0x0F)
         masked = (header[1] & 0x80) != 0
         payload_len = header[1] & 0x7F

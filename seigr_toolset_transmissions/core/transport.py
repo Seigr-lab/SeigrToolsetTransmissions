@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from ..utils.constants import (
     STT_DEFAULT_TCP_PORT,
     STT_BACKLOG,
-    STT_BUFFER_SIZE,
 )
 from ..utils.exceptions import STTTransportError
 from ..utils.logging import get_logger

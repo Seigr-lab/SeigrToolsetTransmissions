@@ -26,7 +26,7 @@ class TestStreamManagerAdvanced:
         """Test has_stream method."""
         assert not manager.has_stream(99)
         
-        _stream = await manager.create_stream(stream_id=99)  # Side effect: adds to manager
+        await manager.create_stream(stream_id=99)  # Side effect: adds to manager
         assert manager.has_stream(99)
     
     @pytest.mark.asyncio
@@ -66,7 +66,7 @@ class TestStreamManagerAdvanced:
         """Test cleanup of inactive streams."""
         # Create streams
         stream1 = await manager.create_stream(stream_id=100)
-        _stream2 = await manager.create_stream(stream_id=101)  # Stays active
+        await manager.create_stream(stream_id=101)  # Stays active
         
         # Close one to make it inactive
         await stream1.close()
@@ -97,7 +97,7 @@ class TestSessionManagerAdvanced:
         
         # Create sessions
         session1 = await manager.create_session(b'\x10' * 8, peer1)
-        _session2 = await manager.create_session(b'\x20' * 8, peer2)  # Stays active
+        await manager.create_session(b'\x20' * 8, peer2)  # Stays active
         
         # Close one
         session1.close()
@@ -130,8 +130,8 @@ class TestSessionManagerAdvanced:
         peer2 = b"peer_rotate_2__" + b"5" * 17
         
         # Create active sessions
-        _session1 = await manager.create_session(b'\x40' * 8, peer1)  # Subject to rotation
-        _session2 = await manager.create_session(b'\x50' * 8, peer2)  # Subject to rotation
+        await manager.create_session(b'\x40' * 8, peer1)  # Subject to rotation
+        await manager.create_session(b'\x50' * 8, peer2)  # Subject to rotation
         
         # Create new STC wrapper for rotation
         new_stc = STCWrapper(b"new_rotation_seed_for_keys!")

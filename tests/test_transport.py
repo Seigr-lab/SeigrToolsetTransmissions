@@ -61,7 +61,7 @@ class TestUDPTransport:
         
         try:
             # Get addresses
-            _addr1 = transport1.get_address()  # Used for identification
+            transport1.get_address()  # Verify transport1 has address
             addr2 = transport2.get_address()
             
             # Set up receiver

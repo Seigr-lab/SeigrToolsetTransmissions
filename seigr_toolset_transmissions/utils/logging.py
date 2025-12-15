@@ -5,13 +5,7 @@ Logging utilities for STT with privacy-preserving features.
 import logging
 import sys
 from typing import Optional
-from .constants import (
-    STT_LOG_LEVEL_DEBUG,
-    STT_LOG_LEVEL_INFO,
-    STT_LOG_LEVEL_WARNING,
-    STT_LOG_LEVEL_ERROR,
-    STT_LOG_LEVEL_CRITICAL,
-)
+from .constants import STT_LOG_LEVEL_INFO
 
 
 class STTLogger:

@@ -12,7 +12,7 @@ import asyncio
 import math
 import secrets  # Use secrets instead of random for better randomness
 import time
-from typing import Optional, List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .stream import STTStream

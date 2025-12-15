@@ -276,9 +276,9 @@ class TestStreamManagerOperations:
         mgr = StreamManager(b'\xAA' * 8, stc)
         
         # Create multiple streams
-        _stream1 = await mgr.create_stream()  # ID assigned automatically
-        _stream2 = await mgr.create_stream()
-        _stream3 = await mgr.create_stream()
+        await mgr.create_stream()  # ID assigned automatically
+        await mgr.create_stream()
+        await mgr.create_stream()
         
         await mgr.close_all()
         
@@ -312,7 +312,7 @@ class TestStreamManagerCleanup:
         mgr = StreamManager(b'\xAA' * 8, stc)
         
         # Create active and inactive streams
-        _active = await mgr.create_stream(stream_id=1)  # Stays active
+        await mgr.create_stream(stream_id=1)  # Stays active
         inactive = await mgr.create_stream(stream_id=2)
         inactive.is_active = False
         
@@ -333,7 +333,7 @@ class TestStreamManagerCleanup:
         old_stream.last_activity = time.time() - 1000
         
         # Create recent stream
-        _recent_stream = await mgr.create_stream(stream_id=2)  # Stays due to recent activity
+        await mgr.create_stream(stream_id=2)  # Stays due to recent activity
         
         removed = await mgr.cleanup_inactive(timeout=500)
         
