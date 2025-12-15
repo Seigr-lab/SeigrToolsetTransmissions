@@ -164,9 +164,9 @@ class TestWebSocketClientMode:
             # Check if close completed
             if not close_task.done():
                 await close_task
-                
+            
             # Client may or may not be marked as disconnected depending on timing
-            # Just verify it can close cleanly
+            # Just verify it can close cleanly - close if still connected
             if client.is_connected:
                 await client.close()
                 

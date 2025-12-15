@@ -56,7 +56,7 @@ class StorageProvider(Protocol):
         Raises:
             Exception: Implementation-defined errors
         """
-        ...
+        raise NotImplementedError
     
     async def retrieve(self, key: bytes) -> Optional[bytes]:
         """
@@ -71,7 +71,7 @@ class StorageProvider(Protocol):
         Raises:
             Exception: Implementation-defined errors (NOT for missing keys)
         """
-        ...
+        raise NotImplementedError
     
     async def exists(self, key: bytes) -> bool:
         """
@@ -83,7 +83,7 @@ class StorageProvider(Protocol):
         Returns:
             True if exists, False otherwise
         """
-        ...
+        raise NotImplementedError
     
     async def delete(self, key: bytes) -> None:
         """
@@ -98,7 +98,7 @@ class StorageProvider(Protocol):
         Note:
             Should not raise if key doesn't exist (idempotent delete)
         """
-        ...
+        raise NotImplementedError
     
     async def list_keys(self) -> List[bytes]:
         """
@@ -111,7 +111,7 @@ class StorageProvider(Protocol):
             For large storage, implementations may want to add
             pagination or filtering - extend the interface as needed.
         """
-        ...
+        raise NotImplementedError
 
 
 class InMemoryStorage:

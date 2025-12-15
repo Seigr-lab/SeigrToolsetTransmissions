@@ -363,9 +363,9 @@ class HandshakeManager:
         
         return response_data
     
-    def complete_handshake(self, peer_node_id: bytes, response_data: bytes) -> bytes:
+    def complete_handshake_sync(self, peer_node_id: bytes, response_data: bytes) -> bytes:
         """
-        Complete handshake after receiving RESPONSE.
+        Complete handshake after receiving RESPONSE (synchronous version).
         
         Args:
             peer_node_id: Peer's node identifier

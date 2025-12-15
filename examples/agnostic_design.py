@@ -62,7 +62,7 @@ async def example_video_streaming():
         async for segment in encoder.send(frame):
             await decoder.process_segment(segment['data'], segment['sequence'])
     
-    await receive_task
+    await receive_task  # Wait for receiver task to complete
     print("✓ Video streaming complete (STT never knew it was video!)")
 
 
