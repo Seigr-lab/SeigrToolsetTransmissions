@@ -156,7 +156,7 @@ async def test_send_probabilistic_retry_logic(prob_stream):
     
     # Patch secrets to prevent early exit (always retry)
     with patch('seigr_toolset_transmissions.stream.probabilistic_stream.secrets.randbelow', return_value=0):
-        _delivered = await prob_stream.send_probabilistic(data)  # Tests retry logic
+        await prob_stream.send_probabilistic(data)  # Tests retry logic
     
     # At least one segment should have made multiple attempts (2 or more)
     assert max(segment_attempts.values()) >= 2, f"Max attempts: {max(segment_attempts.values())}"
@@ -173,7 +173,7 @@ async def test_send_probabilistic_early_exit(prob_stream):
     
     # Patch secrets to force early exits (return high value to make ratio > 0.5)
     with patch('seigr_toolset_transmissions.stream.probabilistic_stream.secrets.randbelow', return_value=999999):
-        _delivered = await prob_stream.send_probabilistic(data)  # Tests early exit logic
+        await prob_stream.send_probabilistic(data)  # Tests early exit logic
     
     # Should have early exits (not all segments delivered)
     assert prob_stream.probabilistic_exits > 0

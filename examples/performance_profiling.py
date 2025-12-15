@@ -64,8 +64,8 @@ async def profile_session():
         # Wait for all data to be processed
         await asyncio.sleep(1)
         
-        # Take final snapshot
-        _final_snapshot = profiler.take_snapshot(alice)  # Snapshot taken, report uses profiler data
+        # Take final snapshot (updates profiler internal state for report)
+        profiler.take_snapshot(alice)
         
         # Get comprehensive report
         print("\n" + "="*60)

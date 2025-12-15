@@ -218,10 +218,8 @@ def test_verify_continuity_proof_invalid(continuity_manager, mock_stc):
     node_seed = b'\x03' * 32
     shared_seed = b'\x04' * 32
     
-    # Generate proof with correct seeds
-    _proof = continuity_manager.generate_continuity_proof(
-        session, node_seed, shared_seed
-    )  # Generated but using wrong_proof below for negative test
+    # Generate proof with correct seeds (not used - testing wrong_proof rejection)
+    continuity_manager.generate_continuity_proof(session, node_seed, shared_seed)
     
     # Use completely wrong proof (random bytes)
     wrong_proof = b'\xff' * 32

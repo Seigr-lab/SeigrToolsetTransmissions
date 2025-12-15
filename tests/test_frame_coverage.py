@@ -78,9 +78,9 @@ class TestFrameCoverage:
             payload=b"decrypt_me"
         )
         try:
-            _encrypted = frame.encrypt_payload(stc_wrapper)
-            _decrypted = frame.decrypt_payload(stc_wrapper)  # Side effects tested
-            assert _decrypted == frame.payload
+            frame.encrypt_payload(stc_wrapper)
+            decrypted = frame.decrypt_payload(stc_wrapper)  # Side effects tested
+            assert decrypted == frame.payload
         except Exception:
             pass  # Encryption may fail with certain payloads
     

@@ -24,7 +24,7 @@ async def manual_coordination_example():
     # Create nodes
     alice_seed = b"alice_seed_32_bytes_long_12345678"
     bob_seed = b"bob_seed_32_bytes_long_1234567890"
-    _shared_seed = b"shared_seed_32_bytes_long_123456"  # Available for future use
+    # shared_seed = b"shared_seed_32_bytes_long_123456"  # Available for future use
     
     alice_node_id = alice_seed[:32]
     bob_node_id = bob_seed[:32]

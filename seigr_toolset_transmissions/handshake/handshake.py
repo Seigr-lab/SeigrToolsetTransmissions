@@ -378,7 +378,7 @@ class HandshakeManager:
         if not handshake:
             raise STTHandshakeError(f"No active handshake for {peer_node_id.hex()}")
         
-        _proof_data = handshake.process_response(response_data)  # Side effect completes handshake
+        handshake.process_response(response_data)  # Side effect completes handshake
         session_id = handshake.get_session_id()
         
         if session_id:
@@ -537,8 +537,7 @@ class HandshakeManager:
         Args:
             max_age: Maximum age in seconds
         """
-        import time
-        _current_time = time.time()  # Reserved for future timestamp-based cleanup
+        # Reserved for future: time.time() for timestamp-based cleanup
         
         # Remove old handshakes (would need timestamps in real implementation)
         # For now, remove all incomplete handshakes if max_age is 0

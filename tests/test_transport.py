@@ -504,8 +504,6 @@ class TestWebSocketTransport:
     @pytest.mark.asyncio
     async def test_websocket_client_receive_frames(self, stc_wrapper):
         """Test WebSocket client receive_frames() method code path."""
-        import asyncio
-        
         server = WebSocketTransport("127.0.0.1", 0, stc_wrapper, is_server=True)
         await server.start()
         
@@ -546,8 +544,6 @@ class TestWebSocketTransport:
     @pytest.mark.asyncio
     async def test_websocket_client_text_message(self, stc_wrapper):
         """Test WebSocket client receiving TEXT frames - exercises text opcode path."""
-        import asyncio
-        
         # This test mainly ensures receive_frames() TEXT opcode path exists
         # Actual server->client TEXT transmission tested in integration
         client = WebSocketTransport(
@@ -564,8 +560,6 @@ class TestWebSocketTransport:
     @pytest.mark.asyncio
     async def test_websocket_client_ping_response(self, stc_wrapper):
         """Test WebSocket client responds to PING with PONG - exercises ping opcode path."""
-        import asyncio
-        
         # This test verifies the ping handling code path exists in receive_frames()
         # Actual PING/PONG exchange is tested in test_websocket_ping_pong
         client = WebSocketTransport(

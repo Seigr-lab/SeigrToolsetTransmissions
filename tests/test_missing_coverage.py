@@ -273,7 +273,7 @@ class TestHandshakeErrorPaths:
         handshake = STTHandshake(node_id, stc, is_initiator=True)
         
         # Start handshake
-        _hello_msg = handshake.create_hello()  # Initialize handshake state
+        handshake.create_hello()  # Initialize handshake state
         
         # Create malformed response (missing required fields)
         from seigr_toolset_transmissions.utils.serialization import serialize_stt

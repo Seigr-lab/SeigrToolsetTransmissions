@@ -20,7 +20,7 @@ class TestWebSocketFinalPush:
     async def test_ws_connect_class_method(self, stc_wrapper):
         """Test WebSocket.connect_to class method."""
         try:
-            _ws = await asyncio.wait_for(
+            await asyncio.wait_for(
                 WebSocketTransport.connect_to("127.0.0.1", 9999, "/"),
                 timeout=0.5
             )  # Connection attempt for coverage

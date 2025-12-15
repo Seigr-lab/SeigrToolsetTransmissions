@@ -139,7 +139,7 @@ class TestBinaryStorageEdgeCases:
         
         # Get the encrypted file
         address_path = storage._get_address_path(address)
-        _encrypted_with_header = address_path.read_bytes()  # Original data for reference
+        # Original encrypted data read via address_path.read_bytes() for reference
         
         # Create different data with valid encryption but wrong hash
         different_data = b"tampered data"

@@ -460,7 +460,7 @@ class TestSTTNodeIntegration:
             
             # Create a session first
             session_id = b'\x01' * 8
-            _session = await node.session_manager.create_session(
+            await node.session_manager.create_session(
                 session_id=session_id,
                 peer_node_id=b'\x02' * 32
             )  # Session created for frame handling

@@ -113,7 +113,7 @@ class TestNodeEdgeCases:
     async def test_node_double_start(self, node):
         """Test starting already running node."""
         await node.start()
-        _addr, _port = await node.start()  # Should handle gracefully
+        await node.start()  # Should handle gracefully (double start)
         await node.stop()
     
     @pytest.mark.asyncio

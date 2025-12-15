@@ -64,11 +64,11 @@ class TestSessionStreamCoverage:
         session_id = b'\x01' * 8
         peer_id = b"peer_test_123" + b"0" * 19  # 32 bytes
         
-        # Initially doesn't have session
-        _initial_has = manager.has_session(session_id)  # Check initial state
+        # Initially doesn't have session (checked via has_session)
+        manager.has_session(session_id)  # Check initial state
         
         # Create session
-        _session = await manager.create_session(session_id, peer_id)  # Side effect: adds to manager
+        await manager.create_session(session_id, peer_id)  # Side effect: adds to manager
         assert manager.has_session(session_id)
         
         # Get session
