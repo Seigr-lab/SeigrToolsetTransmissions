@@ -324,7 +324,7 @@ class TestWebSocketClientMode:
             port = server.get_port()
             
             # Connect with TCP, send invalid handshake
-            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            _reader, writer = await asyncio.open_connection("127.0.0.1", port)
             
             try:
                 # Send request without Upgrade header
@@ -357,7 +357,7 @@ class TestWebSocketClientMode:
             port = server.get_port()
             
             # Connect with TCP
-            reader, writer = await asyncio.open_connection("127.0.0.1", port)
+            _reader, writer = await asyncio.open_connection("127.0.0.1", port)
             
             try:
                 # Send handshake with wrong version

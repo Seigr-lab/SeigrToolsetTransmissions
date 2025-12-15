@@ -242,7 +242,7 @@ class RelayNATCoordinator(NATCoordinator):
             try:
                 await self._keep_alive_task
             except asyncio.CancelledError:
-                pass
+                pass  # Task cancellation acknowledged
         
         # Send unregister message
         if self._registration_socket:

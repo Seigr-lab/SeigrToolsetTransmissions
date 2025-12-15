@@ -105,7 +105,7 @@ class TestNodeEdgeCases:
     @pytest.mark.asyncio
     async def test_node_start_stop(self, node):
         """Test node lifecycle."""
-        addr, port = await node.start()
+        _addr, port = await node.start()
         assert isinstance(port, int)
         await node.stop()
     
@@ -113,7 +113,7 @@ class TestNodeEdgeCases:
     async def test_node_double_start(self, node):
         """Test starting already running node."""
         await node.start()
-        addr, port = await node.start()  # Should handle gracefully
+        _addr, _port = await node.start()  # Should handle gracefully
         await node.stop()
     
     @pytest.mark.asyncio
@@ -122,7 +122,7 @@ class TestNodeEdgeCases:
         try:
             await node.stop()
         except Exception:
-            pass
+            pass  # May fail if node not started - that's OK
 
 
 class TestHandshakeEdgeCases:
@@ -155,7 +155,7 @@ class TestHandshakeEdgeCases:
             response = responder.process_hello(hello)
             assert isinstance(response, bytes)
         except Exception:
-            pass
+            pass  # Handshake may fail with mock data
 
 
 if __name__ == "__main__":

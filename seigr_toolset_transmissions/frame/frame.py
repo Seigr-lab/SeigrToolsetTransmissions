@@ -109,7 +109,6 @@ class STTFrame:
             # NOTE: Metadata can be large (~100KB with minimal STC params)
             # In production, consider session-level metadata exchange
             self.crypto_metadata = metadata
-            original_payload = self.payload
             self.payload = encrypted_payload
             self._is_encrypted = True
             

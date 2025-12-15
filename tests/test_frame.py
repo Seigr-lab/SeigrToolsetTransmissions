@@ -196,8 +196,8 @@ class TestSTTFrame:
         
         assert decoded.payload == b''
     
-    def test_frame_large_payload(self):
-        """Test frame with large payload."""
+    def test_frame_large_payload_10kb(self):
+        """Test frame with 10KB payload encode/decode."""
         session_id = b'\x04' * 8
         large_payload = b'x' * 10000  # 10KB
         
@@ -398,8 +398,8 @@ class TestSTTFrame:
         assert frame.payload == b''
         assert len(frame.payload) == 0
     
-    def test_frame_large_payload(self):
-        """Test frame with large payload."""
+    def test_frame_large_payload_1mb(self):
+        """Test frame with 1MB payload creation."""
         large_payload = b'x' * 1000000  # 1MB
         
         frame = STTFrame(
@@ -489,8 +489,8 @@ class TestSTTFrame:
         with pytest.raises(STTFrameError, match="not encrypted"):
             frame.decrypt_payload(stc_wrapper)
     
-    def test_frame_large_payload(self, stc_wrapper):
-        """Test frame with large payload."""
+    def test_frame_large_payload_100kb_encrypted(self, stc_wrapper):
+        """Test frame with 100KB payload encrypt/decrypt."""
         large_payload = b'x' * 100000  # 100KB
         
         frame = STTFrame(

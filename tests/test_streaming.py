@@ -120,7 +120,7 @@ class TestStreamEncoder:
         assert initial_stats['bytes_sent'] == 0
         
         # Send data
-        async for segment in encoder.send(b"test data"):
+        async for _segment in encoder.send(b"test data"):
             pass
         
         # Stats should update
@@ -149,21 +149,21 @@ class TestStreamEncoder:
         
         # Trying to send should fail
         with pytest.raises(STTStreamingError, match="Cannot send after stream ended"):
-            async for segment in encoder.send(b"data"):
+            async for _segment in encoder.send(b"data"):
                 pass
     
     @pytest.mark.asyncio
     async def test_send_non_bytes_fails(self, encoder):
         """Test that sending non-bytes data fails."""
         with pytest.raises(STTStreamingError, match="Data must be bytes"):
-            async for segment in encoder.send("not bytes"):
+            async for _segment in encoder.send("not bytes"):
                 pass
     
     @pytest.mark.asyncio
     async def test_end_stream(self, encoder):
         """Test ending a stream."""
         # Send some data
-        async for segment in encoder.send(b"data"):
+        async for _segment in encoder.send(b"data"):
             pass
         
         # End stream
@@ -496,7 +496,7 @@ class TestStreamingIntegration:
         # Sending should consume credits
         initial_credits = stats['credits']
         
-        async for segment in encoder.send(b"data"):
+        async for _segment in encoder.send(b"data"):
             pass
         
         stats_after = encoder.get_stats()

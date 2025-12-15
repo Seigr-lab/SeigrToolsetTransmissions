@@ -423,7 +423,7 @@ class TestStreamManager:
         
         # Try to receive with short timeout
         try:
-            result = await asyncio.wait_for(stream.receive(), timeout=0.01)
+            _result = await asyncio.wait_for(stream.receive(), timeout=0.01)  # Should timeout
         except asyncio.TimeoutError:
             pass  # Expected timeout
         except Exception:
@@ -437,7 +437,7 @@ class TestStreamManager:
         
         # Try to fill queue beyond capacity
         if hasattr(stream, '_recv_queue'):
-            for i in range(1000):
+            for _i in range(1000):
                 try:
                     stream._recv_queue.put_nowait(b"data")
                 except asyncio.QueueFull:
@@ -476,7 +476,7 @@ class TestStreamManager:
         
         # Set error state if possible
         if hasattr(stream, 'state'):
-            original_state = stream.state
+            _original_state = stream.state  # Store for reference
             # Try operations in different states
             await stream.close()
     

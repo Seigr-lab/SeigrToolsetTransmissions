@@ -36,7 +36,7 @@ class TestSessionStreamCoverage:
         try:
             await stream.send(b"data")
         except Exception:
-            pass
+            pass  # Expected - stream not connected
     
     @pytest.mark.asyncio
     async def test_stream_receive_closed(self, stc_wrapper):
@@ -46,7 +46,7 @@ class TestSessionStreamCoverage:
         try:
             await stream.receive()
         except Exception:
-            pass
+            pass  # Expected - stream already closed
     
     def test_stream_window_size(self, stc_wrapper):
         """Test stream window size property."""
@@ -65,10 +65,10 @@ class TestSessionStreamCoverage:
         peer_id = b"peer_test_123" + b"0" * 19  # 32 bytes
         
         # Initially doesn't have session
-        initial_has = manager.has_session(session_id)
+        _initial_has = manager.has_session(session_id)  # Check initial state
         
         # Create session
-        session = await manager.create_session(session_id, peer_id)
+        _session = await manager.create_session(session_id, peer_id)  # Side effect: adds to manager
         assert manager.has_session(session_id)
         
         # Get session

@@ -119,7 +119,7 @@ class TestGetResumptionInfoEdgeCases:
         shared_seed = b'shared_32bytes_for_test_usage!'
         
         # Create resumable session
-        session_id, token = continuity_manager.create_resumable_session(
+        session_id, _token = continuity_manager.create_resumable_session(
             peer_id, node_seed, shared_seed
         )
         

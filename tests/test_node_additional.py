@@ -31,7 +31,7 @@ class TestNodeAdditional:
     @pytest.mark.asyncio
     async def test_node_start_udp_transport(self, node):
         """Test node starts UDP transport."""
-        addr, port = await node.start()
+        _addr, port = await node.start()
         assert port > 0
         assert node.udp_transport is not None
         await node.stop()

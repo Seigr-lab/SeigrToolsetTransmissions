@@ -32,7 +32,7 @@ class TestHandshakeCoverage:
             assert isinstance(response, bytes)
             assert len(response) > 0
         except Exception:
-            pass
+            pass  # Handshake may fail with mock data
     
     def test_handshake_state_before_completion(self, stc_wrapper):
         """Test handshake state before completion."""

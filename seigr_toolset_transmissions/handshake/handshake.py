@@ -321,9 +321,9 @@ class HandshakeManager:
         self.active_handshakes = {}
         self.completed_sessions = {}
     
-    def initiate_handshake(self, peer_node_id: bytes) -> Tuple[bytes, STTHandshake]:
+    def initiate_handshake_sync(self, peer_node_id: bytes) -> Tuple[bytes, STTHandshake]:
         """
-        Initiate handshake with peer.
+        Initiate handshake with peer (synchronous version).
         
         Args:
             peer_node_id: Peer's node identifier
@@ -378,7 +378,7 @@ class HandshakeManager:
         if not handshake:
             raise STTHandshakeError(f"No active handshake for {peer_node_id.hex()}")
         
-        proof_data = handshake.process_response(response_data)
+        _proof_data = handshake.process_response(response_data)  # Side effect completes handshake
         session_id = handshake.get_session_id()
         
         if session_id:
@@ -538,7 +538,7 @@ class HandshakeManager:
             max_age: Maximum age in seconds
         """
         import time
-        current_time = time.time()
+        _current_time = time.time()  # Reserved for future timestamp-based cleanup
         
         # Remove old handshakes (would need timestamps in real implementation)
         # For now, remove all incomplete handshakes if max_age is 0

@@ -50,7 +50,7 @@ class TestNodeAdditional:
         
         # Try to receive without connection
         try:
-            result = await asyncio.wait_for(node.receive_data(), timeout=0.1)
+            _result = await asyncio.wait_for(node.receive_data(), timeout=0.1)  # Should timeout
         except (asyncio.TimeoutError, Exception):
             pass  # Expected
     

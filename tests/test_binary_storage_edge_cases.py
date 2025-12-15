@@ -139,7 +139,7 @@ class TestBinaryStorageEdgeCases:
         
         # Get the encrypted file
         address_path = storage._get_address_path(address)
-        encrypted_with_header = address_path.read_bytes()
+        _encrypted_with_header = address_path.read_bytes()  # Original data for reference
         
         # Create different data with valid encryption but wrong hash
         different_data = b"tampered data"
@@ -231,7 +231,7 @@ class TestBinaryStorageEdgeCases:
         """Test LRU eviction edge cases (lines 333-360)."""
         # Add data to fill storage
         addresses = []
-        for i in range(5):
+        for _i in range(5):
             data = b"x" * 1500  # 1.5KB each
             addr = await storage.put(data)
             addresses.append(addr)

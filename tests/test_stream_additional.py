@@ -42,7 +42,7 @@ class TestStreamAdditional:
         
         # Try to receive with timeout
         try:
-            result = await asyncio.wait_for(stream.receive_data(), timeout=0.1)
+            _result = await asyncio.wait_for(stream.receive_data(), timeout=0.1)  # Should timeout
         except (asyncio.TimeoutError, Exception):
             pass  # Expected
     
@@ -96,7 +96,7 @@ class TestStreamAdditional:
             try:
                 await stream.write_eof()
             except Exception:
-                pass
+                pass  # May fail depending on stream state
 
 
 if __name__ == "__main__":

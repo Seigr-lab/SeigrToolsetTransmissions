@@ -56,7 +56,7 @@ class TestWebSocketFrameProcessing:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert len(received_frames) == 1
     
@@ -91,7 +91,7 @@ class TestWebSocketFrameProcessing:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert len(received_messages) == 1
     
@@ -120,7 +120,7 @@ class TestWebSocketFrameProcessing:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert writer.write.called
     
@@ -149,7 +149,7 @@ class TestWebSocketFrameProcessing:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
     
     @pytest.mark.asyncio
     async def test_receive_close_with_code_and_reason(self):
@@ -235,7 +235,7 @@ class TestWebSocketExtendedLengths:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         # bytes_received includes header overhead
         assert ws.bytes_received >= 200
@@ -267,7 +267,7 @@ class TestWebSocketExtendedLengths:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         # bytes_received includes header overhead
         assert ws.bytes_received >= 70000
@@ -336,7 +336,7 @@ class TestWebSocketMasking:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert len(received_messages) == 1
         assert received_messages[0] == payload
@@ -377,7 +377,7 @@ class TestWebSocketAsyncHandlers:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert len(received) == 1
     
@@ -421,7 +421,7 @@ class TestWebSocketAsyncHandlers:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert len(received_frames) == 1
 
@@ -498,7 +498,7 @@ class TestWebSocketErrors:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert not frame_called
 
@@ -558,7 +558,7 @@ class TestWebSocketBinaryWithMessageHandler:
         try:
             await ws.receive_frames()
         except asyncio.IncompleteReadError:
-            pass
+            pass  # Expected - mock signals end of test data
         
         assert len(received_messages) == 1
         assert received_messages[0] == binary_data

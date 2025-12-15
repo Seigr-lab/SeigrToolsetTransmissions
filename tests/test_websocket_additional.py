@@ -46,7 +46,7 @@ class TestWebSocketAdditional:
         try:
             await asyncio.wait_for(ws.connect("192.0.2.1", 9999), timeout=0.5)
         except Exception:
-            pass
+            pass  # Expected - unreachable address
     
     @pytest.mark.asyncio
     async def test_ws_send_frame_server(self, stc_wrapper):
@@ -65,7 +65,7 @@ class TestWebSocketAdditional:
         try:
             await ws.send_frame(frame)
         except Exception:
-            pass
+            pass  # Expected - not connected
         
         await ws.stop()
     
@@ -78,7 +78,7 @@ class TestWebSocketAdditional:
         try:
             await asyncio.wait_for(ws.receive_frame(), timeout=0.1)
         except (asyncio.TimeoutError, Exception):
-            pass
+            pass  # Expected - no incoming frames
         
         await ws.stop()
     
@@ -91,7 +91,7 @@ class TestWebSocketAdditional:
         try:
             await ws.close(1000, "Normal closure")
         except Exception:
-            pass
+            pass  # May fail if no active connections
         
         await ws.stop()
 

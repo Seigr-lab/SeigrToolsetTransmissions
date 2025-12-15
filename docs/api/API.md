@@ -464,8 +464,11 @@ manager = HandshakeManager(
     stc_wrapper: STCWrapper
 )
 
-# Initiate handshake
-session_id, init_frame = manager.initiate_handshake(peer_node_id)
+# Initiate handshake (synchronous)
+session_id, init_frame = manager.initiate_handshake_sync(peer_node_id)
+
+# Or use async version
+handshake = await manager.initiate_handshake(peer_address)
 
 # Process incoming frame
 response = await manager.process_frame(frame: STTFrame)

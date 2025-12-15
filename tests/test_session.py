@@ -509,11 +509,11 @@ class TestSessionManager:
         # Try rotating key multiple times
         if hasattr(session, 'rotate_key'):
             try:
-                session.rotate_key()
-                session.rotate_key()
-                session.rotate_key()
+                session.rotate_key(stc_wrapper)
+                session.rotate_key(stc_wrapper)
+                session.rotate_key(stc_wrapper)
             except Exception:
-                pass
+                pass  # Key rotation may fail - testing resilience
     
     def test_session_update_last_activity(self, session_id, peer_node_id, stc_wrapper):
         """Test session last activity update."""

@@ -312,7 +312,7 @@ async def test_storage_get_nonexistent(tmp_path, stc_wrapper):
     
     # Should raise exception for non-existent address
     try:
-        result = await storage.get(fake_addr)
+        _result = await storage.get(fake_addr)  # Should raise
         assert False, "Should have raised STTStorageError"
     except STTStorageError:
         pass  # Expected
@@ -363,7 +363,7 @@ async def test_endpoint_receive_timeout(tmp_path):
     # Try to receive with short timeout (should raise exception)
     from seigr_toolset_transmissions.utils.exceptions import STTEndpointError
     try:
-        result = await manager.receive_from(endpoint, timeout=0.1)
+        _result = await manager.receive_from(endpoint, timeout=0.1)  # Should raise
         assert False, "Should have raised STTEndpointError"
     except STTEndpointError:
         pass  # Expected

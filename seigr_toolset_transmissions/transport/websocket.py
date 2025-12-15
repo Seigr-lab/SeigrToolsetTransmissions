@@ -447,7 +447,7 @@ class WebSocketTransport:
         header = await self.reader.readexactly(2)
         
         # Parse header
-        fin = (header[0] & 0x80) != 0
+        _fin = (header[0] & 0x80) != 0  # FIN bit reserved for fragmentation
         opcode = WebSocketOpcode(header[0] & 0x0F)
         masked = (header[1] & 0x80) != 0
         payload_len = header[1] & 0x7F
@@ -582,7 +582,7 @@ class WebSocketTransport:
         self.state = WebSocketState.CLOSING
         
         # Close all client connections
-        for client_id, (_, writer, task, client_ws) in list(self.clients.items()):
+        for client_id, (_, _writer, task, client_ws) in list(self.clients.items()):
             try:
                 # Cancel receive task
                 if not task.done():
@@ -590,7 +590,7 @@ class WebSocketTransport:
                     try:
                         await task
                     except asyncio.CancelledError:
-                        pass
+                        pass  # Task cancellation acknowledged
                 
                 # Close client connection
                 if client_ws.state != WebSocketState.CLOSED:

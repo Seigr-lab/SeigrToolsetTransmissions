@@ -665,10 +665,10 @@ class TestHandshakeManager:
         
         # Initiate handshake
         peer_addr = ("127.0.0.1", 8888)
-        handshake = await manager.initiate_handshake(peer_addr)
+        _handshake = await manager.initiate_handshake(peer_addr)  # Creates handshake state
         
         # Complete it
-        result = await manager.complete_handshake(peer_addr)
+        _result = await manager.complete_handshake(peer_addr)  # Test completion path
         # Result might be None if not fully completed
     
     @pytest.mark.asyncio
@@ -697,10 +697,10 @@ class TestHandshakeManager:
         peer_addr = ("127.0.0.1", 6666)
         
         # Initiate handshake
-        handshake = await manager.initiate_handshake(peer_addr)
+        _handshake = await manager.initiate_handshake(peer_addr)  # Creates handshake state
         
         # Get session ID (might be None if not completed)
-        session_id = await manager.get_session_id_async(peer_addr)
+        _session_id = await manager.get_session_id_async(peer_addr)  # Test async method
         # Could be None if handshake not completed - this is expected
     
     @pytest.mark.asyncio

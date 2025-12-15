@@ -69,7 +69,7 @@ async def test_tcp_connection_callback_exception():
     
     try:
         # Connect - this should trigger the callback exception
-        reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
+        _reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
         
         # Give time for exception handling
         await asyncio.sleep(0.1)
@@ -93,7 +93,7 @@ async def test_tcp_stop_connection_close_exception():
     server_port = transport.server.sockets[0].getsockname()[1]
     
     # Create connection
-    reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
+    _reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
     
     # Manually close writer to cause exception during stop
     writer.close()

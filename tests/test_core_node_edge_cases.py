@@ -223,14 +223,14 @@ class TestReceivePath:
             try:
                 await receive_task
             except asyncio.CancelledError:
-                pass
+                pass  # Task cancellation acknowledged
         finally:
             await node.stop()
     
     async def _consume_receive(self, node):
         """Helper to consume receive iterator."""
         count = 0
-        async for packet in node.receive():
+        async for _packet in node.receive():
             count += 1
             if count > 5:
                 break

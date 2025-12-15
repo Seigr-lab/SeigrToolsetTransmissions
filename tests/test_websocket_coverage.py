@@ -29,7 +29,7 @@ class TestWebSocketCoverage:
         try:
             await asyncio.wait_for(ws.start(), timeout=0.2)
         except (asyncio.TimeoutError, ConnectionRefusedError, OSError, Exception):
-            pass
+            pass  # Expected - no server listening
     
     @pytest.mark.asyncio
     async def test_ws_send_without_connection(self, stc_wrapper):
@@ -38,7 +38,7 @@ class TestWebSocketCoverage:
         try:
             await ws.send_frame(b"test")
         except Exception:
-            pass
+            pass  # Expected - not connected
     
     @pytest.mark.asyncio
     async def test_ws_receive_without_connection(self, stc_wrapper):
@@ -47,7 +47,7 @@ class TestWebSocketCoverage:
         try:
             await asyncio.wait_for(ws.receive_frame(), timeout=0.1)
         except (asyncio.TimeoutError, Exception):
-            pass
+            pass  # Expected - not connected
     
     @pytest.mark.asyncio
     async def test_ws_stats(self, stc_wrapper):
@@ -67,7 +67,7 @@ class TestWebSocketCoverage:
         try:
             await ws.start()
         except Exception:
-            pass
+            pass  # Expected - already started
         await ws.stop()
     
     @pytest.mark.asyncio
@@ -79,7 +79,7 @@ class TestWebSocketCoverage:
             try:
                 await ws.close_connection()
             except Exception:
-                pass
+                pass  # May fail if no active connections
         await ws.stop()
 
 

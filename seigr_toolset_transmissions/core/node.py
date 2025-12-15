@@ -442,7 +442,7 @@ class STTNode:
             
             # Encrypt if session has key
             if session.session_key:
-                frame.encrypt_payload(self.stc, session.session_key)
+                frame.encrypt_payload(self.stc)
             
             # Send frame
             # Note: Need to track peer address for each session

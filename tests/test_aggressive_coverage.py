@@ -72,7 +72,7 @@ class TestAggressiveCoverage:
         try:
             await udp.send_frame(frame, ("127.0.0.1", 9999))
         except Exception:
-            pass
+            pass  # Expected - no listener on port
         
         await udp.stop()
 

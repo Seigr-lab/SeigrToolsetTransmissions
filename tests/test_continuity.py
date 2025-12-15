@@ -61,12 +61,12 @@ def test_deterministic_session_id(continuity_manager):
     
     # Create same session twice (different timestamps)
     time.sleep(0.01)
-    session_id1, token1 = continuity_manager.create_resumable_session(
+    session_id1, _token1 = continuity_manager.create_resumable_session(
         peer_id, node_seed, shared_seed
     )
     
     time.sleep(0.01)
-    session_id2, token2 = continuity_manager.create_resumable_session(
+    session_id2, _token2 = continuity_manager.create_resumable_session(
         peer_id, node_seed, shared_seed
     )
     
@@ -109,7 +109,7 @@ def test_resume_session_multiple_times(continuity_manager, mock_stc):
     node_seed = b'\x02' * 32
     shared_seed = b'\x03' * 32
     
-    session_id, resume_token = continuity_manager.create_resumable_session(
+    _session_id, resume_token = continuity_manager.create_resumable_session(
         peer_id, node_seed, shared_seed
     )
     
@@ -151,7 +151,7 @@ def test_resume_session_expired_token(continuity_manager, mock_stc):
     node_seed = b'\x02' * 32
     shared_seed = b'\x03' * 32
     
-    session_id, resume_token = short_timeout_manager.create_resumable_session(
+    _session_id, resume_token = short_timeout_manager.create_resumable_session(
         peer_id, node_seed, shared_seed
     )
     
@@ -219,9 +219,9 @@ def test_verify_continuity_proof_invalid(continuity_manager, mock_stc):
     shared_seed = b'\x04' * 32
     
     # Generate proof with correct seeds
-    proof = continuity_manager.generate_continuity_proof(
+    _proof = continuity_manager.generate_continuity_proof(
         session, node_seed, shared_seed
-    )
+    )  # Generated but using wrong_proof below for negative test
     
     # Use completely wrong proof (random bytes)
     wrong_proof = b'\xff' * 32
@@ -293,7 +293,7 @@ def test_get_resumption_info(continuity_manager):
     node_seed = b'\x02' * 32
     shared_seed = b'\x03' * 32
     
-    session_id, resume_token = continuity_manager.create_resumable_session(
+    session_id, _resume_token = continuity_manager.create_resumable_session(
         peer_id, node_seed, shared_seed
     )
     

@@ -100,7 +100,7 @@ class RelayServer:
         loop = asyncio.get_event_loop()
         
         # Create UDP endpoint
-        transport, protocol = await loop.create_datagram_endpoint(
+        transport, _protocol = await loop.create_datagram_endpoint(
             lambda: RelayProtocol(self),
             local_addr=(self.host, self.port)
         )
@@ -124,7 +124,7 @@ class RelayServer:
             try:
                 await self._cleanup_task
             except asyncio.CancelledError:
-                pass
+                pass  # Task cancellation acknowledged
         
         if self._socket:
             self._socket.close()

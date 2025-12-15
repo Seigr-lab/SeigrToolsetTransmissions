@@ -19,7 +19,7 @@ class TestUDPCoverage:
     async def test_udp_start_stop(self, stc_wrapper):
         """Test UDP start and stop."""
         udp = UDPTransport("127.0.0.1", 0, stc_wrapper)
-        addr, port = await udp.start()
+        _addr, port = await udp.start()
         assert isinstance(port, int)
         await udp.stop()
     
@@ -39,7 +39,7 @@ class TestUDPCoverage:
             )
             await udp.send_frame(frame, ("127.0.0.1", 9999))
         except Exception:
-            pass
+            pass  # Expected - no listener on port
         await udp.stop()
     
     @pytest.mark.asyncio
@@ -50,7 +50,7 @@ class TestUDPCoverage:
         try:
             await asyncio.wait_for(udp.receive_frame(), timeout=0.1)
         except (asyncio.TimeoutError, Exception):
-            pass
+            pass  # Expected - no incoming frames
         await udp.stop()
     
     @pytest.mark.asyncio
@@ -61,7 +61,7 @@ class TestUDPCoverage:
         try:
             await udp.start()  # Should raise error
         except Exception:
-            pass
+            pass  # Expected - already started
         await udp.stop()
     
     @pytest.mark.asyncio
@@ -132,7 +132,7 @@ class TestUDPCoverage:
             # Send raw data
             await udp.send_raw(b"raw_test_data", ("127.0.0.1", 9999))
         except Exception:
-            pass
+            pass  # Expected - no listener on port
         
         await udp.stop()
     

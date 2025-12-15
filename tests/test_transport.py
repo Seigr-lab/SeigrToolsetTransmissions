@@ -61,7 +61,7 @@ class TestUDPTransport:
         
         try:
             # Get addresses
-            addr1 = transport1.get_address()
+            _addr1 = transport1.get_address()  # Used for identification
             addr2 = transport2.get_address()
             
             # Set up receiver
@@ -456,7 +456,7 @@ class TestWebSocketTransport:
             
             try:
                 # Connect 5 clients
-                for i in range(5):
+                for _i in range(5):
                     client = WebSocketTransport(
                         "127.0.0.1", port, stc_wrapper, is_server=False
                     )
@@ -622,9 +622,9 @@ class TestWebSocketTransport:
             try:
                 await receive_task
             except asyncio.CancelledError:
-                pass
+                pass  # Task cancellation acknowledged
         except Exception:
-            pass  # Expected to fail
+            pass  # Expected - client not connected
     
     @pytest.mark.asyncio
     async def test_websocket_receive_frames_server_mode_error(self, stc_wrapper):

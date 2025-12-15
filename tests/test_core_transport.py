@@ -123,7 +123,7 @@ class TestTCPTransport:
         
         # Create multiple client connections
         clients = []
-        for i in range(3):
+        for _i in range(3):
             r, w = await asyncio.open_connection("127.0.0.1", server_port)
             clients.append((r, w))
         
@@ -160,7 +160,7 @@ class TestTCPTransport:
                 while True:
                     await asyncio.sleep(0.1)
             except asyncio.CancelledError:
-                pass
+                pass  # Connection handler cancelled
         
         await transport.start(on_connection)
         
@@ -168,7 +168,7 @@ class TestTCPTransport:
         server_port = server_addr[1]
         
         # Create client connection
-        r, w = await asyncio.open_connection("127.0.0.1", server_port)
+        _r, w = await asyncio.open_connection("127.0.0.1", server_port)
         
         await asyncio.sleep(0.1)
         
@@ -196,7 +196,7 @@ class TestTCPTransport:
         server_port = server_addr[1]
         
         # Connect - should not crash server
-        r, w = await asyncio.open_connection("127.0.0.1", server_port)
+        _r, w = await asyncio.open_connection("127.0.0.1", server_port)
         
         # Give time for error to be handled
         await asyncio.sleep(0.1)
@@ -235,7 +235,7 @@ class TestTCPTransport:
         server_port = server_addr[1]
         
         # Connect client
-        r, w = await asyncio.open_connection("127.0.0.1", server_port)
+        _r, w = await asyncio.open_connection("127.0.0.1", server_port)
         
         await asyncio.sleep(0.1)
         

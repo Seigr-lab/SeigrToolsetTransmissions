@@ -101,7 +101,7 @@ class TestHandshakeVerifyProof:
     
     def test_verify_proof_decrypt_fails(self):
         """Test verify_proof fails when decryption fails."""
-        stc_initiator = STCWrapper(b"initiator_key_32_bytes_minimum!")
+        _stc_initiator = STCWrapper(b"initiator_key_32_bytes_minimum!")  # For different key scenario
         stc_responder = STCWrapper(b"responder_key_32_bytes_minimum!")
         
         # Create handshake with matching seeds for initial exchange
@@ -152,7 +152,7 @@ class TestHandshakeGetters:
         
         responder = STTHandshake(b'\x22' * 8, stc, is_initiator=False)
         response = responder.process_hello(hello)
-        auth_proof = initiator.process_response(response)
+        _auth_proof = initiator.process_response(response)  # Completes handshake
         
         session_id = initiator.get_session_id()
         assert session_id is not None
@@ -174,7 +174,7 @@ class TestHandshakeGetters:
         
         responder = STTHandshake(b'\x22' * 8, stc, is_initiator=False)
         response = responder.process_hello(hello)
-        auth_proof = initiator.process_response(response)
+        _auth_proof = initiator.process_response(response)  # Completes handshake
         
         # Session key should be available
         key = initiator.get_session_key()

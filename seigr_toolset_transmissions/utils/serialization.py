@@ -103,7 +103,7 @@ class STTSerializer:
         if len(data) == 0:
             raise STTSerializationError("Empty data")
         
-        value, consumed = STTSerializer._deserialize_value(data, 0)
+        value, _consumed = STTSerializer._deserialize_value(data, 0)
         return value
     
     @staticmethod

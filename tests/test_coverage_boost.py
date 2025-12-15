@@ -337,7 +337,7 @@ class TestCoverageBoost:
             try:
                 await asyncio.sleep(100)
             except asyncio.CancelledError:
-                pass
+                pass  # Task cancellation acknowledged
         
         task = asyncio.create_task(dummy_task())
         node._tasks.append(task)
